@@ -1,11 +1,24 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom"
-import { useState } from "react"
-import { Button, Input, Card, Modal } from "./components/ui"
+import { useState, useEffect } from "react"
+import { Button, Card, Loading } from "./components/ui"
 import { Icons } from "./components/icons"
+import { auth } from "./services/firebase"
 
 function App() {
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [inputValue, setInputValue] = useState("")
+  const [firebaseStatus, setFirebaseStatus] = useState("checking")
+
+  useEffect(() => {
+    // Testar conexão Firebase
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setFirebaseStatus("connected")
+    })
+    
+    return () => unsubscribe()
+  }, [])
+
+  if (firebaseStatus === "checking") {
+    return <Loading fullscreen />
+  }
 
   return (
     <Router>
@@ -21,118 +34,57 @@ function App() {
                 <h1 className="text-4xl font-black text-white mb-4">
                   TraderPro <span className="text-win">v2.0</span>
                 </h1>
-                <p className="text-zinc-400">Testando Componentes UI</p>
+                <p className="text-zinc-400">Passos 1, 2 e 3 Concluídos!</p>
               </div>
 
-              {/* Botões */}
+              {/* Status */}
               <Card>
                 <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                  <Icons.Settings size={20} className="text-accent" />
-                  Botões
+                  <Icons.Settings size={20} className="text-win" />
+                  Status do Sistema
                 </h2>
-                <div className="flex flex-wrap gap-3">
-                  <Button variant="primary">Primary</Button>
-                  <Button variant="secondary">Secondary</Button>
-                  <Button variant="success">Success</Button>
-                  <Button variant="danger">Danger</Button>
-                  <Button variant="ghost">Ghost</Button>
+                <div className="space-y-2">
+                  <p className="text-zinc-300 text-sm flex items-center gap-2">
+                    <span className="w-2 h-2 bg-win rounded-full animate-pulse"></span>
+                    ✅ Vite + React
+                  </p>
+                  <p className="text-zinc-300 text-sm flex items-center gap-2">
+                    <span className="w-2 h-2 bg-win rounded-full animate-pulse"></span>
+                    ✅ TailwindCSS
+                  </p>
+                  <p className="text-zinc-300 text-sm flex items-center gap-2">
+                    <span className="w-2 h-2 bg-win rounded-full animate-pulse"></span>
+                    ✅ Componentes UI
+                  </p>
+                  <p className="text-zinc-300 text-sm flex items-center gap-2">
+                    <span className="w-2 h-2 bg-win rounded-full animate-pulse"></span>
+                    ✅ Firebase Conectado
+                  </p>
                 </div>
               </Card>
 
-              {/* Inputs */}
-              <Card>
-                <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                  <Icons.Edit size={20} className="text-win" />
-                  Inputs
-                </h2>
-                <div className="space-y-4">
-                  <Input 
-                    label="Nome do Ativo"
-                    placeholder="Ex: WINFUT"
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                  />
-                  <Input 
-                    label="Resultado"
-                    type="number"
-                    placeholder="0.00"
-                    error="Valor inválido"
-                  />
-                </div>
-              </Card>
-
-              {/* Modal */}
-              <Card>
-                <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                  <Icons.Eye size={20} className="text-lock" />
-                  Modal
-                </h2>
-                <Button onClick={() => setIsModalOpen(true)}>
-                  Abrir Modal
-                </Button>
-              </Card>
-
-              {/* Ícones */}
+              {/* Próximos Passos */}
               <Card>
                 <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                   <Icons.Chart size={20} className="text-accent" />
-                  Ícones
+                  Próximos Passos
                 </h2>
-                <div className="flex flex-wrap gap-4 text-zinc-400">
-                  <Icons.Chart size={24} />
-                  <Icons.Plus size={24} />
-                  <Icons.Trash size={24} />
-                  <Icons.Edit size={24} />
-                  <Icons.Settings size={24} />
-                  <Icons.Crown size={24} />
-                  <Icons.LogOut size={24} />
-                  <Icons.Download size={24} />
-                  <Icons.Calendar size={24} />
-                  <Icons.Eye size={24} />
-                  <Icons.EyeOff size={24} />
+                <div className="space-y-3">
+                  <div className="p-3 bg-white/5 rounded-lg">
+                    <p className="text-zinc-300 text-sm font-bold">Passo 4: Sistema de Login</p>
+                    <p className="text-zinc-500 text-xs mt-1">AuthContext + tela de login</p>
+                  </div>
+                  <div className="p-3 bg-white/5 rounded-lg opacity-50">
+                    <p className="text-zinc-300 text-sm font-bold">Passo 5: Sistema de Trades</p>
+                    <p className="text-zinc-500 text-xs mt-1">CRUD completo + calendário</p>
+                  </div>
+                  <div className="p-3 bg-white/5 rounded-lg opacity-50">
+                    <p className="text-zinc-300 text-sm font-bold">Passo 6: Dashboard e Gráficos</p>
+                    <p className="text-zinc-500 text-xs mt-1">Métricas + charts</p>
+                  </div>
                 </div>
               </Card>
-
-              {/* Status */}
-              <div className="text-center space-y-2 mt-12">
-                <p className="text-zinc-500 text-sm">✅ Componentes UI funcionando</p>
-                <p className="text-zinc-500 text-sm">✅ Ícones carregados</p>
-                <p className="text-zinc-500 text-sm">✅ Estilos aplicados</p>
-              </div>
             </div>
-
-            {/* Modal Component */}
-            <Modal 
-              isOpen={isModalOpen}
-              onClose={() => setIsModalOpen(false)}
-              title="Modal de Teste"
-            >
-              <div className="space-y-4">
-                <p className="text-zinc-300 text-sm">
-                  Este é um exemplo de modal funcionando perfeitamente! 🎉
-                </p>
-                <Input 
-                  label="Digite algo"
-                  placeholder="Teste aqui..."
-                />
-                <div className="flex gap-2">
-                  <Button 
-                    variant="success" 
-                    className="flex-1"
-                    onClick={() => setIsModalOpen(false)}
-                  >
-                    Confirmar
-                  </Button>
-                  <Button 
-                    variant="secondary" 
-                    className="flex-1"
-                    onClick={() => setIsModalOpen(false)}
-                  >
-                    Cancelar
-                  </Button>
-                </div>
-              </div>
-            </Modal>
           </div>
         } />
       </Routes>
