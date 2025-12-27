@@ -1,16 +1,36 @@
-﻿import { useTrades } from "../../hooks/useTrades"
+﻿import { useState } from "react"
+import { useTrades } from "../../hooks/useTrades"
 import { Card } from "../../components/ui"
+import { TradeFilters } from "../../components/filters/TradeFilters"
 import { formatCurrency, formatPercent } from "../../utils/metrics"
 
 export const Analytics = () => {
   const { trades, loading } = useTrades()
+  const [filters, setFilters] = useState({
+    startDate: "",
+    endDate: "",
+    symbol: "",
+    strategy: "",
+    result: "all"
+  })
 
   if (loading) {
     return <div className="text-center p-8 text-zinc-400">Carregando...</div>
   }
 
+  // Aplicar filtros
+  const filteredTrades = trades.filter((trade) => {
+    if (filters.startDate && trade.date < filters.startDate) return false
+    if (filters.endDate && trade.date > filters.endDate) return false
+    if (filters.symbol && !(trade.asset || trade.symbol || "").toLowerCase().includes(filters.symbol.toLowerCase())) return false
+    if (filters.strategy && !(trade.strategy || "").toLowerCase().includes(filters.strategy.toLowerCase())) return false
+    if (filters.result === "win" && trade.pnl <= 0) return false
+    if (filters.result === "loss" && trade.pnl >= 0) return false
+    return true
+  })
+
   // Análise por Ativo
-  const bySymbol = trades.reduce((acc, trade) => {
+  const bySymbol = filteredTrades.reduce((acc, trade) => {
     const symbol = trade.asset || trade.symbol || "N/A"
     if (!acc[symbol]) {
       acc[symbol] = { trades: [], pnl: 0, wins: 0, losses: 0 }
@@ -23,7 +43,7 @@ export const Analytics = () => {
   }, {})
 
   // Análise por Estratégia
-  const byStrategy = trades.reduce((acc, trade) => {
+  const byStrategy = filteredTrades.reduce((acc, trade) => {
     const strategy = trade.strategy || "Sem Estratégia"
     if (!acc[strategy]) {
       acc[strategy] = { trades: [], pnl: 0, wins: 0, losses: 0 }
@@ -36,7 +56,7 @@ export const Analytics = () => {
   }, {})
 
   // Análise por Dia da Semana
-  const byWeekday = trades.reduce((acc, trade) => {
+  const byWeekday = filteredTrades.reduce((acc, trade) => {
     const date = new Date(trade.date + "T12:00:00")
     const weekday = date.toLocaleDateString("pt-BR", { weekday: "long" })
     if (!acc[weekday]) {
@@ -105,12 +125,24 @@ export const Analytics = () => {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-white">Análises Detalhadas</h2>
-        <p className="text-zinc-400">Análise profunda por ativo, estratégia e padrões</p>
+        <p className="text-zinc-400">Análise profunda por ativo, estratégia e padrões ({filteredTrades.length} trades)</p>
       </div>
 
-      {renderTable(bySymbol, "📈 Desempenho por Ativo")}
-      {renderTable(byStrategy, "🎯 Desempenho por Estratégia")}
-      {renderTable(byWeekday, "📅 Desempenho por Dia da Semana", false)}
+      <TradeFilters onFilterChange={setFilters} />
+
+      {filteredTrades.length === 0 ? (
+        <Card>
+          <div className="text-center py-8 text-zinc-500">
+            Nenhum trade encontrado com os filtros aplicados
+          </div>
+        </Card>
+      ) : (
+        <>
+          {renderTable(bySymbol, "📈 Desempenho por Ativo")}
+          {renderTable(byStrategy, "🎯 Desempenho por Estratégia")}
+          {renderTable(byWeekday, "📅 Desempenho por Dia da Semana", false)}
+        </>
+      )}
     </div>
   )
 }

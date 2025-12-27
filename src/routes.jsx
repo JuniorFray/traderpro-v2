@@ -6,6 +6,7 @@ import { Dashboard } from "./features/dashboard/Dashboard"
 import { TradesPage } from "./features/trades/TradesPage"
 import { Calendar } from "./features/calendar/Calendar"
 import { Analytics } from "./features/analytics/Analytics"
+import { Charts } from "./features/charts/Charts"
 import { Settings } from "./features/settings/Settings"
 
 const PrivateRoute = ({ children }) => {
@@ -30,6 +31,7 @@ export const AppRoutes = () => {
         <Route path="trades" element={<TradesPage />} />
         <Route path="calendar" element={<Calendar />} />
         <Route path="analytics" element={<Analytics />} />
+        <Route path="charts" element={<Charts />} />
         <Route path="settings" element={<Settings />} />
       </Route>
 

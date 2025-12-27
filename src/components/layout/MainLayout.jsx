@@ -7,6 +7,7 @@ const menuItems = [
   { path: "/trades", icon: "💹", label: "Trades" },
   { path: "/calendar", icon: "📅", label: "Calendário" },
   { path: "/analytics", icon: "📈", label: "Análises" },
+  { path: "/charts", icon: "📉", label: "Gráficos" },
   { path: "/settings", icon: "⚙️", label: "Configurações" }
 ]
 
