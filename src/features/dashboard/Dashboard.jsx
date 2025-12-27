@@ -1,0 +1,76 @@
+﻿import { useTrades } from "../../hooks/useTrades"
+import { calculateMetrics } from "../../utils/metrics"
+import { MetricsCard } from "../../components/trades/MetricsCard"
+import { Card } from "../../components/ui"
+
+export const Dashboard = () => {
+  const { trades, loading } = useTrades()
+  const metrics = calculateMetrics(trades)
+
+  if (loading) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-zinc-400">Carregando dashboard...</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-white mb-2">Dashboard</h2>
+        <p className="text-zinc-400">Visão geral do seu desempenho</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricsCard 
+          label="Lucro Líquido" 
+          value={metrics.netProfit} 
+          type="currency"
+          trend={metrics.netProfit}
+        />
+        <MetricsCard 
+          label="Win Rate" 
+          value={metrics.winRate} 
+          type="percent"
+        />
+        <MetricsCard 
+          label="Total de Trades" 
+          value={metrics.totalTrades} 
+          type="number"
+        />
+        <MetricsCard 
+          label="Profit Factor" 
+          value={metrics.profitFactor.toFixed(2)} 
+          type="number"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <div className="space-y-2">
+            <p className="text-sm text-zinc-400">Trades Ganhos</p>
+            <p className="text-2xl font-bold text-win">{metrics.wins}</p>
+            <p className="text-xs text-zinc-500">Média: {metrics.averageWin.toFixed(2)} R$</p>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="space-y-2">
+            <p className="text-sm text-zinc-400">Trades Perdidos</p>
+            <p className="text-2xl font-bold text-loss">{metrics.losses}</p>
+            <p className="text-xs text-zinc-500">Média: {metrics.averageLoss.toFixed(2)} R$</p>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="space-y-2">
+            <p className="text-sm text-zinc-400">Melhor/Pior Trade</p>
+            <p className="text-xl font-bold text-win">+{metrics.bestTrade.toFixed(2)} R$</p>
+            <p className="text-xl font-bold text-loss">{metrics.worstTrade.toFixed(2)} R$</p>
+          </div>
+        </Card>
+      </div>
+    </div>
+  )
+}
