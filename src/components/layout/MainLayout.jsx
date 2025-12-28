@@ -9,7 +9,8 @@ const menuItems = [
   { path: "/analytics", icon: "📈", label: "Análises" },
   { path: "/charts", icon: "📉", label: "Gráficos" },
   { path: "/reports", icon: "📄", label: "Relatórios" },
-  { path: "/settings", icon: "⚙️", label: "Configurações" }
+  { path: "/settings", icon: "⚙️", label: "Configurações" },
+  { path: "/tools", icon: "🧮", label: "Ferramentas" }
 ]
 
 export const MainLayout = () => {
@@ -49,12 +50,12 @@ export const MainLayout = () => {
         <div className="p-6">
           <h1 className="text-2xl font-bold text-white mb-8">💹 TraderPro</h1>
           
-          <nav className="space-y-2">
+          <nav className="space-y-1 overflow-y-auto max-h-[calc(100vh-300px)]">
             {menuItems.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
                   location.pathname === item.path
                     ? "bg-primary text-white"
                     : "text-zinc-400 hover:bg-zinc-800 hover:text-white"
@@ -73,7 +74,7 @@ export const MainLayout = () => {
             </div>
             <button
               onClick={handleLogout}
-              className="w-full px-4 py-3 bg-red-900/20 hover:bg-red-900/30 text-red-400 rounded-lg transition-colors"
+              className="w-full px-4 py-2 bg-red-900/20 hover:bg-red-900/30 text-red-400 rounded-lg transition-colors"
             >
               🚪 Sair
             </button>
@@ -93,7 +94,7 @@ export const MainLayout = () => {
                 <button
                   key={item.path}
                   onClick={() => handleMenuClick(item.path)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left ${
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-left ${
                     location.pathname === item.path
                       ? "bg-primary text-white"
                       : "text-zinc-400 hover:bg-zinc-800 hover:text-white"
@@ -112,7 +113,7 @@ export const MainLayout = () => {
               </div>
               <button
                 onClick={handleLogout}
-                className="w-full px-4 py-3 bg-red-900/20 hover:bg-red-900/30 text-red-400 rounded-lg transition-colors"
+                className="w-full px-4 py-2 bg-red-900/20 hover:bg-red-900/30 text-red-400 rounded-lg transition-colors"
               >
                 🚪 Sair
               </button>
@@ -130,4 +131,8 @@ export const MainLayout = () => {
     </div>
   )
 }
+
+
+
+
 

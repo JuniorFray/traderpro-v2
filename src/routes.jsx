@@ -9,6 +9,7 @@ import { Analytics } from "./features/analytics/Analytics"
 import { Charts } from "./features/charts/Charts"
 import { Reports } from "./features/reports/Reports"
 import { Settings } from "./features/settings/Settings"
+import { Tools } from "./features/tools/Tools"
 
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated } = useAuth()
@@ -35,6 +36,7 @@ export const AppRoutes = () => {
         <Route path="charts" element={<Charts />} />
         <Route path="reports" element={<Reports />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="tools" element={<Tools />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" />} />
