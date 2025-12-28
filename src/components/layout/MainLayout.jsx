@@ -8,6 +8,7 @@ const menuItems = [
   { path: "/calendar", icon: "📅", label: "Calendário" },
   { path: "/analytics", icon: "📈", label: "Análises" },
   { path: "/charts", icon: "📉", label: "Gráficos" },
+  { path: "/reports", icon: "📄", label: "Relatórios" },
   { path: "/settings", icon: "⚙️", label: "Configurações" }
 ]
 
@@ -129,3 +130,4 @@ export const MainLayout = () => {
     </div>
   )
 }
+
