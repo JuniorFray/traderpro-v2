@@ -10,6 +10,8 @@ import { Charts } from "./features/charts/Charts"
 import { Reports } from "./features/reports/Reports"
 import { Settings } from "./features/settings/Settings"
 import { Tools } from "./features/tools/Tools"
+import { Admin } from "./features/admin/Admin"
+import { AdminRoute } from "./components/AdminRoute"
 
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated } = useAuth()
@@ -38,6 +40,18 @@ export const AppRoutes = () => {
         <Route path="settings" element={<Settings />} />
         <Route path="tools" element={<Tools />} />
       </Route>
+
+      {/* Rota Admin Separada */}
+      <Route 
+        path="/admin" 
+        element={
+          <PrivateRoute>
+            <AdminRoute>
+              <Admin />
+            </AdminRoute>
+          </PrivateRoute>
+        } 
+      />
 
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
