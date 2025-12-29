@@ -30,9 +30,6 @@ const PrivateRoute = ({ children }) => {
 const AdminRoute = ({ children }) => {
   const { user, loading } = useAuth()
 
-  console.log('🔐 AdminRoute - Email:', user?.email)
-  console.log('🔐 AdminRoute - Loading:', loading)
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-background">
@@ -42,11 +39,9 @@ const AdminRoute = ({ children }) => {
   }
 
   if (user?.email !== 'juniorfray944@gmail.com') {
-    console.log('❌ Acesso negado ao Admin!')
     return <Navigate to="/" replace />
   }
 
-  console.log('✅ Acesso permitido ao Admin!')
   return children
 }
 

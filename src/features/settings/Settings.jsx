@@ -3,12 +3,12 @@ import { Card, Button } from "../../components/ui"
 import { useState } from "react"
 
 export const Settings = () => {
-  const { user, logout } = useAuth()
+  const { user, signOut } = useAuth()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const handleLogout = async () => {
     if (window.confirm("Tem certeza que deseja sair?")) {
-      await logout()
+      await signOut()
     }
   }
 
@@ -38,7 +38,7 @@ export const Settings = () => {
       <Card>
         <h3 className="text-lg font-bold text-white mb-4">🔐 Segurança</h3>
         <div className="space-y-4">
-          <Button 
+          <Button
             onClick={handleLogout}
             className="w-full bg-yellow-600 hover:bg-yellow-700"
           >

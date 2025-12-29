@@ -16,12 +16,12 @@ const menuItems = [
 export const MainLayout = () => {
   const location = useLocation()
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user, signOut } = useAuth()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const handleLogout = async () => {
     if (window.confirm("Deseja sair?")) {
-      await logout()
+      await signOut()
     }
   }
 
@@ -49,7 +49,7 @@ export const MainLayout = () => {
       <div className="hidden lg:block fixed left-0 top-0 h-full w-64 bg-zinc-900 border-r border-zinc-800">
         <div className="p-6">
           <h1 className="text-2xl font-bold text-white mb-8">💹 TraderPro</h1>
-          
+
           <nav className="space-y-1 overflow-y-auto max-h-[calc(100vh-300px)]">
             {menuItems.map((item) => (
               <Link
@@ -85,7 +85,7 @@ export const MainLayout = () => {
       {/* Menu Mobile */}
       {isMobileMenuOpen && (
         <div className="lg:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setIsMobileMenuOpen(false)}>
-          <div 
+          <div
             className="fixed left-0 top-16 bottom-0 w-64 bg-zinc-900 shadow-2xl overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
@@ -131,8 +131,3 @@ export const MainLayout = () => {
     </div>
   )
 }
-
-
-
-
-

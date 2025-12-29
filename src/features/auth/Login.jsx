@@ -1,10 +1,12 @@
 ﻿import { useAuth } from "./AuthContext"
 import { useNavigate } from "react-router-dom"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 
 export const Login = () => {
   const { signInWithGoogle, isAuthenticated } = useAuth()
   const navigate = useNavigate()
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -21,20 +23,60 @@ export const Login = () => {
     }
   }
 
+  const handleEmailLogin = (e) => {
+    e.preventDefault()
+    alert("Login com email/senha em desenvolvimento.\nPor enquanto, use o Google!")
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900">
-      <div className="bg-white/10 backdrop-blur-lg p-8 rounded-2xl shadow-2xl w-full max-w-md border border-white/20">
+    <div className="min-h-screen flex items-center justify-center bg-black">
+      <div className="bg-zinc-950 border border-zinc-800 p-8 rounded-3xl shadow-2xl w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="text-6xl mb-4">📊</div>
-          <h1 className="text-3xl font-bold text-white mb-2">TraderPro</h1>
-          <p className="text-purple-200">Seu diário de trading profissional</p>
+          {/* Ícone verde com gráfico */}
+          <div className="w-20 h-20 bg-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <svg className="w-12 h-12 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+            </svg>
+          </div>
+          
+          <h1 className="text-3xl font-bold text-white mb-2">
+            Trader<span className="text-emerald-500">Pro</span>
+          </h1>
+          <p className="text-zinc-400 text-sm">Diário de Trade Profissional</p>
         </div>
 
+        {/* Formulário Email/Senha */}
+        <form onSubmit={handleEmailLogin} className="space-y-4 mb-4">
+          <input
+            type="email"
+            placeholder="Seu E-mail"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full px-4 py-3 bg-transparent border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500 transition-colors"
+          />
+          
+          <input
+            type="password"
+            placeholder="Sua Senha"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full px-4 py-3 bg-transparent border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500 transition-colors"
+          />
+
+          <button
+            type="submit"
+            className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-bold py-3 px-4 rounded-xl transition-all transform hover:scale-[1.02]"
+          >
+            ENTRAR
+          </button>
+        </form>
+
+        {/* Botão Google */}
         <button
           onClick={handleGoogleLogin}
-          className="w-full bg-white hover:bg-gray-100 text-gray-800 font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-3 transition-all transform hover:scale-105"
+          className="w-full bg-white hover:bg-gray-100 text-gray-800 font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02]"
         >
-          <svg className="w-6 h-6" viewBox="0 0 24 24">
+          <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
               fill="#4285F4"
               d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -52,12 +94,19 @@ export const Login = () => {
               d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
             />
           </svg>
-          Entrar com Google
+          ENTRAR COM GOOGLE
         </button>
 
-        <div className="mt-6 text-center text-purple-200 text-sm">
-          <p>Ao entrar, você concorda com nossos</p>
-          <p className="mt-1">Termos de Serviço e Política de Privacidade</p>
+        <div className="text-center mt-6">
+          <p className="text-zinc-600 text-xs">
+            Não tem conta?{" "}
+            <button type="button" className="text-zinc-400 hover:text-white underline">
+              Cadastre-se
+            </button>
+          </p>
+          <p className="text-zinc-600 text-xs mt-2 hover:text-zinc-400 cursor-pointer">
+            Esqueceu a senha
+          </p>
         </div>
       </div>
     </div>
