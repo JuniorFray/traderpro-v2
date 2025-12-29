@@ -2,6 +2,8 @@
 import { useAuth } from "./features/auth/AuthContext"
 import { MainLayout } from "./components/layout/MainLayout"
 import { Login } from "./features/auth/Login"
+import { Register } from "./features/auth/Register"
+import { ForgotPassword } from "./features/auth/ForgotPassword"
 import { Dashboard } from "./features/dashboard/Dashboard"
 import { TradesPage } from "./features/trades/TradesPage"
 import { Calendar } from "./features/calendar/Calendar"
@@ -48,7 +50,10 @@ const AdminRoute = ({ children }) => {
 export const AppRoutes = () => {
   return (
     <Routes>
+      {/* Rotas Públicas */}
       <Route path="/login" element={<Login />} />
+      <Route path="/cadastro" element={<Register />} />
+      <Route path="/recuperar-senha" element={<ForgotPassword />} />
 
       {/* Rotas do sistema principal */}
       <Route

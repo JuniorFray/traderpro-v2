@@ -1,11 +1,13 @@
 ﻿import { createContext, useContext, useState, useEffect } from 'react'
 import { 
-  signInWithPopup, 
+  signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged 
 } from 'firebase/auth'
 import { auth, googleProvider, db } from '../../services/firebase'
-import { doc, getDoc } from 'firebase/firestore'
+import { doc, getDoc, setDoc } from 'firebase/firestore'
 
 const AuthContext = createContext()
 
@@ -32,6 +34,14 @@ export const AuthProvider = ({ children }) => {
           const userDoc = await getDoc(doc(db, 'artifacts/trade-journal-public/users', firebaseUser.uid))
           if (userDoc.exists()) {
             setIsPro(userDoc.data().isPro || false)
+          } else {
+            // Criar documento do usuário se não existir
+            await setDoc(doc(db, 'artifacts/trade-journal-public/users', firebaseUser.uid), {
+              email: firebaseUser.email,
+              isPro: false,
+              createdAt: new Date().toISOString()
+            })
+            setIsPro(false)
           }
         } catch (error) {
           console.error('Erro ao buscar status PRO:', error)
@@ -56,6 +66,33 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
+  const signInWithEmail = async (email, password) => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password)
+    } catch (error) {
+      console.error('Erro no login com email:', error)
+      throw error
+    }
+  }
+
+  const signUpWithEmail = async (email, password) => {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+      
+      // Criar documento do usuário
+      await setDoc(doc(db, 'artifacts/trade-journal-public/users', userCredential.user.uid), {
+        email: email,
+        isPro: false,
+        createdAt: new Date().toISOString()
+      })
+      
+      return userCredential
+    } catch (error) {
+      console.error('Erro no cadastro:', error)
+      throw error
+    }
+  }
+
   const signOut = async () => {
     try {
       await firebaseSignOut(auth)
@@ -72,6 +109,8 @@ export const AuthProvider = ({ children }) => {
     isPro,
     isAuthenticated: !!user,
     signInWithGoogle,
+    signInWithEmail,
+    signUpWithEmail,
     signOut,
     loading
   }

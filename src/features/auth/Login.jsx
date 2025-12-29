@@ -3,10 +3,12 @@ import { useNavigate } from "react-router-dom"
 import { useEffect, useState } from "react"
 
 export const Login = () => {
-  const { signInWithGoogle, isAuthenticated } = useAuth()
+  const { signInWithGoogle, signInWithEmail, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -16,16 +18,46 @@ export const Login = () => {
 
   const handleGoogleLogin = async () => {
     try {
+      setLoading(true)
+      setError("")
       await signInWithGoogle()
     } catch (error) {
       console.error("Erro no login:", error)
-      alert("Erro ao fazer login. Tente novamente.")
+      setError("Erro ao fazer login com Google. Tente novamente.")
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleEmailLogin = (e) => {
+  const handleEmailLogin = async (e) => {
     e.preventDefault()
-    alert("Login com email/senha em desenvolvimento.\nPor enquanto, use o Google!")
+    
+    if (!email || !password) {
+      setError("Preencha email e senha")
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError("")
+      await signInWithEmail(email, password)
+    } catch (error) {
+      console.error("Erro no login:", error)
+      
+      if (error.code === 'auth/user-not-found') {
+        setError("Usuário não encontrado. Cadastre-se primeiro.")
+      } else if (error.code === 'auth/wrong-password') {
+        setError("Senha incorreta. Tente novamente.")
+      } else if (error.code === 'auth/invalid-email') {
+        setError("Email inválido.")
+      } else if (error.code === 'auth/invalid-credential') {
+        setError("Email ou senha incorretos.")
+      } else {
+        setError("Erro ao fazer login. Tente novamente.")
+      }
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -45,6 +77,13 @@ export const Login = () => {
           <p className="text-zinc-400 text-sm">Diário de Trade Profissional</p>
         </div>
 
+        {/* Mensagem de Erro */}
+        {error && (
+          <div className="mb-4 p-3 bg-red-900/30 border border-red-800 rounded-xl text-red-400 text-sm text-center">
+            {error}
+          </div>
+        )}
+
         {/* Formulário Email/Senha */}
         <form onSubmit={handleEmailLogin} className="space-y-4 mb-4">
           <input
@@ -52,7 +91,8 @@ export const Login = () => {
             placeholder="Seu E-mail"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-3 bg-transparent border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500 transition-colors"
+            disabled={loading}
+            className="w-full px-4 py-3 bg-transparent border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500 transition-colors disabled:opacity-50"
           />
           
           <input
@@ -60,21 +100,24 @@ export const Login = () => {
             placeholder="Sua Senha"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-3 bg-transparent border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500 transition-colors"
+            disabled={loading}
+            className="w-full px-4 py-3 bg-transparent border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500 transition-colors disabled:opacity-50"
           />
 
           <button
             type="submit"
-            className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-bold py-3 px-4 rounded-xl transition-all transform hover:scale-[1.02]"
+            disabled={loading}
+            className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-bold py-3 px-4 rounded-xl transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
           >
-            ENTRAR
+            {loading ? "ENTRANDO..." : "ENTRAR"}
           </button>
         </form>
 
         {/* Botão Google */}
         <button
           onClick={handleGoogleLogin}
-          className="w-full bg-white hover:bg-gray-100 text-gray-800 font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02]"
+          disabled={loading}
+          className="w-full bg-white hover:bg-gray-100 text-gray-800 font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
@@ -94,21 +137,25 @@ export const Login = () => {
               d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
             />
           </svg>
-          ENTRAR COM GOOGLE
+          {loading ? "AGUARDE..." : "ENTRAR COM GOOGLE"}
         </button>
 
         <div className="text-center mt-6">
           <p className="text-zinc-600 text-xs">
             Não tem conta?{" "}
-            <button type="button" className="text-zinc-400 hover:text-white underline">
+            <button 
+              type="button" 
+              onClick={() => navigate('/cadastro')}
+              className="text-emerald-500 hover:text-emerald-400 underline font-medium"
+            >
               Cadastre-se
             </button>
           </p>
-          <p className="text-zinc-600 text-xs mt-2 hover:text-zinc-400 cursor-pointer">
-            Esqueceu a senha
+          <p onClick={() => navigate('/recuperar-senha')} className="text-zinc-600 text-xs mt-2 hover:text-zinc-400 cursor-pointer">Esqueceu a senha
           </p>
         </div>
       </div>
     </div>
   )
 }
+
