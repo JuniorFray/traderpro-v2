@@ -1,98 +1,84 @@
-﻿import { createContext, useContext, useState, useEffect } from "react"
-import { auth } from "../../services/firebase"
+﻿import { createContext, useContext, useState, useEffect } from 'react'
 import { 
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  GoogleAuthProvider,
-  signInWithPopup
-} from "firebase/auth"
-import { useNavigate } from "react-router-dom"
+  signInWithPopup, 
+  signOut as firebaseSignOut,
+  onAuthStateChanged 
+} from 'firebase/auth'
+import { auth, googleProvider, db } from '../../services/firebase'
+import { doc, getDoc } from 'firebase/firestore'
 
-const AuthContext = createContext({})
+const AuthContext = createContext()
 
-export const useAuth = () => useContext(AuthContext)
+export const useAuth = () => {
+  const context = useContext(AuthContext)
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider')
+  }
+  return context
+}
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
+  const [isPro, setIsPro] = useState(false)
   const [loading, setLoading] = useState(true)
-  const navigate = useNavigate()
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user)
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        setUser(firebaseUser)
+        
+        // Buscar status PRO
+        try {
+          const userDoc = await getDoc(doc(db, 'artifacts/trade-journal-public/users', firebaseUser.uid))
+          if (userDoc.exists()) {
+            setIsPro(userDoc.data().isPro || false)
+          }
+        } catch (error) {
+          console.error('Erro ao buscar status PRO:', error)
+          setIsPro(false)
+        }
+      } else {
+        setUser(null)
+        setIsPro(false)
+      }
       setLoading(false)
     })
 
     return unsubscribe
   }, [])
 
-  const login = async (email, password) => {
+  const signInWithGoogle = async () => {
     try {
-      const result = await signInWithEmailAndPassword(auth, email, password)
-      setUser(result.user)
-      navigate("/")
-      return { success: true }
+      await signInWithPopup(auth, googleProvider)
     } catch (error) {
-      console.error("Erro no login:", error)
-      return { success: false, error: error.message }
+      console.error('Erro no login:', error)
+      throw error
     }
   }
 
-  const loginWithGoogle = async () => {
+  const signOut = async () => {
     try {
-      const provider = new GoogleAuthProvider()
-      const result = await signInWithPopup(auth, provider)
-      setUser(result.user)
-      navigate("/")
-      return { success: true }
-    } catch (error) {
-      console.error("Erro no login com Google:", error)
-      return { success: false, error: error.message }
-    }
-  }
-
-  const register = async (email, password) => {
-    try {
-      const result = await createUserWithEmailAndPassword(auth, email, password)
-      setUser(result.user)
-      navigate("/")
-      return { success: true }
-    } catch (error) {
-      console.error("Erro no registro:", error)
-      return { success: false, error: error.message }
-    }
-  }
-
-  const logout = async () => {
-    try {
-      await signOut(auth)
+      await firebaseSignOut(auth)
       setUser(null)
-      navigate("/login")
-      return { success: true }
+      setIsPro(false)
     } catch (error) {
-      console.error("Erro ao sair:", error)
-      return { success: false, error: error.message }
+      console.error('Erro no logout:', error)
+      throw error
     }
   }
 
   const value = {
     user,
-    login,
-    loginWithGoogle,
-    register,
-    logout,
-    isAuthenticated: !!user
+    isPro,
+    isAuthenticated: !!user,
+    signInWithGoogle,
+    signOut,
+    loading
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-white text-xl">Carregando...</div>
-      </div>
-    )
-  }
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  )
 }

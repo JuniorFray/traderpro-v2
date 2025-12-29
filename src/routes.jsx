@@ -11,11 +11,43 @@ import { Reports } from "./features/reports/Reports"
 import { Settings } from "./features/settings/Settings"
 import { Tools } from "./features/tools/Tools"
 import { Admin } from "./features/admin/Admin"
-import { AdminRoute } from "./components/AdminRoute"
+import { ProRoute } from "./components/ProRoute"
 
 const PrivateRoute = ({ children }) => {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, loading } = useAuth()
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-background">
+        <div className="text-white">Carregando...</div>
+      </div>
+    )
+  }
+  
   return isAuthenticated ? children : <Navigate to="/login" />
+}
+
+const AdminRoute = ({ children }) => {
+  const { user, loading } = useAuth()
+
+  console.log('🔐 AdminRoute - Email:', user?.email)
+  console.log('🔐 AdminRoute - Loading:', loading)
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-background">
+        <div className="text-white">Verificando permissões...</div>
+      </div>
+    )
+  }
+
+  if (user?.email !== 'juniorfray944@gmail.com') {
+    console.log('❌ Acesso negado ao Admin!')
+    return <Navigate to="/" replace />
+  }
+
+  console.log('✅ Acesso permitido ao Admin!')
+  return children
 }
 
 export const AppRoutes = () => {
@@ -23,6 +55,7 @@ export const AppRoutes = () => {
     <Routes>
       <Route path="/login" element={<Login />} />
 
+      {/* Rotas do sistema principal */}
       <Route
         path="/"
         element={
@@ -34,14 +67,14 @@ export const AppRoutes = () => {
         <Route index element={<Dashboard />} />
         <Route path="trades" element={<TradesPage />} />
         <Route path="calendar" element={<Calendar />} />
-        <Route path="analytics" element={<Analytics />} />
-        <Route path="charts" element={<Charts />} />
+        <Route path="analytics" element={<ProRoute><Analytics /></ProRoute>} />
+        <Route path="charts" element={<ProRoute><Charts /></ProRoute>} />
         <Route path="reports" element={<Reports />} />
         <Route path="settings" element={<Settings />} />
         <Route path="tools" element={<Tools />} />
       </Route>
 
-      {/* Rota Admin Separada */}
+      {/* Rota Admin - FORA do MainLayout */}
       <Route 
         path="/admin" 
         element={
