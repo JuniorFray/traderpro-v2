@@ -13,7 +13,9 @@ import { Reports } from "./features/reports/Reports"
 import { Settings } from "./features/settings/Settings"
 import { Tools } from "./features/tools/Tools"
 import { Admin } from "./features/admin/Admin"
+import { AdminLogin } from "./features/admin/AdminLogin"
 import { ProRoute } from "./components/ProRoute"
+import { AdminPrivateRoute } from "./components/AdminPrivateRoute"
 
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth()
@@ -29,24 +31,6 @@ const PrivateRoute = ({ children }) => {
   return isAuthenticated ? children : <Navigate to="/login" />
 }
 
-const AdminRoute = ({ children }) => {
-  const { user, loading } = useAuth()
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-background">
-        <div className="text-white">Verificando permissões...</div>
-      </div>
-    )
-  }
-
-  if (user?.email !== 'juniorfray944@gmail.com') {
-    return <Navigate to="/" replace />
-  }
-
-  return children
-}
-
 export const AppRoutes = () => {
   return (
     <Routes>
@@ -54,6 +38,19 @@ export const AppRoutes = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/cadastro" element={<Register />} />
       <Route path="/recuperar-senha" element={<ForgotPassword />} />
+      
+      {/* Rota de Login Admin - PÚBLICA */}
+      <Route path="/admin/login" element={<AdminLogin />} />
+
+      {/* Rota Admin - Protegida com rota PRÓPRIA */}
+      <Route 
+        path="/admin" 
+        element={
+          <AdminPrivateRoute>
+            <Admin />
+          </AdminPrivateRoute>
+        } 
+      />
 
       {/* Rotas do sistema principal */}
       <Route
@@ -73,18 +70,6 @@ export const AppRoutes = () => {
         <Route path="settings" element={<Settings />} />
         <Route path="tools" element={<Tools />} />
       </Route>
-
-      {/* Rota Admin - FORA do MainLayout */}
-      <Route 
-        path="/admin" 
-        element={
-          <PrivateRoute>
-            <AdminRoute>
-              <Admin />
-            </AdminRoute>
-          </PrivateRoute>
-        } 
-      />
 
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
