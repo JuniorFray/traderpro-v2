@@ -1,3 +1,41 @@
+## [30/12/2024] - Tentativa de Separação de Auth Admin/Sistema
+
+### ⚠️ Problema Identificado
+- Firebase Auth não suporta múltiplas sessões independentes no mesmo navegador/projeto
+- Login no admin sobrescreve login do sistema principal
+- Tentativas realizadas:
+  1. ✅ Criação de instância Firebase separada (problema com API Key)
+  2. ✅ Uso de localStorage para marcar contexto
+  3. ❌ Ambas não resolveram completamente
+
+### 🎯 Soluções Propostas para Futuro
+
+#### Opção 1: Admin em Subdomínio (RECOMENDADO) ⭐
+- Deploy em `admin.diariotraderpro.com.br`
+- Sessões completamente isoladas
+- Configuração necessária:
+  - Firebase Hosting multi-site
+  - DNS CNAME para subdomínio
+  - Build separado para admin
+
+#### Opção 2: Usar Navegadores Diferentes
+- Sistema principal: Chrome
+- Admin: Firefox ou aba anônima
+- Solução imediata sem código adicional
+
+#### Opção 3: Admin Sem Auth Próprio
+- Remove login separado do admin
+- Verifica apenas se usuário logado está em `adminUsers`
+- Usa mesma sessão do sistema principal
+- Mais simples de implementar
+
+### 📝 Decisão Pendente
+Aguardando definição de qual abordagem seguir antes de continuar desenvolvimento.
+
+---
+
+
+
 \# 📝 Changelog - Diário Trader PRO
 
 

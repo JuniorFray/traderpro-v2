@@ -1,224 +1,223 @@
 import { 
   collection, 
-  addDoc, 
+  doc, 
+  setDoc, 
   updateDoc, 
   deleteDoc, 
-  doc, 
-  getDocs, 
-  getDoc,
-  query, 
-  where, 
+  getDocs,
+  query,
+  where,
   orderBy,
-  onSnapshot,
-  setDoc,
-  serverTimestamp 
+  serverTimestamp,
+  Timestamp
 } from 'firebase/firestore'
 import { db } from './firebase'
 
-const NOTIFICATIONS_PATH = 'artifacts/trade-journal-public/notifications'
+const NOTIFICATIONS_COLLECTION = 'notifications'
+const USER_NOTIFICATIONS_COLLECTION = 'userNotifications'
 
-// ==================== ADMIN ====================
-
-// Criar notificação
+// Criar nova notificação
 export const createNotification = async (notificationData) => {
   try {
-    const notificationsRef = collection(db, NOTIFICATIONS_PATH)
-    const docRef = await addDoc(notificationsRef, {
+    const notificationRef = doc(collection(db, NOTIFICATIONS_COLLECTION))
+    
+    const notification = {
       ...notificationData,
-      createdAt: serverTimestamp(),
-      createdBy: 'admin',
+      id: notificationRef.id,
       isActive: true,
-      viewCount: 0
-    })
-    return { success: true, id: docRef.id }
+      createdAt: serverTimestamp(),
+      stats: {
+        views: 0,
+        clicks: 0
+      }
+    }
+
+    // Se tiver scheduledFor, converter para Timestamp
+    if (notificationData.scheduledFor) {
+      notification.scheduledFor = Timestamp.fromDate(new Date(notificationData.scheduledFor))
+    }
+
+    await setDoc(notificationRef, notification)
+    return notificationRef.id
   } catch (error) {
     console.error('Erro ao criar notificação:', error)
-    return { success: false, error: error.message }
+    throw error
   }
 }
 
 // Atualizar notificação
-export const updateNotification = async (notificationId, data) => {
+export const updateNotification = async (notificationId, updates) => {
   try {
-    const notificationRef = doc(db, NOTIFICATIONS_PATH, notificationId)
-    await updateDoc(notificationRef, {
-      ...data,
+    const notificationRef = doc(db, NOTIFICATIONS_COLLECTION, notificationId)
+    
+    const updateData = {
+      ...updates,
       updatedAt: serverTimestamp()
-    })
-    return { success: true }
+    }
+
+    // Se tiver scheduledFor, converter para Timestamp
+    if (updates.scheduledFor) {
+      updateData.scheduledFor = Timestamp.fromDate(new Date(updates.scheduledFor))
+    }
+
+    await updateDoc(notificationRef, updateData)
   } catch (error) {
     console.error('Erro ao atualizar notificação:', error)
-    return { success: false, error: error.message }
+    throw error
   }
 }
 
 // Deletar notificação
 export const deleteNotification = async (notificationId) => {
   try {
-    const notificationRef = doc(db, NOTIFICATIONS_PATH, notificationId)
+    const notificationRef = doc(db, NOTIFICATIONS_COLLECTION, notificationId)
     await deleteDoc(notificationRef)
-    return { success: true }
   } catch (error) {
     console.error('Erro ao deletar notificação:', error)
-    return { success: false, error: error.message }
+    throw error
   }
 }
 
 // Listar todas as notificações (Admin)
 export const getAllNotifications = async () => {
   try {
-    const notificationsRef = collection(db, NOTIFICATIONS_PATH)
+    const notificationsRef = collection(db, NOTIFICATIONS_COLLECTION)
     const q = query(notificationsRef, orderBy('createdAt', 'desc'))
     const snapshot = await getDocs(q)
     
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate(),
-      scheduledFor: doc.data().scheduledFor?.toDate()
-    }))
+    return snapshot.docs.map(doc => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate?.() || new Date(),
+        updatedAt: data.updatedAt?.toDate?.() || null,
+        scheduledFor: data.scheduledFor?.toDate?.() || null
+      }
+    })
   } catch (error) {
     console.error('Erro ao listar notificações:', error)
-    return []
+    throw error
   }
 }
 
-// ==================== USUÁRIO ====================
-
-// Buscar notificações do usuário
-export const getUserNotifications = async (userId, isPro) => {
+// Buscar notificações para um usuário específico
+export const getUserNotifications = async (userId, userIsPro) => {
   try {
-    const notificationsRef = collection(db, NOTIFICATIONS_PATH)
-    const snapshot = await getDocs(notificationsRef)
+    const notificationsRef = collection(db, NOTIFICATIONS_COLLECTION)
+    const now = Timestamp.now()
     
-    const now = new Date()
+    // Buscar notificações ativas
+    const queries = [
+      // Global
+      query(
+        notificationsRef,
+        where('type', '==', 'global'),
+        where('isActive', '==', true)
+      ),
+      // Individual
+      query(
+        notificationsRef,
+        where('type', '==', 'individual'),
+        where('targetUserId', '==', userId),
+        where('isActive', '==', true)
+      ),
+      // PRO ou Free baseado no status do usuário
+      query(
+        notificationsRef,
+        where('type', '==', userIsPro ? 'pro' : 'free'),
+        where('isActive', '==', true)
+      )
+    ]
+
+    const results = await Promise.all(queries.map(q => getDocs(q)))
+    const allDocs = results.flatMap(snapshot => snapshot.docs)
     
-    return snapshot.docs
-      .map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate(),
-        scheduledFor: doc.data().scheduledFor?.toDate()
-      }))
+    // Filtrar notificações agendadas
+    const notifications = allDocs
+      .map(doc => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate?.() || new Date(),
+          scheduledFor: data.scheduledFor?.toDate?.() || null
+        }
+      })
       .filter(notif => {
-        // Verificar se está ativa
-        if (!notif.isActive) return false
-        
-        // Verificar agendamento
-        if (notif.scheduledFor && notif.scheduledFor > now) return false
-        
-        // Verificar tipo
-        if (notif.type === 'individual' && notif.targetUserId !== userId) return false
-        if (notif.type === 'pro' && !isPro) return false
-        if (notif.type === 'free' && isPro) return false
-        
-        return true
+        // Se não tem scheduledFor, mostrar
+        if (!notif.scheduledFor) return true
+        // Se tem, só mostrar se já passou do horário
+        return notif.scheduledFor <= now.toDate()
       })
       .sort((a, b) => b.createdAt - a.createdAt)
+
+    return notifications
   } catch (error) {
-    console.error('Erro ao buscar notificações:', error)
-    return []
+    console.error('Erro ao buscar notificações do usuário:', error)
+    throw error
   }
 }
 
-// Listener em tempo real
-export const subscribeToNotifications = (userId, isPro, callback) => {
-  const notificationsRef = collection(db, NOTIFICATIONS_PATH)
-  
-  return onSnapshot(notificationsRef, (snapshot) => {
-    const now = new Date()
-    
-    const notifications = snapshot.docs
-      .map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate(),
-        scheduledFor: doc.data().scheduledFor?.toDate()
-      }))
-      .filter(notif => {
-        if (!notif.isActive) return false
-        if (notif.scheduledFor && notif.scheduledFor > now) return false
-        if (notif.type === 'individual' && notif.targetUserId !== userId) return false
-        if (notif.type === 'pro' && !isPro) return false
-        if (notif.type === 'free' && isPro) return false
-        return true
-      })
-      .sort((a, b) => b.createdAt - a.createdAt)
-    
-    callback(notifications)
-  })
-}
-
-// Marcar como lida
-export const markAsRead = async (userId, notificationId) => {
+// Marcar notificação como lida
+export const markNotificationAsRead = async (userId, notificationId) => {
   try {
-    const statusRef = doc(
+    const userNotifRef = doc(
       db, 
-      `artifacts/trade-journal-public/users/${userId}/notificationStatus`, 
+      USER_NOTIFICATIONS_COLLECTION, 
+      userId, 
+      'notifications', 
       notificationId
     )
     
-    await setDoc(statusRef, {
+    await setDoc(userNotifRef, {
       read: true,
       readAt: serverTimestamp()
+    }, { merge: true })
+
+    // Incrementar views na notificação principal
+    const notificationRef = doc(db, NOTIFICATIONS_COLLECTION, notificationId)
+    await updateDoc(notificationRef, {
+      'stats.views': increment(1)
     })
-    
-    return { success: true }
   } catch (error) {
     console.error('Erro ao marcar como lida:', error)
-    return { success: false, error: error.message }
+    throw error
   }
 }
 
-// Verificar se notificação foi lida
-export const getNotificationStatus = async (userId, notificationId) => {
+// Registrar clique em ação
+export const recordNotificationClick = async (notificationId) => {
   try {
-    const statusRef = doc(
+    const notificationRef = doc(db, NOTIFICATIONS_COLLECTION, notificationId)
+    await updateDoc(notificationRef, {
+      'stats.clicks': increment(1)
+    })
+  } catch (error) {
+    console.error('Erro ao registrar clique:', error)
+    throw error
+  }
+}
+
+// Buscar status de leitura de notificações
+export const getUserNotificationStatus = async (userId) => {
+  try {
+    const userNotifsRef = collection(
       db, 
-      `artifacts/trade-journal-public/users/${userId}/notificationStatus`, 
-      notificationId
+      USER_NOTIFICATIONS_COLLECTION, 
+      userId, 
+      'notifications'
     )
+    const snapshot = await getDocs(userNotifsRef)
     
-    const statusDoc = await getDoc(statusRef)
-    return statusDoc.exists() ? statusDoc.data() : { read: false }
-  } catch (error) {
-    console.error('Erro ao verificar status:', error)
-    return { read: false }
-  }
-}
-
-// Buscar status de múltiplas notificações
-export const getMultipleNotificationStatus = async (userId, notificationIds) => {
-  try {
-    const statusPromises = notificationIds.map(id => getNotificationStatus(userId, id))
-    const statuses = await Promise.all(statusPromises)
+    const status = {}
+    snapshot.docs.forEach(doc => {
+      status[doc.id] = doc.data()
+    })
     
-    return notificationIds.reduce((acc, id, index) => {
-      acc[id] = statuses[index]
-      return acc
-    }, {})
+    return status
   } catch (error) {
-    console.error('Erro ao buscar múltiplos status:', error)
+    console.error('Erro ao buscar status:', error)
     return {}
-  }
-}
-
-// Incrementar contador de visualizações
-export const incrementViewCount = async (notificationId) => {
-  try {
-    const notificationRef = doc(db, NOTIFICATIONS_PATH, notificationId)
-    const notificationDoc = await getDoc(notificationRef)
-    
-    if (notificationDoc.exists()) {
-      const currentCount = notificationDoc.data().viewCount || 0
-      await updateDoc(notificationRef, {
-        viewCount: currentCount + 1
-      })
-    }
-    
-    return { success: true }
-  } catch (error) {
-    console.error('Erro ao incrementar views:', error)
-    return { success: false, error: error.message }
   }
 }

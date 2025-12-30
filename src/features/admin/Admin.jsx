@@ -1,13 +1,12 @@
 ﻿import { useState, useEffect } from 'react'
 import { doc, setDoc, deleteDoc, collection, getDocs } from 'firebase/firestore'
-import { db } from '../../services/firebase'
+import { db, auth } from '../../services/firebase'
 import { Card } from '../../components/ui'
-import { useAuth } from '../auth/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { NotificationManager } from './NotificationManager'
 
 export const Admin = () => {
-  const { user, signOut } = useAuth()
+  const [user, setUser] = useState(null)
   const navigate = useNavigate()
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(false)
@@ -16,8 +15,21 @@ export const Admin = () => {
   const [activeTab, setActiveTab] = useState('users')
 
   useEffect(() => {
-    loadUsers()
-  }, [])
+    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+      setUser(currentUser)
+      if (!currentUser) {
+        navigate('/admin/login')
+      }
+    })
+    
+    return () => unsubscribe()
+  }, [navigate])
+
+  useEffect(() => {
+    if (user) {
+      loadUsers()
+    }
+  }, [user])
 
   const loadUsers = async () => {
     try {
@@ -96,12 +108,14 @@ export const Admin = () => {
     }
   }
 
-  const handleLogout = async () => {
+    const handleLogout = async () => {
     if (confirm('Sair do painel admin?')) {
-      await signOut()
-      navigate('/login')
+      localStorage.removeItem('adminContext')
+      await auth.signOut()
+      navigate('/admin/login')
     }
   }
+
 
   const filteredUsers = users.filter(u => {
     const matches = u.email?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -119,6 +133,14 @@ export const Admin = () => {
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text)
     alert('UID copiado!')
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 flex items-center justify-center">
+        <div className="text-white text-xl">Carregando...</div>
+      </div>
+    )
   }
 
   return (

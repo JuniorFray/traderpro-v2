@@ -1,4 +1,4 @@
-﻿import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
 import { 
   signInWithPopup,
   signInWithEmailAndPassword,
@@ -26,6 +26,12 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      // Se está no contexto admin, não atualiza o contexto do sistema
+      if (localStorage.getItem('adminContext') === 'true') {
+        setLoading(false)
+        return
+      }
+
       if (firebaseUser) {
         setUser(firebaseUser)
         
@@ -59,6 +65,8 @@ export const AuthProvider = ({ children }) => {
 
   const signInWithGoogle = async () => {
     try {
+      // Remover contexto admin se existir
+      localStorage.removeItem('adminContext')
       await signInWithPopup(auth, googleProvider)
     } catch (error) {
       console.error('Erro no login:', error)
@@ -68,6 +76,8 @@ export const AuthProvider = ({ children }) => {
 
   const signInWithEmail = async (email, password) => {
     try {
+      // Remover contexto admin se existir
+      localStorage.removeItem('adminContext')
       await signInWithEmailAndPassword(auth, email, password)
     } catch (error) {
       console.error('Erro no login com email:', error)
@@ -77,6 +87,9 @@ export const AuthProvider = ({ children }) => {
 
   const signUpWithEmail = async (email, password) => {
     try {
+      // Remover contexto admin se existir
+      localStorage.removeItem('adminContext')
+      
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       
       // Criar documento do usuário
@@ -95,6 +108,9 @@ export const AuthProvider = ({ children }) => {
 
   const signOut = async () => {
     try {
+      // Remover contexto admin se existir
+      localStorage.removeItem('adminContext')
+      
       await firebaseSignOut(auth)
       setUser(null)
       setIsPro(false)
