@@ -1,84 +1,114 @@
-import { useState, useEffect } from 'react'
-import { Icons } from '../icons'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
-export const NotificationPopup = ({ notification, onClose, onRead }) => {
-  const [isVisible, setIsVisible] = useState(false)
+export const NotificationPopup = ({ notification, onClose, onMarkAsRead }) => {
+  const navigate = useNavigate()
+  const [isVisible, setIsVisible] = useState(true)
 
   useEffect(() => {
-    // Animação de entrada
-    setTimeout(() => setIsVisible(true), 100)
+    // Auto-fechar após 8 segundos
+    const timer = setTimeout(() => {
+      handleClose()
+    }, 8000)
+
+    return () => clearTimeout(timer)
   }, [])
 
   const handleClose = () => {
     setIsVisible(false)
-    setTimeout(onClose, 300)
+    setTimeout(() => {
+      onClose()
+    }, 300)
   }
 
   const handleAction = () => {
     if (notification.actionButton?.url) {
-      window.location.href = notification.actionButton.url
+      navigate(notification.actionButton.url)
     }
-    onRead(notification.id)
+    onMarkAsRead(notification.id)
     handleClose()
   }
 
-  const getStyleClasses = () => {
+  const getStyleClasses = (style) => {
     const styles = {
-      info: 'bg-blue-500/20 border-blue-500/50 text-blue-200',
-      success: 'bg-green-500/20 border-green-500/50 text-green-200',
-      warning: 'bg-yellow-500/20 border-yellow-500/50 text-yellow-200',
-      error: 'bg-red-500/20 border-red-500/50 text-red-200'
+      info: 'bg-blue-500/20 border-blue-500',
+      success: 'bg-green-500/20 border-green-500',
+      warning: 'bg-yellow-500/20 border-yellow-500',
+      error: 'bg-red-500/20 border-red-500'
     }
-    return styles[notification.style] || styles.info
+    return styles[style] || styles.info
   }
 
-  const getIcon = () => {
+  const getIcon = (category) => {
     const icons = {
       news: '🎉',
       warning: '⚠️',
-      promo: '🎁',
-      tips: '💡',
+      promotion: '🎁',
+      tip: '💡',
       system: '🔧'
     }
-    return icons[notification.category] || '🔔'
+    return icons[category] || '🔔'
   }
 
   return (
-    <div 
-      className={`fixed top-20 right-4 z-50 w-96 max-w-[calc(100vw-2rem)] transition-all duration-300 ${
+    <div
+      className={`fixed top-20 right-4 w-80 max-w-[calc(100vw-2rem)] z-[9999] transition-all duration-300 ${
         isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
       }`}
     >
-      <div className={`rounded-xl border-2 backdrop-blur-lg p-4 shadow-2xl ${getStyleClasses()}`}>
-        <div className="flex items-start gap-3">
-          <div className="text-3xl">{getIcon()}</div>
+      <div
+        className={`backdrop-blur-xl rounded-xl border-2 shadow-2xl p-4 ${getStyleClasses(
+          notification.style
+        )}`}
+      >
+        {/* Header com ícone e botão fechar */}
+        <div className="flex items-start gap-3 mb-3">
+          <div className="text-3xl">{getIcon(notification.category)}</div>
           
           <div className="flex-1">
-            <h3 className="font-bold text-white text-lg mb-1">
+            <h4 className="font-bold text-white text-lg mb-1">
               {notification.title}
-            </h3>
-            <p className="text-sm opacity-90 mb-3">
+            </h4>
+            <p className="text-sm text-zinc-200 leading-relaxed">
               {notification.message}
             </p>
-            
-            {notification.actionButton && (
-              <button
-                onClick={handleAction}
-                className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                {notification.actionButton.text}
-              </button>
-            )}
           </div>
 
           <button
             onClick={handleClose}
-            className="text-white/60 hover:text-white transition-colors p-1"
+            className="text-zinc-400 hover:text-white transition-colors text-xl"
           >
-            <Icons.X size={20} />
+            ✕
           </button>
         </div>
+
+        {/* Botão de ação */}
+        {notification.actionButton?.text && (
+          <button
+            onClick={handleAction}
+            className="w-full mt-3 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+          >
+            {notification.actionButton.text} →
+          </button>
+        )}
+
+        {/* Barra de progresso */}
+        <div className="mt-3 h-1 bg-white/10 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-white/50 animate-shrink"
+            style={{
+              animation: 'shrink 8s linear forwards'
+            }}
+          />
+        </div>
       </div>
+
+      <style>{`
+        @keyframes shrink {
+          from { width: 100%; }
+          to { width: 0%; }
+        }
+      `}</style>
     </div>
   )
 }

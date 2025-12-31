@@ -9,7 +9,8 @@ import {
   where,
   orderBy,
   serverTimestamp,
-  Timestamp
+  Timestamp,
+  increment
 } from 'firebase/firestore'
 import { db } from './firebase'
 
@@ -162,15 +163,12 @@ export const getUserNotifications = async (userId, userIsPro) => {
 // Marcar notificação como lida
 export const markNotificationAsRead = async (userId, notificationId) => {
   try {
-    const userNotifRef = doc(
-      db, 
-      USER_NOTIFICATIONS_COLLECTION, 
-      userId, 
-      'notifications', 
-      notificationId
-    )
+    // Salvar status de leitura do usuário
+    const userNotifRef = doc(db, USER_NOTIFICATIONS_COLLECTION, `${userId}_${notificationId}`)
     
     await setDoc(userNotifRef, {
+      userId,
+      notificationId,
       read: true,
       readAt: serverTimestamp()
     }, { merge: true })
@@ -202,17 +200,17 @@ export const recordNotificationClick = async (notificationId) => {
 // Buscar status de leitura de notificações
 export const getUserNotificationStatus = async (userId) => {
   try {
-    const userNotifsRef = collection(
-      db, 
-      USER_NOTIFICATIONS_COLLECTION, 
-      userId, 
-      'notifications'
-    )
-    const snapshot = await getDocs(userNotifsRef)
+    const userNotifsRef = collection(db, USER_NOTIFICATIONS_COLLECTION)
+    const q = query(userNotifsRef, where('userId', '==', userId))
+    const snapshot = await getDocs(q)
     
     const status = {}
     snapshot.docs.forEach(doc => {
-      status[doc.id] = doc.data()
+      const data = doc.data()
+      status[data.notificationId] = {
+        read: data.read,
+        readAt: data.readAt?.toDate?.() || null
+      }
     })
     
     return status

@@ -21,8 +21,8 @@ export const NotificationCenter = ({
     const icons = {
       news: '🎉',
       warning: '⚠️',
-      promo: '🎁',
-      tips: '💡',
+      promotion: '🎁',
+      tip: '💡',
       system: '🔧'
     }
     return icons[category] || '🔔'
@@ -57,58 +57,62 @@ export const NotificationCenter = ({
             <p>Nenhuma notificação</p>
           </div>
         ) : (
-          notifications.map(notif => (
-            <div
-              key={notif.id}
-              className={`rounded-lg border p-4 transition-all ${getStyleClasses(notif.style)} ${
-                !readStatus[notif.id]?.read ? 'ring-2 ring-primary/50' : 'opacity-70'
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                <div className="text-2xl">{getIcon(notif.category)}</div>
-                
-                <div className="flex-1">
-                  <div className="flex items-start justify-between mb-1">
-                    <h4 className="font-bold text-white">
-                      {notif.title}
-                      {!readStatus[notif.id]?.read && (
-                        <span className="ml-2 text-xs bg-primary text-black px-2 py-0.5 rounded-full">
-                          Nova
-                        </span>
-                      )}
-                    </h4>
-                    <span className="text-xs text-zinc-500">
-                      {formatDate(notif.createdAt)}
-                    </span>
-                  </div>
+          notifications.map(notif => {
+            const isRead = readStatus[notif.id]?.read
+            
+            return (
+              <div
+                key={notif.id}
+                className={`rounded-lg border p-4 transition-all ${getStyleClasses(notif.style)} ${
+                  !isRead ? 'ring-2 ring-primary/50' : 'opacity-70'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="text-2xl">{getIcon(notif.category)}</div>
                   
-                  <p className="text-sm text-zinc-300 mb-3">
-                    {notif.message}
-                  </p>
-
-                  <div className="flex gap-2">
-                    {notif.actionButton && (
-                      <button
-                        onClick={() => handleAction(notif)}
-                        className="bg-primary hover:bg-primary/80 text-black px-3 py-1 rounded-lg text-sm font-medium transition-colors"
-                      >
-                        {notif.actionButton.text}
-                      </button>
-                    )}
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between mb-1">
+                      <h4 className="font-bold text-white">
+                        {notif.title}
+                        {!isRead && (
+                          <span className="ml-2 text-xs bg-primary text-black px-2 py-0.5 rounded-full">
+                            Nova
+                          </span>
+                        )}
+                      </h4>
+                      <span className="text-xs text-zinc-500">
+                        {formatDate(notif.createdAt)}
+                      </span>
+                    </div>
                     
-                    {!readStatus[notif.id]?.read && (
-                      <button
-                        onClick={() => onMarkAsRead(notif.id)}
-                        className="bg-zinc-700 hover:bg-zinc-600 text-white px-3 py-1 rounded-lg text-sm transition-colors"
-                      >
-                        Marcar como lida
-                      </button>
-                    )}
+                    <p className="text-sm text-zinc-300 mb-3">
+                      {notif.message}
+                    </p>
+
+                    <div className="flex gap-2">
+                      {notif.actionButton?.text && (
+                        <button
+                          onClick={() => handleAction(notif)}
+                          className="bg-primary hover:bg-primary/80 text-black px-3 py-1 rounded-lg text-sm font-medium transition-colors"
+                        >
+                          {notif.actionButton.text}
+                        </button>
+                      )}
+                      
+                      {!isRead && (
+                        <button
+                          onClick={() => onMarkAsRead(notif.id)}
+                          className="bg-zinc-700 hover:bg-zinc-600 text-white px-3 py-1 rounded-lg text-sm transition-colors"
+                        >
+                          Marcar como lida
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))
+            )
+          })
         )}
       </div>
     </Modal>

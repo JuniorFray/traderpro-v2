@@ -1,79 +1,34 @@
 ﻿rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isAdmin() {
-      return (request.auth.token.admin == true) || 
-             (request.auth.token.email == 'juniorfray944@gmail.com');
-    }
-
-    // REGRA ANTIGA (não está sendo usada - pode remover depois)
-    match /trades/{tradeId} {
-      allow read: if request.auth != null && 
-                     resource.data.userId == request.auth.uid &&
-                     resource.data.appId == 'trade-journal-public';
-      
-      allow create: if request.auth != null && 
-                       request.resource.data.userId == request.auth.uid &&
-                       request.resource.data.appId == 'trade-journal-public';
-      
-      allow update, delete: if request.auth != null && 
-                               resource.data.userId == request.auth.uid &&
-                               resource.data.appId == 'trade-journal-public';
-    }
-
-    // REGRA CORRETA PARA TRADES (caminho real usado no código)
-    match /artifacts/{appId}/users/{userId}/trades/{tradeId} {
-      // Validar que o usuário só acessa seus próprios trades
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      
-      // Validação de campos obrigatórios ao criar
-      allow create: if request.auth != null && 
-                       request.auth.uid == userId &&
-                       request.resource.data.keys().hasAll(['date', 'pnl', 'createdAt', 'updatedAt']) &&
-                       request.resource.data.pnl is number &&
-                       request.resource.data.commission is number &&
-                       request.resource.data.swap is number;
-      
-      // Validação ao atualizar
-      allow update: if request.auth != null && 
-                       request.auth.uid == userId &&
-                       request.resource.data.updatedAt is timestamp;
-    }
-
-    match /artifacts/{appId}/users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+    
+    // Regras para notificações (somente leitura)
+    match /notifications/{notificationId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.token.email == 'juniorfray944@gmail.com';
     }
     
-    match /artifacts/{appId}/directory/{userId} {
-      allow read: if isAdmin();
-      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin());
-    }
-    
-    match /artifacts/{appId}/public/{document=**} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    match /artifacts/{appId}/tickets/{ticketId} {
-      allow create: if request.auth != null;
-      allow read: if request.auth != null && (resource.data.uid == request.auth.uid || isAdmin());
-      allow update: if request.auth != null && (resource.data.uid == request.auth.uid || isAdmin());
-    }
-    
-    match /artifacts/{appId}/coupons/{couponId} {
-      allow get: if request.auth != null;
-      allow list: if isAdmin();
-      allow write: if isAdmin();
-    }
-
-    match /artifacts/{appId}/_system/usage {
-      allow read, write: if request.auth != null;
-    }
-    
-    match /artifacts/{appId}/system/usage {
-      allow read: if request.auth != null && isAdmin();
+    // Regras para status de leitura de notificações (usuários podem escrever seu próprio status)
+    match /userNotifications/{docId} {
+      allow read: if request.auth != null;
       allow write: if request.auth != null;
+    }
+    
+    // Regras para usuários
+    match /artifacts/trade-journal-public/users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Regras para admin users
+    match /artifacts/trade-journal-public/adminUsers/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.token.email == 'juniorfray944@gmail.com';
+    }
+    
+    // Regras para trades
+    match /artifacts/trade-journal-public/trades/{tradeId} {
+      allow read, write: if request.auth != null && resource.data.userId == request.auth.uid;
     }
   }
 }
