@@ -5,10 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:admin": "vite --config vite.config.admin.js --port 5174",
     "build": "vite build",
+    "build:admin": "vite build --config vite.config.admin.js",
+    "build:all": "npm run build && npm run build:admin",
     "preview": "vite preview",
+    "preview:admin": "vite preview --outDir dist-admin --port 4174",
     "deploy:staging": "npm run build && firebase hosting:channel:deploy staging",
-    "deploy:prod": "npm run build && firebase deploy --only hosting"
+    "deploy:prod": "npm run build && firebase deploy --only hosting",
+    "deploy:admin": "npm run build:admin && firebase deploy --only hosting:admin",
+    "deploy:main": "npm run build && firebase deploy --only hosting:main",
+    "deploy:all": "npm run build:all && firebase deploy --only hosting"
   },
   "dependencies": {
     "date-fns": "^3.0.0",
@@ -17,6 +24,7 @@
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^5.0.2",
+    "lucide-react": "^0.562.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.21.0",

@@ -1,5 +1,18 @@
 {
   "projects": {
     "default": "meudiariotrade-29864"
-  }
+  },
+  "targets": {
+    "meudiariotrade-29864": {
+      "hosting": {
+        "main": [
+          "meudiariotrade-29864"
+        ],
+        "admin": [
+          "meudiariotrade-admin"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

@@ -13,54 +13,25 @@ import { Reports } from "./features/reports/Reports"
 import { Settings } from "./features/settings/Settings"
 import { Tools } from "./features/tools/Tools"
 import { Admin } from "./features/admin/Admin"
-import { AdminLogin } from "./features/admin/AdminLogin"
 import { ProRoute } from "./components/ProRoute"
 import { AdminPrivateRoute } from "./components/AdminPrivateRoute"
 
+// IMPORTANTE: Importando do local que acabamos de corrigir (pages/admin)
+import AdminLogin from "./pages/admin/AdminLogin"
+
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth()
-  
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-background">
-        <div className="text-white">Carregando...</div>
-      </div>
-    )
-  }
-  
+  if (loading) return <div className="flex items-center justify-center h-screen bg-black text-white">Carregando...</div>
   return isAuthenticated ? children : <Navigate to="/login" />
 }
 
-export const AppRoutes = () => {
+export const CustomerRoutes = () => {
   return (
     <Routes>
-      {/* Rotas Públicas */}
       <Route path="/login" element={<Login />} />
       <Route path="/cadastro" element={<Register />} />
       <Route path="/recuperar-senha" element={<ForgotPassword />} />
-      
-      {/* Rota de Login Admin - PÚBLICA */}
-      <Route path="/admin/login" element={<AdminLogin />} />
-
-      {/* Rota Admin - Protegida com rota PRÓPRIA */}
-      <Route 
-        path="/admin" 
-        element={
-          <AdminPrivateRoute>
-            <Admin />
-          </AdminPrivateRoute>
-        } 
-      />
-
-      {/* Rotas do sistema principal */}
-      <Route
-        path="/"
-        element={
-          <PrivateRoute>
-            <MainLayout />
-          </PrivateRoute>
-        }
-      >
+      <Route path="/" element={<PrivateRoute><MainLayout /></PrivateRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="trades" element={<TradesPage />} />
         <Route path="calendar" element={<Calendar />} />
@@ -70,8 +41,24 @@ export const AppRoutes = () => {
         <Route path="settings" element={<Settings />} />
         <Route path="tools" element={<Tools />} />
       </Route>
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
+  )
+}
 
-      <Route path="*" element={<Navigate to="/" />} />
+export const AdminRoutes = () => {
+  return (
+    <Routes>
+      <Route path="/admin/login" element={<AdminLogin />} />
+      <Route 
+        path="/admin/*" 
+        element={
+          <AdminPrivateRoute>
+            <Admin />
+          </AdminPrivateRoute>
+        } 
+      />
+      <Route path="*" element={<Navigate to="/admin/login" replace />} />
     </Routes>
   )
 }
