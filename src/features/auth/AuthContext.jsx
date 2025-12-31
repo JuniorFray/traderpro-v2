@@ -1,12 +1,13 @@
-﻿import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
 import { 
   signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
-  onAuthStateChanged 
+  onAuthStateChanged,
+  GoogleAuthProvider
 } from 'firebase/auth'
-import { auth, googleProvider, db } from '../../services/firebase'
+import { auth, db } from '../../services/firebase'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 
 const AuthContext = createContext()
@@ -73,8 +74,22 @@ export const AuthProvider = ({ children }) => {
     return unsubscribe
   }, [])
 
-  const signInWithGoogle = () => signInWithPopup(auth, googleProvider)
+  // ✅ CORREÇÃO: Aceita parâmetro para forçar seleção de conta
+  const signInWithGoogle = async (options = {}) => {
+    const provider = new GoogleAuthProvider()
+    
+    // Se forceSelectAccount for true, força mostrar seleção de contas
+    if (options.forceSelectAccount) {
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      })
+    }
+    
+    return signInWithPopup(auth, provider)
+  }
+
   const signInWithEmail = (email, password) => signInWithEmailAndPassword(auth, email, password)
+  
   const signUpWithEmail = async (email, password) => {
     const credential = await createUserWithEmailAndPassword(auth, email, password)
     // Cria doc inicial

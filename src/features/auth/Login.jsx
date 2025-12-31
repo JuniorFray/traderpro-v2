@@ -1,4 +1,4 @@
-﻿import { useAuth } from "./AuthContext"
+import { useAuth } from "./AuthContext"
 import { useNavigate } from "react-router-dom"
 import { useEffect, useState } from "react"
 
@@ -20,7 +20,8 @@ export const Login = () => {
     try {
       setLoading(true)
       setError("")
-      await signInWithGoogle()
+      // ✅ CORREÇÃO: Passa parâmetro para forçar seleção de conta
+      await signInWithGoogle({ forceSelectAccount: true })
     } catch (error) {
       console.error("Erro no login:", error)
       setError("Erro ao fazer login com Google. Tente novamente.")
@@ -158,4 +159,3 @@ export const Login = () => {
     </div>
   )
 }
-
