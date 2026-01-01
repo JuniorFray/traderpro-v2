@@ -1,5 +1,7 @@
-ï»¿import { useState } from "react"
-import { Button, Input, Card } from "../../components/ui"
+import { useState } from "react"
+import { Button } from "../../components/ui/Button"
+import { Input } from "../../components/ui/Input"
+import { Card } from "../../components/ui/Card"
 
 export const TradeForm = ({ onSubmit, onCancel, initialData = null }) => {
   const [formData, setFormData] = useState(initialData || {
@@ -65,7 +67,7 @@ export const TradeForm = ({ onSubmit, onCancel, initialData = null }) => {
           />
 
           <Input
-            label="ComissÃ£o (R$)"
+            label="Comissão (R$)"
             name="commission"
             type="number"
             step="0.01"
@@ -85,7 +87,7 @@ export const TradeForm = ({ onSubmit, onCancel, initialData = null }) => {
           />
 
           <Input
-            label="EstratÃ©gia"
+            label="Estratégia"
             name="strategy"
             value={formData.strategy}
             onChange={handleChange}
@@ -95,7 +97,7 @@ export const TradeForm = ({ onSubmit, onCancel, initialData = null }) => {
 
         <div>
           <label className="block text-sm font-medium text-zinc-400 mb-2">
-            ObservaÃ§Ãµes
+            Observações
           </label>
           <textarea
             name="notes"

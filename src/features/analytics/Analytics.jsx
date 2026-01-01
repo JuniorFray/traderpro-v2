@@ -1,6 +1,6 @@
 ﻿import { useState } from "react"
 import { useTrades } from "../../hooks/useTrades"
-import { Card } from "../../components/ui"
+import { Card } from "../../components/ui/Card"
 import { TradeFilters } from "../../components/filters/TradeFilters"
 import { formatCurrency, formatPercent } from "../../utils/metrics"
 

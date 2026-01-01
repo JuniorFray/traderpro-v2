@@ -1,5 +1,5 @@
-Ôªøimport { useState } from 'react'
-import { Card } from '../../components/ui'
+import { useState } from 'react'
+import { Card } from '../../components/ui/Card'
 
 export const Tools = () => {
   const [config, setConfig] = useState({
@@ -51,7 +51,7 @@ export const Tools = () => {
   const results = calculateResults()
 
   const formatCurrency = (value) => {
-    const symbols = { BRL: 'R$', USD: '$', EUR: '‚Ç¨' }
+    const symbols = { BRL: 'R$', USD: '$', EUR: 'Ä' }
     const formatted = Math.abs(value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     const sign = value >= 0 ? '+' : '-'
     return `${sign}${symbols[config.currency]} ${formatted}`
@@ -75,7 +75,7 @@ export const Tools = () => {
         <div className="space-y-6">
           {/* CONFIGURACAO */}
           <Card className="bg-zinc-900">
-            <h3 className="text-sm font-semibold text-zinc-400 mb-4 uppercase tracking-wider">Configura√ß√£o</h3>
+            <h3 className="text-sm font-semibold text-zinc-400 mb-4 uppercase tracking-wider">ConfiguraÁ„o</h3>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -87,7 +87,7 @@ export const Tools = () => {
                   >
                     <option value="BRL">BRL (R$)</option>
                     <option value="USD">USD ($)</option>
-                    <option value="EUR">EUR (‚Ç¨)</option>
+                    <option value="EUR">EUR (Ä)</option>
                   </select>
                 </div>
                 
@@ -181,7 +181,7 @@ export const Tools = () => {
                   onChange={(e) => handleChange('costPerTrade', e.target.value)}
                   className="w-full px-3 py-2 bg-black border border-zinc-800 rounded text-white text-sm focus:outline-none focus:border-purple-500"
                 />
-                <p className="text-xs text-zinc-600 mt-1">Comiss√µes + Fees</p>
+                <p className="text-xs text-zinc-600 mt-1">Comissıes + Fees</p>
               </div>
 
               <div>
@@ -193,7 +193,7 @@ export const Tools = () => {
                   onChange={(e) => handleChange('taxRate', e.target.value)}
                   className="w-full px-3 py-2 bg-black border border-zinc-800 rounded text-white text-sm focus:outline-none focus:border-purple-500"
                 />
-                <p className="text-xs text-zinc-600 mt-1">% sobre o Lucro L√≠quido</p>
+                <p className="text-xs text-zinc-600 mt-1">% sobre o Lucro LÌquido</p>
               </div>
             </div>
           </Card>
@@ -222,7 +222,7 @@ export const Tools = () => {
                 <span className="text-sm font-semibold text-green-500">{formatCurrency(results.totalWinAmount)}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-zinc-400">Preju√≠zo Bruto (Loss):</span>
+                <span className="text-sm text-zinc-400">PrejuÌzo Bruto (Loss):</span>
                 <span className="text-sm font-semibold text-red-500">{formatCurrency(-results.totalLossAmount)}</span>
               </div>
               <div className="flex justify-between items-center pt-3 border-t border-zinc-800">
@@ -239,7 +239,7 @@ export const Tools = () => {
             <h3 className="text-sm font-semibold text-zinc-400 mb-4 uppercase tracking-wider">Descontos</h3>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-zinc-400">Total Custos/Comiss√µes:</span>
+                <span className="text-sm text-zinc-400">Total Custos/Comissıes:</span>
                 <span className="text-sm font-semibold text-red-500">{formatCurrency(-results.totalCosts)}</span>
               </div>
               <div className="flex justify-between items-center">
@@ -253,7 +253,7 @@ export const Tools = () => {
           <Card className="bg-gradient-to-br from-zinc-900 to-zinc-800 border border-zinc-700">
             <div className="space-y-4">
               <div className="text-center">
-                <div className="text-xs text-zinc-400 mb-2">LUCRO L√çQUIDO (NO BOLSO):</div>
+                <div className="text-xs text-zinc-400 mb-2">LUCRO LÕQUIDO (NO BOLSO):</div>
                 <div className={`text-4xl font-bold ${results.finalProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                   {formatCurrency(results.finalProfit)}
                 </div>

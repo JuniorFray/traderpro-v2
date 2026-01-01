@@ -1,7 +1,7 @@
 ﻿import { useTrades } from "../../hooks/useTrades"
 import { calculateMetrics } from "../../utils/metrics"
 import { MetricsCard } from "../../components/trades/MetricsCard"
-import { Card } from "../../components/ui"
+import { Card } from "../../components/ui/Card"
 
 export const Dashboard = () => {
   const { trades, loading } = useTrades()

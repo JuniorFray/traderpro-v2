@@ -1,6 +1,6 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { useTrades } from '../../hooks/useTrades'
-import { Card } from '../../components/ui'
+import { Card } from '../../components/ui/Card'
 import { TradeFilters } from '../../components/filters/TradeFilters'
 import { formatCurrency } from '../../utils/metrics'
 import { LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
@@ -208,7 +208,7 @@ export const Charts = () => {
 
           {/* Equity Curve */}
           <Card>
-            <h3 className="text-lg font-bold text-white mb-4">📈 Curva de Capital (Equity Curve)</h3>
+            <h3 className="text-lg font-bold text-white mb-4">?? Curva de Capital (Equity Curve)</h3>
             <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={equityCurve}>
                 <defs>
@@ -235,7 +235,7 @@ export const Charts = () => {
 
           {/* Drawdown */}
           <Card>
-            <h3 className="text-lg font-bold text-white mb-4">📉 Drawdown</h3>
+            <h3 className="text-lg font-bold text-white mb-4">?? Drawdown</h3>
             <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={drawdownData}>
                 <defs>
@@ -262,7 +262,7 @@ export const Charts = () => {
 
           {/* P&L Mensal */}
           <Card>
-            <h3 className="text-lg font-bold text-white mb-4">💰 P&L Mensal</h3>
+            <h3 className="text-lg font-bold text-white mb-4">?? P&L Mensal</h3>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />

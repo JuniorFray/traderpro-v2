@@ -1,6 +1,6 @@
-﻿import { useAuth } from '../features/auth/AuthContext'
+import { useAuth } from '../features/auth/AuthContext'
 import { TradesList } from '../features/trades/TradesList'
-import { Button } from '../components/ui'
+import { Button } from '../components/ui/Button'
 
 export const Home = () => {
   const { user, signOut } = useAuth()
@@ -17,7 +17,7 @@ export const Home = () => {
             <h1 className="text-3xl font-black text-white mb-2">
               TraderPro v2.0
             </h1>
-            <p className="text-zinc-400">Olá, {user?.email}! 👋</p>
+            <p className="text-zinc-400">Ol�, {user?.email}! ??</p>
           </div>
           
           <Button variant="outline" onClick={handleLogout}>

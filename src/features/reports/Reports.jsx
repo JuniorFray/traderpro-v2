@@ -1,6 +1,7 @@
 ﻿import { useState } from "react"
 import { useTrades } from "../../hooks/useTrades"
-import { Card, Button } from "../../components/ui"
+import { Card } from "../../components/ui/Card"
+import { Button } from "../../components/ui/Button"
 import { TradeFilters } from "../../components/filters/TradeFilters"
 import { ExportButtons } from "../../components/exports/ExportButtons"
 import { calculateMetrics } from "../../utils/metrics"

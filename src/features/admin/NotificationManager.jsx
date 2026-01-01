@@ -7,7 +7,9 @@ import {
   deleteNotification, 
   getAllNotifications 
 } from '../../services/notifications'
-import { Input, Select, Button } from '../../components/ui'
+import { Input } from '../../components/ui/Input'
+import { Select } from '../../components/ui/Select'
+import { Button } from '../../components/ui/Button'
 
 export const NotificationManager = () => {
   const [notifications, setNotifications] = useState([])

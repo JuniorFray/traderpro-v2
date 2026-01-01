@@ -1,5 +1,6 @@
-ï»¿import { useTrades } from "../../hooks/useTrades"
-import { Card, Button } from "../../components/ui"
+import { useTrades } from "../../hooks/useTrades"
+import { Card } from "../../components/ui/Card"
+import { Button } from "../../components/ui/Button"
 import { formatCurrency } from "../../utils/metrics"
 import { useState } from "react"
 import { TradeForm } from "../trades/TradeForm"
@@ -41,7 +42,7 @@ export const Calendar = () => {
     days.push(day)
   }
 
-  const monthNames = ["Janeiro", "Fevereiro", "MarÃ§o", "Abril", "Maio", "Junho",
+  const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 
   const changeMonth = (offset) => {
@@ -79,7 +80,7 @@ export const Calendar = () => {
   return (
     <div className="space-y-4 lg:space-y-6">
       <div>
-        <h2 className="text-xl lg:text-2xl font-bold text-white">CalendÃ¡rio de Trades</h2>
+        <h2 className="text-xl lg:text-2xl font-bold text-white">Calendário de Trades</h2>
         <p className="text-sm lg:text-base text-zinc-400">Visualize seus trades por dia</p>
       </div>
 
@@ -89,7 +90,7 @@ export const Calendar = () => {
             onClick={() => changeMonth(-1)}
             className="px-3 py-2 lg:px-4 text-sm lg:text-base bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition-colors"
           >
-            â† Anterior
+            ? Anterior
           </button>
           
           <h3 className="text-base lg:text-xl font-bold text-white">
@@ -100,12 +101,12 @@ export const Calendar = () => {
             onClick={() => changeMonth(1)}
             className="px-3 py-2 lg:px-4 text-sm lg:text-base bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition-colors"
           >
-            PrÃ³ximo â†’
+            Próximo ?
           </button>
         </div>
 
         <div className="grid grid-cols-7 gap-1 lg:gap-2">
-          {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "SÃ¡b"].map(day => (
+          {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map(day => (
             <div key={day} className="text-center text-[10px] lg:text-sm font-semibold text-zinc-400 py-1 lg:py-2">
               {day}
             </div>
@@ -168,7 +169,7 @@ export const Calendar = () => {
                 onClick={() => setSelectedDate(null)}
                 className="text-zinc-400 hover:text-white text-2xl"
               >
-                Ã—
+                ×
               </button>
             </div>
 
@@ -184,7 +185,7 @@ export const Calendar = () => {
                         </span>
                       </div>
                       {trade.strategy && (
-                        <div className="text-xs lg:text-sm text-zinc-400">EstratÃ©gia: {trade.strategy}</div>
+                        <div className="text-xs lg:text-sm text-zinc-400">Estratégia: {trade.strategy}</div>
                       )}
                       {trade.notes && (
                         <div className="text-xs lg:text-sm text-zinc-500 mt-1">{trade.notes}</div>
@@ -195,13 +196,13 @@ export const Calendar = () => {
                         onClick={() => handleEdit(trade)}
                         className="px-2 lg:px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs lg:text-sm whitespace-nowrap"
                       >
-                        âœï¸ Editar
+                        ?? Editar
                       </button>
                       <button
                         onClick={() => handleDelete(trade.id)}
                         className="px-2 lg:px-3 py-1 bg-loss hover:bg-red-700 text-white rounded text-xs lg:text-sm whitespace-nowrap"
                       >
-                        ğŸ—‘ï¸ Deletar
+                        ??? Deletar
                       </button>
                     </div>
                   </div>
@@ -212,7 +213,7 @@ export const Calendar = () => {
         </div>
       )}
 
-      {/* Modal de EdiÃ§Ã£o */}
+      {/* Modal de Edição */}
       {editingTrade && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setEditingTrade(null)}>
           <div className="bg-zinc-900 rounded-xl p-4 lg:p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -222,7 +223,7 @@ export const Calendar = () => {
                 onClick={() => setEditingTrade(null)}
                 className="text-zinc-400 hover:text-white text-2xl"
               >
-                Ã—
+                ×
               </button>
             </div>
             <TradeForm

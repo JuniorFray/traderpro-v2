@@ -1,5 +1,6 @@
 import { useState } from "react"
-import { Button, Card } from "../../components/ui"
+import { Button } from "../../components/ui/Button"
+import { Card } from "../../components/ui/Card"
 import { parseMT5File, validateTrades } from "../../utils/mt5Parser"
 import { formatCurrency } from "../../utils/metrics"
 

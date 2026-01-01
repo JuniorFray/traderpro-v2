@@ -1,7 +1,7 @@
-﻿import { useState, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "../auth/AuthContext"
 import { getTrades } from "../../services/trades"
-import { Card } from "../../components/ui"
+import { Card } from "../../components/ui/Card"
 import { formatCurrency, formatDate } from "../../utils/metrics"
 
 export const TradesList = () => {
@@ -62,7 +62,7 @@ export const TradesList = () => {
                 {formatCurrency(trade.pnl || 0)}
               </p>
               <p className="text-xs text-zinc-500">
-                Comissão: {formatCurrency(trade.commission || 0)}
+                Comiss�o: {formatCurrency(trade.commission || 0)}
               </p>
               <p className="text-xs text-zinc-500">
                 Swap: {formatCurrency(trade.swap || 0)}

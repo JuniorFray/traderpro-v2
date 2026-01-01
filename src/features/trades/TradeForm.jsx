@@ -1,5 +1,5 @@
-ï»¿import { useState, useEffect } from "react"
-import { Button } from "../../components/ui"
+import { useState, useEffect } from "react"
+import { Button } from "../../components/ui/Button"
 
 export const TradeForm = ({ onSubmit, initialData = null, submitLabel = "Criar Trade" }) => {
   const [formData, setFormData] = useState({
@@ -101,7 +101,7 @@ export const TradeForm = ({ onSubmit, initialData = null, submitLabel = "Criar T
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-zinc-400 mb-1">ComissÃ£o (R$)</label>
+          <label className="block text-sm font-medium text-zinc-400 mb-1">Comissão (R$)</label>
           <input
             type="number"
             name="commission"
@@ -125,7 +125,7 @@ export const TradeForm = ({ onSubmit, initialData = null, submitLabel = "Criar T
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-zinc-400 mb-1">EstratÃ©gia</label>
+          <label className="block text-sm font-medium text-zinc-400 mb-1">Estratégia</label>
           <input
             type="text"
             name="strategy"
@@ -137,7 +137,7 @@ export const TradeForm = ({ onSubmit, initialData = null, submitLabel = "Criar T
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-zinc-400 mb-1">ObservaÃ§Ãµes</label>
+        <label className="block text-sm font-medium text-zinc-400 mb-1">Observações</label>
         <textarea
           name="notes"
           value={formData.notes}
