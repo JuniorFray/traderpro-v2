@@ -1,6 +1,7 @@
 ﻿import { useState } from "react"
 import { useTrades } from "../../hooks/useTrades"
-import { Card, Button } from "../../components/ui"
+import { Card } from "../../components/ui/Card"
+import { Button } from "../../components/ui/Button"
 import { TradeForm } from "./TradeForm"
 import { TradeFilters } from "../../components/filters/TradeFilters"
 import { formatCurrency } from "../../utils/metrics"
@@ -18,66 +19,99 @@ export const TradesPage = () => {
   })
 
   // Aplicar filtros
-  const filteredTrades = trades.filter((trade) => {
-    // Filtro de data início
+  const filteredTrades = trades.filter(trade => {
     if (filters.startDate && trade.date < filters.startDate) return false
-    
-    // Filtro de data fim
     if (filters.endDate && trade.date > filters.endDate) return false
-    
-    // Filtro de ativo
-    if (filters.symbol && !(trade.asset || trade.symbol || "").toLowerCase().includes(filters.symbol.toLowerCase())) {
-      return false
+    if (filters.symbol && !trade.asset.toLowerCase().includes(filters.symbol.toLowerCase())) return false
+    if (filters.strategy && !trade.strategy?.toLowerCase().includes(filters.strategy.toLowerCase())) return false
+    if (filters.result !== "all") {
+      if (filters.result === "win" && trade.pnl <= 0) return false
+      if (filters.result === "loss" && trade.pnl >= 0) return false
     }
-    
-    // Filtro de estratégia
-    if (filters.strategy && !(trade.strategy || "").toLowerCase().includes(filters.strategy.toLowerCase())) {
-      return false
-    }
-    
-    // Filtro de resultado
-    if (filters.result === "win" && trade.pnl <= 0) return false
-    if (filters.result === "loss" && trade.pnl >= 0) return false
-    
     return true
   })
 
-  const handleCreateTrade = async (tradeData) => {
-    await createTrade(tradeData)
-    setShowForm(false)
+  // Calcular métricas dos trades filtrados
+  const metrics = {
+    total: filteredTrades.length,
+    wins: filteredTrades.filter(t => t.pnl > 0).length,
+    losses: filteredTrades.filter(t => t.pnl < 0).length,
+    totalPnL: filteredTrades.reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0)
   }
 
-  const handleUpdateTrade = async (tradeData) => {
-    await updateTrade(editingTrade.id, tradeData)
-    setEditingTrade(null)
+  const handleSubmit = async (tradeData) => {
+    try {
+      if (editingTrade) {
+        await updateTrade(editingTrade.id, tradeData)
+      } else {
+        await createTrade(tradeData)
+      }
+      setShowForm(false)
+      setEditingTrade(null)
+    } catch (error) {
+      console.error("Erro ao salvar trade:", error)
+      alert("Erro ao salvar trade")
+    }
   }
 
   const handleEdit = (trade) => {
     setEditingTrade(trade)
+    setShowForm(true)
   }
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Tem certeza que deseja excluir este trade?")) {
-      await deleteTrade(id)
+  const handleDelete = async (tradeId) => {
+    if (window.confirm("Deseja realmente excluir este trade?")) {
+      try {
+        await deleteTrade(tradeId)
+      } catch (error) {
+        console.error("Erro ao deletar trade:", error)
+        alert("Erro ao deletar trade")
+      }
     }
   }
 
+  const handleCancel = () => {
+    setShowForm(false)
+    setEditingTrade(null)
+  }
+
   if (loading) {
-    return <div className="text-center p-8 text-zinc-400">Carregando...</div>
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-white">Carregando trades...</div>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-4 lg:space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl lg:text-2xl font-bold text-white">Trades</h2>
-          <p className="text-sm lg:text-base text-zinc-400">
-            {filteredTrades.length} de {trades.length} trades
-          </p>
-        </div>
-        <Button onClick={() => setShowForm(!showForm)}>
-          {showForm ? "Cancelar" : "➕ Novo Trade"}
+        <h1 className="text-3xl font-bold text-white">Trades</h1>
+        <Button onClick={() => setShowForm(true)} disabled={showForm}>
+          + Novo Trade
         </Button>
+      </div>
+
+      {/* Métricas Resumidas */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <div className="text-sm text-zinc-400 mb-1">Total de Trades</div>
+          <div className="text-2xl font-bold text-white">{metrics.total}</div>
+        </Card>
+        <Card>
+          <div className="text-sm text-zinc-400 mb-1">Wins</div>
+          <div className="text-2xl font-bold text-green-500">{metrics.wins}</div>
+        </Card>
+        <Card>
+          <div className="text-sm text-zinc-400 mb-1">Losses</div>
+          <div className="text-2xl font-bold text-red-500">{metrics.losses}</div>
+        </Card>
+        <Card>
+          <div className="text-sm text-zinc-400 mb-1">P&L Total</div>
+          <div className={`text-2xl font-bold ${metrics.totalPnL >= 0 ? "text-green-500" : "text-red-500"}`}>
+            {formatCurrency(metrics.totalPnL)}
+          </div>
+        </Card>
       </div>
 
       {/* Filtros */}
@@ -85,95 +119,75 @@ export const TradesPage = () => {
 
       {/* Formulário */}
       {showForm && (
-        <Card>
-          <h3 className="text-lg font-bold text-white mb-4">Criar Novo Trade</h3>
-          <TradeForm onSubmit={handleCreateTrade} submitLabel="Criar Trade" />
-        </Card>
+        <TradeForm
+          onSubmit={handleSubmit}
+          onCancel={handleCancel}
+          initialData={editingTrade}
+        />
       )}
 
       {/* Lista de Trades */}
       <Card>
-        <h3 className="text-lg font-bold text-white mb-4">Lista de Trades</h3>
-        
+        <h2 className="text-xl font-bold text-white mb-4">
+          Histórico ({filteredTrades.length} {filteredTrades.length === 1 ? "trade" : "trades"})
+        </h2>
+
         {filteredTrades.length === 0 ? (
           <div className="text-center py-8 text-zinc-500">
-            Nenhum trade encontrado com os filtros aplicados
+            Nenhum trade encontrado
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-zinc-800">
-                  <th className="text-left py-3 px-4 text-zinc-400 font-medium text-sm">Data</th>
-                  <th className="text-left py-3 px-4 text-zinc-400 font-medium text-sm">Ativo</th>
-                  <th className="text-left py-3 px-4 text-zinc-400 font-medium text-sm">Estratégia</th>
-                  <th className="text-right py-3 px-4 text-zinc-400 font-medium text-sm">P&L</th>
-                  <th className="text-right py-3 px-4 text-zinc-400 font-medium text-sm">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTrades.map((trade) => (
-                  <tr key={trade.id} className="border-b border-zinc-900 hover:bg-zinc-800/50">
-                    <td className="py-3 px-4 text-white text-sm">
-                      {new Date(trade.date).toLocaleDateString("pt-BR")}
-                    </td>
-                    <td className="py-3 px-4 text-white text-sm font-medium">
-                      {trade.asset || trade.symbol || "N/A"}
-                    </td>
-                    <td className="py-3 px-4 text-zinc-400 text-sm">
-                      {trade.strategy || "-"}
-                    </td>
-                    <td className={`py-3 px-4 text-right font-bold text-sm ${
-                      trade.pnl >= 0 ? "text-win" : "text-loss"
-                    }`}>
+          <div className="space-y-3">
+            {filteredTrades.map(trade => (
+              <div
+                key={trade.id}
+                className="p-4 bg-zinc-800 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-white font-bold">{trade.asset}</span>
+                      <span className="text-sm text-zinc-400">{trade.date}</span>
+                      {trade.strategy && (
+                        <span className="text-xs px-2 py-1 bg-zinc-700 rounded text-zinc-300">
+                          {trade.strategy}
+                        </span>
+                      )}
+                    </div>
+                    {trade.notes && (
+                      <p className="text-sm text-zinc-500">{trade.notes}</p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className={`text-xl font-bold ${trade.pnl >= 0 ? "text-green-500" : "text-red-500"}`}>
                       {formatCurrency(trade.pnl)}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex gap-2 justify-end">
-                        <button
-                          onClick={() => handleEdit(trade)}
-                          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          onClick={() => handleDelete(trade.id)}
-                          className="px-3 py-1 bg-loss hover:bg-red-700 text-white rounded text-sm"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(trade)}
+                      >
+                        ✏️
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(trade.id)}
+                        className="hover:bg-red-900/30 hover:border-red-500/50"
+                      >
+                        🗑️
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </Card>
-
-      {/* Modal de Edição */}
-      {editingTrade && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setEditingTrade(null)}>
-          <div className="bg-zinc-900 rounded-xl p-4 lg:p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4 lg:mb-6">
-              <h3 className="text-lg lg:text-xl font-bold text-white">Editar Trade</h3>
-              <button
-                onClick={() => setEditingTrade(null)}
-                className="text-zinc-400 hover:text-white text-2xl"
-              >
-                ×
-              </button>
-            </div>
-            <TradeForm
-              key={editingTrade.id}
-              onSubmit={handleUpdateTrade}
-              initialData={editingTrade}
-              submitLabel="Atualizar Trade"
-            />
-          </div>
-        </div>
-      )}
     </div>
   )
 }

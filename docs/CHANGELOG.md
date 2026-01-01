@@ -1,3 +1,24 @@
+## [2.0.5] - 2026-01-01
+
+### Fixed
+- 🔧 Corrigido erro de dependência circular no TradesPage.jsx
+- ❌ Resolvido "Cannot access 'Dl' before initialization" 
+- 🔄 Ajustado imports de componentes UI para evitar barrel exports
+- ✅ TradesPage agora carrega corretamente após refresh na rota /trades
+
+### Changed
+- 📦 Imports de Card e Button mudados para imports diretos
+- 🎯 Melhor performance no bundle do Vite
+
+### Technical Details
+- Problema: Vite resolvia exports antes da inicialização (barrel export circular)
+- Solução: Imports diretos `from "../../components/ui/Card"` em vez de barrel
+- Impacto: Página /trades funciona perfeitamente após F5
+
+---
+
+
+
 ## [30/12/2024] - Tentativa de Separação de Auth Admin/Sistema
 
 ### ⚠️ Problema Identificado

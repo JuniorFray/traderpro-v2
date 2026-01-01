@@ -1,77 +1,93 @@
 ﻿import { useState, useEffect } from "react"
 import { useAuth } from "../features/auth/AuthContext"
-import { getTrades, createTrade as createTradeService, updateTrade as updateTradeService, deleteTrade as deleteTradeService } from "../services/trades"
+import tradesService, { deleteAllTrades } from "../services/trades"
 
 export const useTrades = () => {
   const { user } = useAuth()
   const [trades, setTrades] = useState([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    if (user) {
+      loadTrades()
+    } else {
+      setTrades([])
+      setLoading(false)
+    }
+  }, [user])
 
   const loadTrades = async () => {
     if (!user) return
 
     setLoading(true)
-    setError(null)
-
-    const result = await getTrades(user.uid)
+    const result = await tradesService.getTrades(user.uid)
 
     if (result.success) {
       setTrades(result.trades)
-    } else {
-      setError(result.error)
     }
 
     setLoading(false)
   }
 
   const createTrade = async (tradeData) => {
-    if (!user) return { success: false, error: "Usuário não autenticado" }
+    if (!user) return
 
-    const result = await createTradeService(tradeData, user.uid)
-    
+    const result = await tradesService.createTrade(user.uid, tradeData)
+
     if (result.success) {
       await loadTrades()
     }
-    
+
     return result
   }
 
   const updateTrade = async (tradeId, tradeData) => {
-    if (!user) return { success: false, error: "Usuário não autenticado" }
+    if (!user) return
 
-    const result = await updateTradeService(tradeId, tradeData, user.uid)
-    
+    const result = await tradesService.updateTrade(user.uid, tradeId, tradeData)
+
     if (result.success) {
       await loadTrades()
     }
-    
+
     return result
   }
 
   const deleteTrade = async (tradeId) => {
-    if (!user) return { success: false, error: "Usuário não autenticado" }
+    if (!user) return
 
-    const result = await deleteTradeService(tradeId, user.uid)
-    
+    const result = await tradesService.deleteTrade(user.uid, tradeId)
+
     if (result.success) {
       await loadTrades()
     }
-    
+
     return result
   }
 
-  useEffect(() => {
-    loadTrades()
-  }, [user])
+  const clearAllTrades = async () => {
+    if (!user) return
 
-  return { 
-    trades, 
-    loading, 
-    error, 
-    reload: loadTrades,
+    setLoading(true)
+    const result = await deleteAllTrades(user.uid)
+
+    if (result.success) {
+      setTrades([])
+      return result.count
+    }
+
+    setLoading(false)
+    return 0
+  }
+
+  return {
+    trades,
+    loading,
     createTrade,
     updateTrade,
-    deleteTrade
+    deleteTrade,
+    clearAllTrades
   }
 }
+
+export default useTrades
