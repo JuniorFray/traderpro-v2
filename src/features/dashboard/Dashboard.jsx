@@ -1,6 +1,6 @@
-Ôªøimport { useTrades } from "../../hooks/useTrades"
+import { useTrades } from "../../hooks/useTrades"
 import { calculateMetrics } from "../../utils/metrics"
-import { MetricsCard } from "../../components/trades/MetricsCard"
+import { MetricsCard } from "../trades/MetricsCard"
 import { Card } from "../../components/ui/Card"
 
 export const Dashboard = () => {
@@ -19,12 +19,12 @@ export const Dashboard = () => {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-white mb-2">Dashboard</h2>
-        <p className="text-zinc-400">Vis√£o geral do seu desempenho</p>
+        <p className="text-zinc-400">Vis„o geral do seu desempenho</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricsCard 
-          label="Lucro L√≠quido" 
+          label="Lucro LÌquido" 
           value={metrics.netProfit} 
           type="currency"
           trend={metrics.netProfit}
@@ -51,7 +51,7 @@ export const Dashboard = () => {
           <div className="space-y-2">
             <p className="text-sm text-zinc-400">Trades Ganhos</p>
             <p className="text-2xl font-bold text-win">{metrics.wins}</p>
-            <p className="text-xs text-zinc-500">M√©dia: {metrics.averageWin.toFixed(2)} R$</p>
+            <p className="text-xs text-zinc-500">MÈdia: {metrics.averageWin.toFixed(2)} R$</p>
           </div>
         </Card>
 
@@ -59,7 +59,7 @@ export const Dashboard = () => {
           <div className="space-y-2">
             <p className="text-sm text-zinc-400">Trades Perdidos</p>
             <p className="text-2xl font-bold text-loss">{metrics.losses}</p>
-            <p className="text-xs text-zinc-500">M√©dia: {metrics.averageLoss.toFixed(2)} R$</p>
+            <p className="text-xs text-zinc-500">MÈdia: {metrics.averageLoss.toFixed(2)} R$</p>
           </div>
         </Card>
 

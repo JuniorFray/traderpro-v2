@@ -1,4 +1,4 @@
-ï»¿import { db } from "./firebase"
+import { db } from "./firebase"
 import {
   collection,
   addDoc,
@@ -14,7 +14,7 @@ import {
 } from "firebase/firestore"
 
 /**
- * ObtÃ©m o caminho correto da coleÃ§Ã£o de trades
+ * Obtém o caminho correto da coleção de trades
  */
 const getTradesPath = (userId) => {
   return `artifacts/trade-journal-public/users/${userId}/trades`
@@ -47,7 +47,7 @@ export const createTrade = async (userId, tradeData) => {
 }
 
 /**
- * Busca todos os trades de um usuÃ¡rio
+ * Busca todos os trades de um usuário
  */
 export const getTrades = async (userId) => {
   try {
@@ -58,7 +58,7 @@ export const getTrades = async (userId) => {
     const trades = snapshot.docs.map((doc) => {
       const data = doc.data()
       
-      // Converter strings para nÃºmeros
+      // Converter strings para números
       return {
         id: doc.id,
         ...data,
@@ -127,7 +127,7 @@ export const deleteTrade = async (userId, tradeId) => {
 }
 
 /**
- * Deleta todos os trades de um usuÃ¡rio
+ * Deleta todos os trades de um usuário
  */
 export const deleteAllTrades = async (userId) => {
   try {
@@ -155,20 +155,9 @@ export const deleteAllTrades = async (userId) => {
   }
 }
 
-export default {
-  createTrade,
-  getTrades,
-  updateTrade,
-  deleteTrade,
-  deleteAllTrades,
-createTradesInBatch,
-}
-/**
- * Cria mÃºltiplos trades em lote com callback de progresso
- */
 export const createTradesInBatch = async (userId, tradesData, onProgress) => {
   try {
-    const batchSize = 50 // Firestore permite max 500 operaÃ§Ãµes por batch
+    const batchSize = 50 // Firestore permite max 500 operações por batch
     const totalTrades = tradesData.length
     let importedCount = 0
 
@@ -210,3 +199,16 @@ export const createTradesInBatch = async (userId, tradesData, onProgress) => {
     }
   }
 }
+
+export default {
+  createTrade,
+  getTrades,
+  updateTrade,
+  deleteTrade,
+  deleteAllTrades,
+createTradesInBatch,
+}
+/**
+ * Cria múltiplos trades em lote com callback de progresso
+ */
+
