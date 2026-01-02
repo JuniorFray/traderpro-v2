@@ -19,12 +19,13 @@ export const Charts = () => {
 
   // Aplicar filtros
   const filteredTrades = trades.filter(trade => {
+    const tradePnl = parseFloat(trade.pnl) || 0
     if (filters.startDate && trade.date < filters.startDate) return false
     if (filters.endDate && trade.date > filters.endDate) return false
     if (filters.symbol && !(trade.asset || trade.symbol || '').toLowerCase().includes(filters.symbol.toLowerCase())) return false
     if (filters.strategy && !(trade.strategy || '').toLowerCase().includes(filters.strategy.toLowerCase())) return false
-    if (filters.result === 'win' && trade.pnl <= 0) return false
-    if (filters.result === 'loss' && trade.pnl >= 0) return false
+    if (filters.result === 'win' && tradePnl <= 0) return false
+    if (filters.result === 'loss' && tradePnl >= 0) return false
     return true
   })
 
@@ -34,11 +35,12 @@ export const Charts = () => {
   // Calcular Equity Curve (Curva de Capital)
   let cumulativePnL = 0
   const equityCurve = sortedTrades.map(trade => {
-    cumulativePnL += (trade.pnl || 0)
+    const tradePnl = parseFloat(trade.pnl) || 0
+    cumulativePnL += tradePnl
     return {
       date: new Date(trade.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
       equity: cumulativePnL,
-      pnl: trade.pnl || 0
+      pnl: tradePnl
     }
   })
 
@@ -57,6 +59,7 @@ export const Charts = () => {
 
   // Agrupar P&L por mes e ordenar
   const monthlyPnL = filteredTrades.reduce((acc, trade) => {
+    const tradePnl = parseFloat(trade.pnl) || 0
     const date = new Date(trade.date)
     const year = date.getFullYear()
     const month = date.getMonth()
@@ -64,7 +67,7 @@ export const Charts = () => {
     const monthYear = date.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })
     
     if (!acc[key]) acc[key] = { monthYear, pnl: 0, sortKey: date.getTime() }
-    acc[key].pnl += (trade.pnl || 0)
+    acc[key].pnl += tradePnl
     return acc
   }, {})
 
@@ -73,8 +76,8 @@ export const Charts = () => {
     .map(({ monthYear, pnl }) => ({ month: monthYear, pnl }))
 
   // Dados para grafico de pizza (Win/Loss)
-  const wins = filteredTrades.filter(t => t.pnl > 0).length
-  const losses = filteredTrades.filter(t => t.pnl < 0).length
+  const wins = filteredTrades.filter(t => parseFloat(t.pnl) > 0).length
+  const losses = filteredTrades.filter(t => parseFloat(t.pnl) < 0).length
   
   const pieData = [
     { name: 'Vitorias', value: wins, color: '#10b981' },
@@ -208,7 +211,7 @@ export const Charts = () => {
 
           {/* Equity Curve */}
           <Card>
-            <h3 className="text-lg font-bold text-white mb-4">?? Curva de Capital (Equity Curve)</h3>
+            <h3 className="text-lg font-bold text-white mb-4">📈 Curva de Capital (Equity Curve)</h3>
             <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={equityCurve}>
                 <defs>
@@ -235,7 +238,7 @@ export const Charts = () => {
 
           {/* Drawdown */}
           <Card>
-            <h3 className="text-lg font-bold text-white mb-4">?? Drawdown</h3>
+            <h3 className="text-lg font-bold text-white mb-4">📉 Drawdown</h3>
             <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={drawdownData}>
                 <defs>
@@ -262,7 +265,7 @@ export const Charts = () => {
 
           {/* P&L Mensal */}
           <Card>
-            <h3 className="text-lg font-bold text-white mb-4">?? P&L Mensal</h3>
+            <h3 className="text-lg font-bold text-white mb-4">📊 P&L Mensal</h3>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />

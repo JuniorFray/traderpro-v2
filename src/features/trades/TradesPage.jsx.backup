@@ -9,11 +9,11 @@ import { ImportMT5Modal } from "./ImportMT5Modal"
 import { ClearAccountModal } from "./ClearAccountModal"
 
 export const TradesPage = () => {
-  const { trades, loading, createTrade, updateTrade, deleteTrade, clearAllTrades, importTrades } = useTrades()
+  const { trades, loading, createTrade, updateTrade, deleteTrade } = useTrades()
   const [showForm, setShowForm] = useState(false)
   const [editingTrade, setEditingTrade] = useState(null)
-  const [showImportModal, setShowImportModal] = useState(false)
-  const [showClearModal, setShowClearModal] = useState(false)
+const [showImportModal, setShowImportModal] = useState(false)
+const [showClearModal, setShowClearModal] = useState(false)
   const [filters, setFilters] = useState({
     startDate: "",
     endDate: "",
@@ -90,26 +90,27 @@ export const TradesPage = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-white">Trades</h1>
-        <div className="flex gap-3">
-          <Button 
-            variant="outline" 
-            onClick={() => setShowImportModal(true)}
-          >
-            📥 Importar MT5
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={() => setShowClearModal(true)}
-            className="hover:bg-red-900/30 hover:border-red-500/50"
-          >
-            🗑️ Zerar Conta
-          </Button>
-          <Button onClick={() => setShowForm(true)} disabled={showForm}>
-            + Novo Trade
-          </Button>
-        </div>
-      </div>
+  <h1 className="text-3xl font-bold text-white">Trades</h1>
+  <div className="flex gap-3">
+    <Button 
+      variant="outline" 
+      onClick={() => setShowImportModal(true)}
+    >
+      📥 Importar MT5
+    </Button>
+    <Button 
+      variant="outline" 
+      onClick={() => setShowClearModal(true)}
+      className="hover:bg-red-900/30 hover:border-red-500/50"
+    >
+      🗑️ Zerar Conta
+    </Button>
+    <Button onClick={() => setShowForm(true)} disabled={showForm}>
+      + Novo Trade
+    </Button>
+  </div>
+</div>
+
 
       {/* Métricas Resumidas */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -207,12 +208,11 @@ export const TradesPage = () => {
           </div>
         )}
       </Card>
-
       {/* Modais */}
       {showImportModal && (
         <ImportMT5Modal
           onClose={() => setShowImportModal(false)}
-          onImport={importTrades}
+          onImport={createTrade}
         />
       )}
 
@@ -223,6 +223,10 @@ export const TradesPage = () => {
           tradesCount={trades.length}
         />
       )}
+    </div>
+  )
+}
+
     </div>
   )
 }

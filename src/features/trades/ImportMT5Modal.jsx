@@ -68,19 +68,25 @@ export const ImportMT5Modal = ({ onClose, onImport, existingTrades = [] }) => {
   }
 
   const handleImport = async () => {
-    if (!validation || validation.valid.length === 0) return
+    if (!validation || validation.valid.length === 0) {
+      alert('Nenhum trade válido para importar')
+      return
+    }
 
     setImporting(true)
     setError("")
     setImportProgress({ current: 0, total: validation.valid.length })
 
     try {
-      await onImport(validation.valid, (current) => {
-        setImportProgress({ current, total: validation.valid.length })
-      })
+      // Importar trades um por um com progresso
+      for (let i = 0; i < validation.valid.length; i++) {
+        await onImport(validation.valid[i])
+        setImportProgress({ current: i + 1, total: validation.valid.length })
+      }
       
       // Aguardar um pouco antes de fechar para mostrar 100%
       await new Promise(resolve => setTimeout(resolve, 500))
+      alert(`${validation.valid.length} trades importados com sucesso!`)
       onClose()
     } catch (err) {
       console.error("Erro ao importar:", err)

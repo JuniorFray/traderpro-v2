@@ -16,8 +16,13 @@
     }
   }
 
-  // Filtrar apenas trades com pnl válido
-  const validTrades = trades.filter(t => typeof t.pnl === 'number' && !isNaN(t.pnl))
+  // Converter pnl para número (aceita string ou number)
+  const validTrades = trades
+    .map(t => ({
+      ...t,
+      pnl: parseFloat(t.pnl) || 0
+    }))
+    .filter(t => !isNaN(t.pnl))
   
   const wins = validTrades.filter(t => t.pnl > 0)
   const losses = validTrades.filter(t => t.pnl < 0)

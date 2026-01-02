@@ -20,38 +20,41 @@ export const Analytics = () => {
 
   // Aplicar filtros
   const filteredTrades = trades.filter((trade) => {
+    const tradePnl = parseFloat(trade.pnl) || 0
     if (filters.startDate && trade.date < filters.startDate) return false
     if (filters.endDate && trade.date > filters.endDate) return false
     if (filters.symbol && !(trade.asset || trade.symbol || "").toLowerCase().includes(filters.symbol.toLowerCase())) return false
     if (filters.strategy && !(trade.strategy || "").toLowerCase().includes(filters.strategy.toLowerCase())) return false
-    if (filters.result === "win" && trade.pnl <= 0) return false
-    if (filters.result === "loss" && trade.pnl >= 0) return false
+    if (filters.result === "win" && tradePnl <= 0) return false
+    if (filters.result === "loss" && tradePnl >= 0) return false
     return true
   })
 
   // Análise por Ativo
   const bySymbol = filteredTrades.reduce((acc, trade) => {
     const symbol = trade.asset || trade.symbol || "N/A"
+    const tradePnl = parseFloat(trade.pnl) || 0
     if (!acc[symbol]) {
       acc[symbol] = { trades: [], pnl: 0, wins: 0, losses: 0 }
     }
     acc[symbol].trades.push(trade)
-    acc[symbol].pnl += trade.pnl || 0
-    if (trade.pnl > 0) acc[symbol].wins++
-    else if (trade.pnl < 0) acc[symbol].losses++
+    acc[symbol].pnl += tradePnl
+    if (tradePnl > 0) acc[symbol].wins++
+    else if (tradePnl < 0) acc[symbol].losses++
     return acc
   }, {})
 
   // Análise por Estratégia
   const byStrategy = filteredTrades.reduce((acc, trade) => {
     const strategy = trade.strategy || "Sem Estratégia"
+    const tradePnl = parseFloat(trade.pnl) || 0
     if (!acc[strategy]) {
       acc[strategy] = { trades: [], pnl: 0, wins: 0, losses: 0 }
     }
     acc[strategy].trades.push(trade)
-    acc[strategy].pnl += trade.pnl || 0
-    if (trade.pnl > 0) acc[strategy].wins++
-    else if (trade.pnl < 0) acc[strategy].losses++
+    acc[strategy].pnl += tradePnl
+    if (tradePnl > 0) acc[strategy].wins++
+    else if (tradePnl < 0) acc[strategy].losses++
     return acc
   }, {})
 
@@ -59,13 +62,14 @@ export const Analytics = () => {
   const byWeekday = filteredTrades.reduce((acc, trade) => {
     const date = new Date(trade.date + "T12:00:00")
     const weekday = date.toLocaleDateString("pt-BR", { weekday: "long" })
+    const tradePnl = parseFloat(trade.pnl) || 0
     if (!acc[weekday]) {
       acc[weekday] = { trades: [], pnl: 0, wins: 0, losses: 0, order: date.getDay() }
     }
     acc[weekday].trades.push(trade)
-    acc[weekday].pnl += trade.pnl || 0
-    if (trade.pnl > 0) acc[weekday].wins++
-    else if (trade.pnl < 0) acc[weekday].losses++
+    acc[weekday].pnl += tradePnl
+    if (tradePnl > 0) acc[weekday].wins++
+    else if (tradePnl < 0) acc[weekday].losses++
     return acc
   }, {})
 

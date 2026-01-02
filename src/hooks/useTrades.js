@@ -1,83 +1,146 @@
-﻿import { useState, useEffect } from "react"
-import { useAuth } from "../features/auth/AuthContext"
-import tradesService, { deleteAllTrades } from "../services/trades"
+﻿import { useState, useEffect } from 'react'
+import { useAuth } from '../features/auth/AuthContext'
+import { 
+  collection, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  getDocs, 
+  query, 
+  orderBy,
+  serverTimestamp,
+  writeBatch
+} from 'firebase/firestore'
+import { db } from '../services/firebase'
 
 export const useTrades = () => {
   const { user } = useAuth()
   const [trades, setTrades] = useState([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (user) {
-      loadTrades()
-    } else {
+  const loadTrades = async () => {
+    if (!user) {
       setTrades([])
       setLoading(false)
-    }
-  }, [user])
-
-  const loadTrades = async () => {
-    if (!user) return
-
-    setLoading(true)
-    const result = await tradesService.getTrades(user.uid)
-
-    if (result.success) {
-      setTrades(result.trades)
+      return
     }
 
-    setLoading(false)
+    try {
+      const tradesRef = collection(db, 'artifacts', 'trade-journal-public', 'users', user.uid, 'trades')
+      const q = query(tradesRef, orderBy('date', 'desc'))
+      const snapshot = await getDocs(q)
+      
+      const tradesData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+      
+      setTrades(tradesData)
+    } catch (error) {
+      console.error('Erro ao carregar trades:', error)
+    } finally {
+      setLoading(false)
+    }
   }
+
+  useEffect(() => {
+    loadTrades()
+  }, [user])
 
   const createTrade = async (tradeData) => {
     if (!user) return
 
-    const result = await tradesService.createTrade(user.uid, tradeData)
-
-    if (result.success) {
+    try {
+      const tradesRef = collection(db, 'artifacts', 'trade-journal-public', 'users', user.uid, 'trades')
+      await addDoc(tradesRef, {
+        ...tradeData,
+        userId: user.uid,
+        createdAt: serverTimestamp()
+      })
       await loadTrades()
+    } catch (error) {
+      console.error('Erro ao criar trade:', error)
+      throw error
     }
-
-    return result
   }
 
   const updateTrade = async (tradeId, tradeData) => {
     if (!user) return
 
-    const result = await tradesService.updateTrade(user.uid, tradeId, tradeData)
-
-    if (result.success) {
+    try {
+      const tradeRef = doc(db, 'artifacts', 'trade-journal-public', 'users', user.uid, 'trades', tradeId)
+      await updateDoc(tradeRef, {
+        ...tradeData,
+        updatedAt: serverTimestamp()
+      })
       await loadTrades()
+    } catch (error) {
+      console.error('Erro ao atualizar trade:', error)
+      throw error
     }
-
-    return result
   }
 
   const deleteTrade = async (tradeId) => {
     if (!user) return
 
-    const result = await tradesService.deleteTrade(user.uid, tradeId)
-
-    if (result.success) {
+    try {
+      const tradeRef = doc(db, 'artifacts', 'trade-journal-public', 'users', user.uid, 'trades', tradeId)
+      await deleteDoc(tradeRef)
       await loadTrades()
+    } catch (error) {
+      console.error('Erro ao deletar trade:', error)
+      throw error
     }
-
-    return result
   }
 
   const clearAllTrades = async () => {
     if (!user) return
 
     setLoading(true)
-    const result = await deleteAllTrades(user.uid)
-
-    if (result.success) {
-      setTrades([])
-      return result.count
+    try {
+      const tradesRef = collection(db, 'artifacts', 'trade-journal-public', 'users', user.uid, 'trades')
+      const snapshot = await getDocs(tradesRef)
+      
+      const batch = writeBatch(db)
+      snapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref)
+      })
+      
+      await batch.commit()
+      await loadTrades()
+    } catch (error) {
+      console.error('Erro ao limpar trades:', error)
+      throw error
+    } finally {
+      setLoading(false)
     }
+  }
 
-    setLoading(false)
-    return 0
+  const importTrades = async (tradesArray) => {
+    if (!user) return
+
+    setLoading(true)
+    try {
+      const batch = writeBatch(db)
+      
+      tradesArray.forEach(tradeData => {
+        const docRef = doc(collection(db, 'artifacts', 'trade-journal-public', 'users', user.uid, 'trades'))
+        batch.set(docRef, {
+          ...tradeData,
+          userId: user.uid,
+          createdAt: serverTimestamp()
+        })
+      })
+      
+      await batch.commit()
+      await loadTrades()
+    } catch (error) {
+      console.error('Erro ao importar trades:', error)
+      throw error
+    } finally {
+      setLoading(false)
+    }
   }
 
   return {
@@ -86,8 +149,7 @@ export const useTrades = () => {
     createTrade,
     updateTrade,
     deleteTrade,
-    clearAllTrades
+    clearAllTrades,
+    importTrades
   }
 }
-
-export default useTrades
