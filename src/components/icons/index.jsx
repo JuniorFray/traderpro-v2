@@ -1,4 +1,4 @@
-export const Icon = ({ children, size = 20, className = "", ...props }) => (
+﻿export const Icon = ({ children, size = 20, className = "", ...props }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width={size}
@@ -94,3 +94,4 @@ export const Icons = {
     </Icon>
   ),
 }
+

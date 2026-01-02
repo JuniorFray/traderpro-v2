@@ -1,4 +1,4 @@
-export const Loading = ({ size = "md", fullscreen = false }) => {
+﻿export const Loading = ({ size = "md", fullscreen = false }) => {
   const sizes = {
     sm: "w-4 h-4",
     md: "w-8 h-8",
@@ -58,3 +58,4 @@ export const Loading = ({ size = "md", fullscreen = false }) => {
     </svg>
   )
 }
+

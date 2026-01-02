@@ -1,4 +1,4 @@
-import { Navigate } from "react-router-dom"
+﻿import { Navigate } from "react-router-dom"
 import { useAuth } from "./AuthContext"
 import { Loading } from "../../components/ui/Loading"
 
@@ -15,3 +15,4 @@ export const PrivateRoute = ({ children }) => {
 
   return children
 }
+

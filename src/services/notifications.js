@@ -1,4 +1,4 @@
-import { 
+﻿import { 
   collection, 
   doc, 
   setDoc, 
@@ -219,3 +219,4 @@ export const getUserNotificationStatus = async (userId) => {
     return {}
   }
 }
+

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { doc, setDoc, deleteDoc, collection, getDocs } from 'firebase/firestore'
 import { db, auth } from '../../services/firebase'
 import { Card } from '../../components/ui/Card'
@@ -150,7 +150,7 @@ export const Admin = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-white">?? Painel Admin</h1>
+            <h1 className="text-2xl md:text-3xl font-bold text-white">⚙️ Painel Admin</h1>
             <p className="text-purple-200 text-sm mt-1 truncate">{user?.email}</p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -160,7 +160,7 @@ export const Admin = () => {
                   onClick={loadUsers} 
                   className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg backdrop-blur-sm border border-white/20 text-sm font-medium"
                 >
-                  ?? Atualizar
+                  🔄️ Atualizar
                 </button>
                 <button 
                   onClick={addUser} 
@@ -174,13 +174,13 @@ export const Admin = () => {
               onClick={() => navigate('/')} 
               className="px-4 py-2 bg-blue-600/80 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
             >
-              ?? Sistema
+               Sistema
             </button>
             <button 
               onClick={handleLogout}
               className="px-4 py-2 bg-red-600/80 hover:bg-red-700 text-white rounded-lg text-sm font-medium"
             >
-              ?? Sair
+               Sair
             </button>
           </div>
         </div>
@@ -195,7 +195,7 @@ export const Admin = () => {
                 : 'text-white hover:bg-white/10'
             }`}
           >
-            ?? Usu�rios
+             Usuários
           </button>
           <button
             onClick={() => setActiveTab('notifications')}
@@ -205,11 +205,11 @@ export const Admin = () => {
                 : 'text-white hover:bg-white/10'
             }`}
           >
-            ?? Notifica��es
+            🔔 Notificações
           </button>
         </div>
 
-        {/* Conte�do baseado na aba ativa */}
+        {/* Conteúdo baseado na aba ativa */}
         {activeTab === 'users' ? (
           <>
             {/* Stats Cards */}
@@ -217,19 +217,19 @@ export const Admin = () => {
               <div className="bg-white/10 backdrop-blur-lg p-4 md:p-6 rounded-xl border border-white/20">
                 <div className="text-center">
                   <div className="text-3xl md:text-4xl font-bold text-white">{stats.total}</div>
-                  <div className="text-xs md:text-sm text-purple-200 mt-1">Total de Usu�rios</div>
+                  <div className="text-xs md:text-sm text-purple-200 mt-1">Total de Usuários</div>
                 </div>
               </div>
               <div className="bg-white/10 backdrop-blur-lg p-4 md:p-6 rounded-xl border border-white/20">
                 <div className="text-center">
                   <div className="text-3xl md:text-4xl font-bold text-white">{stats.pro}</div>
-                  <div className="text-xs md:text-sm text-purple-200 mt-1">Usu�rios PRO ??</div>
+                  <div className="text-xs md:text-sm text-purple-200 mt-1">Usuários PRO 👑</div>
                 </div>
               </div>
               <div className="bg-white/10 backdrop-blur-lg p-4 md:p-6 rounded-xl border border-white/20">
                 <div className="text-center">
                   <div className="text-3xl md:text-4xl font-bold text-white">{stats.free}</div>
-                  <div className="text-xs md:text-sm text-purple-200 mt-1">Usu�rios FREE</div>
+                  <div className="text-xs md:text-sm text-purple-200 mt-1">Usuários FREE</div>
                 </div>
               </div>
             </div>
@@ -239,7 +239,7 @@ export const Admin = () => {
               <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
                 <input
                   type="text"
-                  placeholder="Buscar usu�rio..."
+                  placeholder="Buscar usuário..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-white/50"
@@ -256,7 +256,7 @@ export const Admin = () => {
               </div>
             </div>
 
-            {/* Tabela de Usu�rios */}
+            {/* Tabela de Usuários */}
             <div className="bg-white/10 backdrop-blur-lg rounded-xl border border-white/20 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -272,7 +272,7 @@ export const Admin = () => {
                         Plano
                       </th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-purple-200 uppercase tracking-wider">
-                        A��es
+                        Ações
                       </th>
                     </tr>
                   </thead>
@@ -286,7 +286,7 @@ export const Admin = () => {
                     ) : filteredUsers.length === 0 ? (
                       <tr>
                         <td colSpan="4" className="px-4 py-8 text-center text-purple-200">
-                          Nenhum usu�rio encontrado
+                          Nenhum usu rio encontrado
                         </td>
                       </tr>
                     ) : (
@@ -305,14 +305,14 @@ export const Admin = () => {
                                 className="text-purple-400 hover:text-purple-300 text-xs"
                                 title="Copiar UID completo"
                               >
-                                ??
+                                📝
                               </button>
                             </div>
                           </td>
                           <td className="px-4 py-3 text-center">
                             {u.isPro ? (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-300">
-                                ?? PRO
+                                👑 PRO
                               </span>
                             ) : (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-500/20 text-gray-300">
@@ -355,3 +355,4 @@ export const Admin = () => {
     </div>
   )
 }
+

@@ -16,51 +16,51 @@ export const Settings = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">Configuraï¿½ï¿½es</h2>
-        <p className="text-zinc-400">Gerencie suaçãonta e preferï¿½ncias</p>
+        <h2 className="text-2xl font-bold text-white">Configurações</h2>
+        <p className="text-zinc-400">Gerencie sua conta e preferncias</p>
       </div>
 
-      {/* Informaï¿½ï¿½es daçãonta */}
+      {/* Informações da conta */}
       <Card>
-        <h3 className="text-lg font-bold text-white mb-4">?? Informaï¿½ï¿½es daçãonta</h3>
+        <h3 className="text-lg font-bold text-white mb-4"> Informações da conta</h3>
         <div className="space-y-3">
           <div>
             <label className="text-sm text-zinc-400">Email</label>
-            <div className="text-white font-medium">{user?.email || "Nï¿½o disponï¿½vel"}</div>
+            <div className="text-white font-medium">{user?.email || "não disponvel"}</div>
           </div>
           <div>
-            <label className="text-sm text-zinc-400">ID do Usuï¿½rio</label>
-            <div className="text-white font-mono text-sm">{user?.uid || "Nï¿½o disponï¿½vel"}</div>
+            <label className="text-sm text-zinc-400">ID do Usuário</label>
+            <div className="text-white font-mono text-sm">{user?.uid || "não disponvel"}</div>
           </div>
         </div>
       </Card>
 
-      {/* Aï¿½ï¿½es daçãonta */}
+      {/* Aes da conta */}
       <Card>
-        <h3 className="text-lg font-bold text-white mb-4">?? Seguranï¿½a</h3>
+        <h3 className="text-lg font-bold text-white mb-4"> Segurança</h3>
         <div className="space-y-4">
           <Button
             onClick={handleLogout}
             className="w-full bg-yellow-600 hover:bg-yellow-700"
           >
-            ?? Sair daçãonta
+             Sair da conta
           </Button>
 
           <div className="border-t border-zinc-800 pt-4">
             <p className="text-zinc-400 text-sm mb-3">
-              ?? Zona de perigo: Esta aï¿½ï¿½o nï¿½o pode ser desfeita
+               Zona de perigo: Esta ação não pode ser desfeita
             </p>
             {!showDeleteConfirm ? (
               <button
                 onClick={() => setShowDeleteConfirm(true)}
                 className="w-full px-4 py-2 bg-red-900/30 hover:bg-red-900/50 text-red-400 border border-red-800 rounded-lg transition-colors"
               >
-                ??? Excluir Conta Permanentemente
+                 Excluir Conta Permanentemente
               </button>
             ) : (
               <div className="space-y-2">
                 <p className="text-red-400 text-sm font-semibold">
-                  Tem certeza? Todos os seus dados serï¿½o perdidos!
+                  Tem certeza? Todos os seus dados serão perdidos!
                 </p>
                 <div className="flex gap-2">
                   <button
@@ -73,7 +73,7 @@ export const Settings = () => {
                     onClick={() => alert("Funcionalidade em desenvolvimento")}
                     className="flex-1 px-4 py-2 bg-loss hover:bg-red-700 text-white rounded-lg font-bold"
                   >
-                    Confirmar Exclusï¿½o
+                    Confirmar Exclusão
                   </button>
                 </div>
               </div>
@@ -82,12 +82,12 @@ export const Settings = () => {
         </div>
       </Card>
 
-      {/* Informaï¿½ï¿½es do Sistema */}
+      {/* Informações do Sistema */}
       <Card>
-        <h3 className="text-lg font-bold text-white mb-4">?? Sobre o Sistema</h3>
+        <h3 className="text-lg font-bold text-white mb-4"> Sobre o Sistema</h3>
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-zinc-400">Versï¿½o</span>
+            <span className="text-zinc-400">Versão</span>
             <span className="text-white font-mono">2.0.0</span>
           </div>
           <div className="flex justify-between">
@@ -95,7 +95,7 @@ export const Settings = () => {
             <span className="text-white">TraderPro Team</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-zinc-400">Bação de Dados</span>
+            <span className="text-zinc-400">Banco de Dados</span>
             <span className="text-white">Firebase Firestore</span>
           </div>
         </div>
@@ -103,3 +103,4 @@ export const Settings = () => {
     </div>
   )
 }
+

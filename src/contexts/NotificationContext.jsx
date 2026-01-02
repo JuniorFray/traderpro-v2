@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+﻿import { createContext, useContext, useState, useEffect } from 'react'
 import { useAuth } from '../features/auth/AuthContext'
 import { getUserNotifications } from '../services/notifications'
 import { NotificationPopup } from '../components/notifications/NotificationPopup'
@@ -95,3 +95,4 @@ export const NotificationProvider = ({ children }) => {
     </NotificationContext.Provider>
   )
 }
+

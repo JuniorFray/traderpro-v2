@@ -1,4 +1,4 @@
-import { Card } from "../../components/ui/Card"
+﻿import { Card } from "../../components/ui/Card"
 import { formatCurrency, formatPercent } from "../../utils/metrics"
 
 export const MetricsCard = ({ label, value, type = "currency", trend }) => {
@@ -25,3 +25,4 @@ export const MetricsCard = ({ label, value, type = "currency", trend }) => {
     </Card>
   )
 }
+

@@ -329,3 +329,4 @@ export const exportToCSV = (trades) => {
   link.download = 'traderpro-trades-' + Date.now() + '.csv'
   link.click()
 }
+

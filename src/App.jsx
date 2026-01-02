@@ -1,4 +1,4 @@
-import { BrowserRouter } from "react-router-dom"
+﻿import { BrowserRouter } from "react-router-dom"
 import { AuthProvider } from "./features/auth/AuthContext"
 import { CustomerRoutes, AdminRoutes } from "./routes"
 import { useEffect, useState } from "react"
@@ -39,3 +39,4 @@ function App() {
 }
 
 export default App
+

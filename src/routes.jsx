@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom"
+﻿import { Routes, Route, Navigate } from "react-router-dom"
 import { useAuth } from "./features/auth/AuthContext"
 import { MainLayout } from "./components/layout/MainLayout"
 import { Login } from "./features/auth/Login"
@@ -62,3 +62,4 @@ export const AdminRoutes = () => {
     </Routes>
   )
 }
+

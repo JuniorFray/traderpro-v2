@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+﻿import { createContext, useContext, useState, useEffect } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth, db } from '../../services/firebase'
 import { doc, getDoc } from 'firebase/firestore'
@@ -23,14 +23,14 @@ export const AuthProvider = ({ children }) => {
       console.log('?? onAuthStateChanged disparado:', firebaseUser?.email)
       
       if (firebaseUser) {
-        // Verificar se � admin
+        // Verificar se  admin
         try {
           const adminDoc = await getDoc(doc(db, 'artifacts/trade-journal-public/adminUsers', firebaseUser.uid))
           if (adminDoc.exists()) {
             console.log('? Admin autenticado:', firebaseUser.email)
             setUser(firebaseUser)
           } else {
-            console.log('? N�o � admin')
+            console.log('? No  admin')
             setUser(null)
           }
         } catch (error) {
@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }) => {
           setUser(null)
         }
       } else {
-        console.log('? Nenhum usu�rio logado')
+        console.log('? Nenhum usurio logado')
         setUser(null)
       }
       
@@ -58,3 +58,4 @@ export const AuthProvider = ({ children }) => {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
+

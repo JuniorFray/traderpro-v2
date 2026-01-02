@@ -1,4 +1,4 @@
-import React from 'react'
+﻿import React from 'react'
 import './ProgressBar.css'
 
 const ProgressBar = ({ progress, current, total, message }) => {
@@ -23,3 +23,4 @@ const ProgressBar = ({ progress, current, total, message }) => {
 }
 
 export default ProgressBar
+

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 export const NotificationPopup = ({ notification, onClose, onMarkAsRead }) => {
@@ -112,3 +112,4 @@ export const NotificationPopup = ({ notification, onClose, onMarkAsRead }) => {
     </div>
   )
 }
+

@@ -49,11 +49,11 @@
 
 export const formatCurrency = (value) => {
   if (value === null || value === undefined || isNaN(value)) {
-    return 'R$ 0,00'
+    return '$ 0,00'
   }
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
-    currency: 'BRL'
+    currency: 'USD'
   }).format(value)
 }
 
@@ -72,3 +72,4 @@ export const formatDate = (dateString) => {
     return 'N/A'
   }
 }
+

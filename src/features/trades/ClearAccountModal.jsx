@@ -1,4 +1,4 @@
-import { useState } from "react"
+﻿import { useState } from "react"
 import { Button } from "../../components/ui/Button"
 import { Card } from "../../components/ui/Card"
 
@@ -103,3 +103,4 @@ export const ClearAccountModal = ({ onClose, onConfirm, tradesCount }) => {
     </div>
   )
 }
+

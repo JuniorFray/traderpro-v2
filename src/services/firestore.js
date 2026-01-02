@@ -1,4 +1,4 @@
-import { 
+﻿import { 
   collection, 
   doc, 
   getDoc, 
@@ -110,3 +110,4 @@ export const subscribeToCollection = (collectionName, conditions = [], callback)
 
 // Exportar helpers de query
 export { where, orderBy }
+

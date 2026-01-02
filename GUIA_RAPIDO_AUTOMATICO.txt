@@ -1,0 +1,100 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║           GUIA RÁPIDO - Correção Automática 100%                            ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+📥 PASSO 1: BAIXAR E COLOCAR O SCRIPT
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Baixe: CORRIGIR_TUDO_AUTOMATICO.ps1
+2. Salve em: C:\Users\junio\Desktop\traderpro-v2
+
+
+⚡ PASSO 2: EXECUTAR (Copie e cole no PowerShell)
+═══════════════════════════════════════════════════════════════════════════════
+
+cd C:\Users\junio\Desktop\traderpro-v2
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\CORRIGIR_TUDO_AUTOMATICO.ps1
+
+
+✅ O QUE O SCRIPT FAZ AUTOMATICAMENTE:
+═══════════════════════════════════════════════════════════════════════════════
+
+✓ Cria backup de todos os arquivos antes de alterar
+✓ Corrige TODOS os caracteres errados (ã, í, ó, ú, ç, etc.)
+✓ Remove caracteres corrompidos (ï¿½, �, ??)
+✓ Salva tudo em UTF-8 sem BOM
+✓ Busca caracteres remanescentes
+✓ Mostra relatório completo do que foi corrigido
+
+
+📊 CORREÇÕES INCLUÍDAS (80+ substituições):
+═══════════════════════════════════════════════════════════════════════════════
+
+Dashboard:
+  ✓ "Visão geral", "Lucro Líquido", "Trades Ganhos"
+
+Calendário:
+  ✓ "Calendário de Trades", "Anterior", "Próximo", "Sáb"
+
+Configurações:
+  ✓ "Configurações", "Informações da conta", "Segurança"
+  ✓ "Usuário", "sua conta", "preferências"
+  ✓ "ação não pode ser desfeita", "Exclusão"
+  ✓ "Banco de Dados", "Versão"
+
+Admin:
+  ✓ "Usuários", "Notificações", "Atualização"
+
+Analytics:
+  ✓ "Análises", "Gráficos", "Vitórias"
+
+Relatórios:
+  ✓ "Ação", "Profit Factor", "Prejuízo Bruto"
+  ✓ "Comissões", "Situação Final"
+
+E MUITO MAIS...
+
+
+🎯 APÓS EXECUTAR O SCRIPT:
+═══════════════════════════════════════════════════════════════════════════════
+
+npm install lucide-react
+npm run build
+npm run dev
+
+Abra: http://localhost:5173
+Teste TODAS as páginas
+
+
+🚀 DEPLOY:
+═══════════════════════════════════════════════════════════════════════════════
+
+git add .
+git commit -m "fix: corrigir encoding UTF-8 automaticamente"
+npm run build
+firebase deploy --only hosting
+
+
+💾 BACKUP:
+═══════════════════════════════════════════════════════════════════════════════
+
+O script cria backup automático em:
+  C:\Users\junio\Desktop\traderpro-v2\backup_encoding_YYYYMMDD_HHMMSS\
+
+Se algo der errado, basta restaurar desse backup.
+
+
+⚠️ IMPORTANTE:
+═══════════════════════════════════════════════════════════════════════════════
+
+• O script SOBRESCREVE os arquivos originais (mas faz backup primeiro)
+• Garante UTF-8 sem BOM em todos os arquivos
+• Se encontrar problemas remanescentes, mostra quais arquivos precisam de 
+  correção manual
+• Execute APENAS UMA VEZ. Se rodar 2x não quebra nada, mas não precisa.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+✅ COM ESTE SCRIPT, VOCÊ CORRIGE TUDO EM 30 SEGUNDOS!
+═══════════════════════════════════════════════════════════════════════════════

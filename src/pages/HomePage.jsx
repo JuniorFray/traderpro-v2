@@ -1,4 +1,4 @@
-import { useAuth } from "../features/auth/AuthContext"
+﻿import { useAuth } from "../features/auth/AuthContext"
 import { Button } from "../components/ui/Button"
 import { Card } from "../components/ui/Card"
 import { Icons } from "../components/icons"
@@ -75,3 +75,4 @@ export const HomePage = () => {
     </div>
   )
 }
+

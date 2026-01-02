@@ -1,4 +1,4 @@
-import { 
+﻿import { 
   signInWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
@@ -45,3 +45,4 @@ export const signOut = async () => {
 export const onAuthChange = (callback) => {
   return onAuthStateChanged(auth, callback)
 }
+

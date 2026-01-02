@@ -1,4 +1,4 @@
-import { db } from "./firebase"
+ï»¿import { db } from "./firebase"
 import {
   collection,
   addDoc,
@@ -14,7 +14,7 @@ import {
 } from "firebase/firestore"
 
 /**
- * Obtém o caminho correto da coleção de trades
+ * Obtm o caminho correto da coleo de trades
  */
 const getTradesPath = (userId) => {
   return `artifacts/trade-journal-public/users/${userId}/trades`
@@ -47,7 +47,7 @@ export const createTrade = async (userId, tradeData) => {
 }
 
 /**
- * Busca todos os trades de um usuário
+ * Busca todos os trades de um usurio
  */
 export const getTrades = async (userId) => {
   try {
@@ -58,7 +58,7 @@ export const getTrades = async (userId) => {
     const trades = snapshot.docs.map((doc) => {
       const data = doc.data()
       
-      // Converter strings para números
+      // Converter strings para nmeros
       return {
         id: doc.id,
         ...data,
@@ -127,7 +127,7 @@ export const deleteTrade = async (userId, tradeId) => {
 }
 
 /**
- * Deleta todos os trades de um usuário
+ * Deleta todos os trades de um usurio
  */
 export const deleteAllTrades = async (userId) => {
   try {
@@ -157,7 +157,7 @@ export const deleteAllTrades = async (userId) => {
 
 export const createTradesInBatch = async (userId, tradesData, onProgress) => {
   try {
-    const batchSize = 50 // Firestore permite max 500 operações por batch
+    const batchSize = 50 // Firestore permite max 500 operaes por batch
     const totalTrades = tradesData.length
     let importedCount = 0
 
@@ -209,6 +209,7 @@ export default {
 createTradesInBatch,
 }
 /**
- * Cria múltiplos trades em lote com callback de progresso
+ * Cria mltiplos trades em lote com callback de progresso
  */
+
 

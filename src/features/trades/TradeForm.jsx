@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+﻿import { useState, useEffect } from "react"
 import { Button } from "../../components/ui/Button"
 
 export const TradeForm = ({ onSubmit, initialData = null, submitLabel = "Criar Trade" }) => {
@@ -88,7 +88,7 @@ export const TradeForm = ({ onSubmit, initialData = null, submitLabel = "Criar T
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-zinc-400 mb-1">Resultado (R$)</label>
+          <label className="block text-sm font-medium text-zinc-400 mb-1">Resultado ($)</label>
           <input
             type="number"
             name="pnl"
@@ -101,7 +101,7 @@ export const TradeForm = ({ onSubmit, initialData = null, submitLabel = "Criar T
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-zinc-400 mb-1">Comiss�o (R$)</label>
+          <label className="block text-sm font-medium text-zinc-400 mb-1">Comisso ($)</label>
           <input
             type="number"
             name="commission"
@@ -113,7 +113,7 @@ export const TradeForm = ({ onSubmit, initialData = null, submitLabel = "Criar T
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-zinc-400 mb-1">Swap (R$)</label>
+          <label className="block text-sm font-medium text-zinc-400 mb-1">Swap ($)</label>
           <input
             type="number"
             name="swap"
@@ -125,7 +125,7 @@ export const TradeForm = ({ onSubmit, initialData = null, submitLabel = "Criar T
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-zinc-400 mb-1">Estrat�gia</label>
+          <label className="block text-sm font-medium text-zinc-400 mb-1">Estratgia</label>
           <input
             type="text"
             name="strategy"
@@ -137,7 +137,7 @@ export const TradeForm = ({ onSubmit, initialData = null, submitLabel = "Criar T
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-zinc-400 mb-1">Observa��es</label>
+        <label className="block text-sm font-medium text-zinc-400 mb-1">Observaes</label>
         <textarea
           name="notes"
           value={formData.notes}
@@ -153,3 +153,4 @@ export const TradeForm = ({ onSubmit, initialData = null, submitLabel = "Criar T
     </form>
   )
 }
+

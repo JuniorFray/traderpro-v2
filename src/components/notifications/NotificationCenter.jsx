@@ -1,4 +1,4 @@
-import { Modal } from '../ui'
+﻿import { Modal } from '../ui'
 
 export const NotificationCenter = ({ 
   isOpen, 
@@ -118,3 +118,4 @@ export const NotificationCenter = ({
     </Modal>
   )
 }
+

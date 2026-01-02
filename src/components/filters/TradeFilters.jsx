@@ -1,4 +1,4 @@
-import { useState } from "react"
+﻿import { useState } from "react"
 import { Card, Button } from "../ui"
 
 export const TradeFilters = ({ onFilterChange }) => {
@@ -109,3 +109,4 @@ export const TradeFilters = ({ onFilterChange }) => {
     </Card>
   )
 }
+

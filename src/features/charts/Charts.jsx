@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useTrades } from '../../hooks/useTrades'
 import { Card } from '../../components/ui/Card'
 import { TradeFilters } from '../../components/filters/TradeFilters'
@@ -147,7 +147,7 @@ export const Charts = () => {
               </div>
             </Card>
             <Card>
-              <div className="text-zinc-400 text-sm mb-1">Max Drawdown (R$)</div>
+              <div className="text-zinc-400 text-sm mb-1">Max Drawdown ($)</div>
               <div className="text-2xl font-bold text-loss">
                 {formatCurrency(maxDrawdown)}
               </div>
@@ -222,7 +222,7 @@ export const Charts = () => {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                 <XAxis dataKey="date" stroke="#71717a" tick={{ fontSize: 12 }} interval="preserveStartEnd" />
-                <YAxis stroke="#71717a" tick={{ fontSize: 12 }} tickFormatter={(value) => `R$ ${value.toFixed(0)}`} />
+                <YAxis stroke="#71717a" tick={{ fontSize: 12 }} tickFormatter={(value) => `$ ${value.toFixed(0)}`} />
                 <Tooltip content={<CustomTooltip />} />
                 <Area 
                   type="monotone" 
@@ -249,7 +249,7 @@ export const Charts = () => {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                 <XAxis dataKey="date" stroke="#71717a" tick={{ fontSize: 12 }} interval="preserveStartEnd" />
-                <YAxis stroke="#71717a" tick={{ fontSize: 12 }} tickFormatter={(value) => `R$ ${value.toFixed(0)}`} />
+                <YAxis stroke="#71717a" tick={{ fontSize: 12 }} tickFormatter={(value) => `$ ${value.toFixed(0)}`} />
                 <Tooltip content={<CustomTooltip />} />
                 <Area 
                   type="monotone" 
@@ -270,7 +270,7 @@ export const Charts = () => {
               <LineChart data={monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                 <XAxis dataKey="month" stroke="#71717a" tick={{ fontSize: 12 }} />
-                <YAxis stroke="#71717a" tick={{ fontSize: 12 }} tickFormatter={(value) => `R$ ${value.toFixed(0)}`} />
+                <YAxis stroke="#71717a" tick={{ fontSize: 12 }} tickFormatter={(value) => `$ ${value.toFixed(0)}`} />
                 <Tooltip content={<CustomTooltip />} />
                 <Line 
                   type="monotone" 
@@ -288,3 +288,4 @@ export const Charts = () => {
     </div>
   )
 }
+

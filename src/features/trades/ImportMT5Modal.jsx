@@ -1,4 +1,4 @@
-import { useState } from "react"
+﻿import { useState } from "react"
 import { Button } from "../../components/ui/Button"
 import { Card } from "../../components/ui/Card"
 import { parseMT5File, validateTrades } from "../../utils/mt5Parser"
@@ -326,3 +326,4 @@ export const ImportMT5Modal = ({ onClose, onImport, existingTrades = [] }) => {
     </div>
   )
 }
+

@@ -1,4 +1,4 @@
-import { Icons } from "../icons"
+﻿import { Icons } from "../icons"
 
 export const Modal = ({ 
   isOpen, 
@@ -33,3 +33,4 @@ export const Modal = ({
     </div>
   )
 }
+

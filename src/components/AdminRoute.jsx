@@ -1,4 +1,4 @@
-import { Navigate } from "react-router-dom"
+﻿import { Navigate } from "react-router-dom"
 import { useAuth } from "../features/auth/AuthContext"
 
 export const AdminRoute = ({ children }) => {
@@ -24,3 +24,4 @@ export const AdminRoute = ({ children }) => {
   console.log('Acesso permitido ao Admin!')
   return children
 }
+

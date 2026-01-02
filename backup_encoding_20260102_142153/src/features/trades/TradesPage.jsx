@@ -1,0 +1,228 @@
+import { useState } from "react"
+import { useTrades } from "../../hooks/useTrades"
+import { Card } from "../../components/ui/Card"
+import { Button } from "../../components/ui/Button"
+import { TradeForm } from "./TradeForm"
+import { TradeFilters } from "../../components/filters/TradeFilters"
+import { formatCurrency } from "../../utils/metrics"
+import { ImportMT5Modal } from "./ImportMT5Modal"
+import { ClearAccountModal } from "./ClearAccountModal"
+
+export const TradesPage = () => {
+  const { trades, loading, createTrade, updateTrade, deleteTrade, clearAllTrades, importTrades } = useTrades()
+  const [showForm, setShowForm] = useState(false)
+  const [editingTrade, setEditingTrade] = useState(null)
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [showClearModal, setShowClearModal] = useState(false)
+  const [filters, setFilters] = useState({
+    startDate: "",
+    endDate: "",
+    symbol: "",
+    strategy: "",
+    result: "all"
+  })
+
+  // Aplicar filtros
+  const filteredTrades = trades.filter(trade => {
+    if (filters.startDate && trade.date < filters.startDate) return false
+    if (filters.endDate && trade.date > filters.endDate) return false
+    if (filters.symbol && !trade.asset.toLowerCase().includes(filters.symbol.toLowerCase())) return false
+    if (filters.strategy && !trade.strategy?.toLowerCase().includes(filters.strategy.toLowerCase())) return false
+    if (filters.result !== "all") {
+      if (filters.result === "win" && trade.pnl <= 0) return false
+      if (filters.result === "loss" && trade.pnl >= 0) return false
+    }
+    return true
+  })
+
+  // Calcular métricas dos trades filtrados
+  const metrics = {
+    total: filteredTrades.length,
+    wins: filteredTrades.filter(t => t.pnl > 0).length,
+    losses: filteredTrades.filter(t => t.pnl < 0).length,
+    totalPnL: filteredTrades.reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0)
+  }
+
+  const handleSubmit = async (tradeData) => {
+    try {
+      if (editingTrade) {
+        await updateTrade(editingTrade.id, tradeData)
+      } else {
+        await createTrade(tradeData)
+      }
+      setShowForm(false)
+      setEditingTrade(null)
+    } catch (error) {
+      console.error("Erro ao salvar trade:", error)
+      alert("Erro ao salvar trade")
+    }
+  }
+
+  const handleEdit = (trade) => {
+    setEditingTrade(trade)
+    setShowForm(true)
+  }
+
+  const handleDelete = async (tradeId) => {
+    if (window.confirm("Deseja realmente excluir este trade?")) {
+      try {
+        await deleteTrade(tradeId)
+      } catch (error) {
+        console.error("Erro ao deletar trade:", error)
+        alert("Erro ao deletar trade")
+      }
+    }
+  }
+
+  const handleCancel = () => {
+    setShowForm(false)
+    setEditingTrade(null)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-white">Carregando trades...</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-white">Trades</h1>
+        <div className="flex gap-3">
+          <Button 
+            variant="outline" 
+            onClick={() => setShowImportModal(true)}
+          >
+            📥 Importar MT5
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => setShowClearModal(true)}
+            className="hover:bg-red-900/30 hover:border-red-500/50"
+          >
+            🗑️ Zerar Conta
+          </Button>
+          <Button onClick={() => setShowForm(true)} disabled={showForm}>
+            + Novo Trade
+          </Button>
+        </div>
+      </div>
+
+      {/* Métricas Resumidas */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <div className="text-sm text-zinc-400 mb-1">Total de Trades</div>
+          <div className="text-2xl font-bold text-white">{metrics.total}</div>
+        </Card>
+        <Card>
+          <div className="text-sm text-zinc-400 mb-1">Wins</div>
+          <div className="text-2xl font-bold text-green-500">{metrics.wins}</div>
+        </Card>
+        <Card>
+          <div className="text-sm text-zinc-400 mb-1">Losses</div>
+          <div className="text-2xl font-bold text-red-500">{metrics.losses}</div>
+        </Card>
+        <Card>
+          <div className="text-sm text-zinc-400 mb-1">P&L Total</div>
+          <div className={`text-2xl font-bold ${metrics.totalPnL >= 0 ? "text-green-500" : "text-red-500"}`}>
+            {formatCurrency(metrics.totalPnL)}
+          </div>
+        </Card>
+      </div>
+
+      {/* Filtros */}
+      <TradeFilters onFilterChange={setFilters} />
+
+      {/* Formulário */}
+      {showForm && (
+        <TradeForm
+          onSubmit={handleSubmit}
+          onCancel={handleCancel}
+          initialData={editingTrade}
+        />
+      )}
+
+      {/* Lista de Trades */}
+      <Card>
+        <h2 className="text-xl font-bold text-white mb-4">
+          Histórico ({filteredTrades.length} {filteredTrades.length === 1 ? "trade" : "trades"})
+        </h2>
+
+        {filteredTrades.length === 0 ? (
+          <div className="text-center py-8 text-zinc-500">
+            Nenhum trade encontrado
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredTrades.map(trade => (
+              <div
+                key={trade.id}
+                className="p-4 bg-zinc-800 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-white font-bold">{trade.asset}</span>
+                      <span className="text-sm text-zinc-400">{trade.date}</span>
+                      {trade.strategy && (
+                        <span className="text-xs px-2 py-1 bg-zinc-700 rounded text-zinc-300">
+                          {trade.strategy}
+                        </span>
+                      )}
+                    </div>
+                    {trade.notes && (
+                      <p className="text-sm text-zinc-500">{trade.notes}</p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className={`text-xl font-bold ${trade.pnl >= 0 ? "text-green-500" : "text-red-500"}`}>
+                      {formatCurrency(trade.pnl)}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(trade)}
+                      >
+                        ✏️
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(trade.id)}
+                        className="hover:bg-red-900/30 hover:border-red-500/50"
+                      >
+                        🗑️
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* Modais */}
+      {showImportModal && (
+        <ImportMT5Modal
+          onClose={() => setShowImportModal(false)}
+          onImport={importTrades}
+        />
+      )}
+
+      {showClearModal && (
+        <ClearAccountModal
+          onClose={() => setShowClearModal(false)}
+          onConfirm={clearAllTrades}
+          tradesCount={trades.length}
+        />
+      )}
+    </div>
+  )
+}

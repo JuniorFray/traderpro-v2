@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx'
+﻿import * as XLSX from 'xlsx'
 
 /**
  * Parser para arquivos de histórico do MetaTrader 5
@@ -248,3 +248,4 @@ export const validateTrades = (trades, existingTrades = []) => {
 
   return results
 }
+

@@ -1,0 +1,50 @@
+# ============================================================================
+# COMANDOS PRONTOS PARA COPIAR E COLAR NO POWERSHELL
+# ============================================================================
+
+# 1. IR PARA A PASTA DO PROJETO
+cd C:\Users\junio\Desktop\traderpro-v2
+
+# 2. PERMITIR EXECUÇÃO DO SCRIPT (necessário apenas 1x)
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+
+# 3. EXECUTAR CORREÇÃO AUTOMÁTICA
+.\CORRIGIR_TUDO_AUTOMATICO.ps1
+
+# 4. INSTALAR BIBLIOTECA DE ÍCONES
+npm install lucide-react
+
+# 5. BUILD DO PROJETO
+npm run build
+
+# 6. TESTAR LOCALMENTE
+npm run dev
+
+# ============================================================================
+# APÓS TESTAR E CONFIRMAR QUE ESTÁ OK:
+# ============================================================================
+
+# 7. COMMIT
+git add .
+git commit -m "fix: corrigir encoding UTF-8 em todos os arquivos"
+
+# 8. DEPLOY
+firebase deploy --only hosting
+
+# ============================================================================
+# SE PRECISAR LIMPAR TUDO E RECOMEÇAR:
+# ============================================================================
+
+Remove-Item -Recurse -Force dist, node_modules
+npm install
+npm run build
+firebase deploy --only hosting
+
+# ============================================================================
+# VERIFICAR SE AINDA HÁ PROBLEMAS:
+# ============================================================================
+
+# Buscar caracteres problemáticos remanescentes
+Get-ChildItem -Path src -Recurse -Include *.jsx,*.js | Select-String -Pattern "ï¿½|�|Ã|ã¡|ã£"
+
+# ============================================================================

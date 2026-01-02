@@ -1,4 +1,4 @@
-import { useAuth } from "./AuthContext"
+﻿import { useAuth } from "./AuthContext"
 import { useNavigate, Link } from "react-router-dom"
 import { useEffect, useState } from "react"
 
@@ -164,3 +164,4 @@ export const Register = () => {
     </div>
   )
 }
+

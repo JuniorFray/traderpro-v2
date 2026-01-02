@@ -1,4 +1,4 @@
-import { Button } from "../ui"
+﻿import { Button } from "../ui"
 import { exportToPDF, exportToExcel, exportToCSV } from "../../utils/exportReports"
 import { calculateMetrics } from "../../utils/metrics"
 import { useAuth } from "../../features/auth/AuthContext"
@@ -87,3 +87,4 @@ export const ExportButtons = ({ trades, filteredTrades = null }) => {
     </div>
   )
 }
+
