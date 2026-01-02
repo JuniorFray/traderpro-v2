@@ -6,10 +6,10 @@ import { useEffect } from "react"
 export const AdminPrivateRoute = ({ children }) => {
   const { user, loading, isAuthenticated } = useAuth()
 
-  // Se o usuário logado NÃO for o admin, força logout imediato
+  // Se o Usuário logado NÃO for o admin, forçaçãogout iMédiato
   useEffect(() => {
     if (!loading && user && user.email !== "juniorfray944@gmail.com") {
-      console.warn("Usuário não autorizado no Admin. Deslogando...")
+      console.warn("Usuário não açãorizado no Admin. Deslogação...")
       auth.signOut()
     }
   }, [user, loading])
@@ -17,7 +17,7 @@ export const AdminPrivateRoute = ({ children }) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-[#0f0a1e]">
-        <div className="text-white">Verificando credenciais...</div>
+        <div className="text-white">Verificação credenciais...</div>
       </div>
     )
   }

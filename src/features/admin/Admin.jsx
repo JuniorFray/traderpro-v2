@@ -195,7 +195,7 @@ export const Admin = () => {
                 : 'text-white hover:bg-white/10'
             }`}
           >
-            ?? Usuários
+            ?? Usuï¿½rios
           </button>
           <button
             onClick={() => setActiveTab('notifications')}
@@ -205,11 +205,11 @@ export const Admin = () => {
                 : 'text-white hover:bg-white/10'
             }`}
           >
-            ?? Notificações
+            ?? Notificaï¿½ï¿½es
           </button>
         </div>
 
-        {/* Conteúdo baseado na aba ativa */}
+        {/* Conteï¿½do baseado na aba ativa */}
         {activeTab === 'users' ? (
           <>
             {/* Stats Cards */}
@@ -217,19 +217,19 @@ export const Admin = () => {
               <div className="bg-white/10 backdrop-blur-lg p-4 md:p-6 rounded-xl border border-white/20">
                 <div className="text-center">
                   <div className="text-3xl md:text-4xl font-bold text-white">{stats.total}</div>
-                  <div className="text-xs md:text-sm text-purple-200 mt-1">Total de Usuários</div>
+                  <div className="text-xs md:text-sm text-purple-200 mt-1">Total de Usuï¿½rios</div>
                 </div>
               </div>
               <div className="bg-white/10 backdrop-blur-lg p-4 md:p-6 rounded-xl border border-white/20">
                 <div className="text-center">
                   <div className="text-3xl md:text-4xl font-bold text-white">{stats.pro}</div>
-                  <div className="text-xs md:text-sm text-purple-200 mt-1">Usuários PRO ??</div>
+                  <div className="text-xs md:text-sm text-purple-200 mt-1">Usuï¿½rios PRO ??</div>
                 </div>
               </div>
               <div className="bg-white/10 backdrop-blur-lg p-4 md:p-6 rounded-xl border border-white/20">
                 <div className="text-center">
                   <div className="text-3xl md:text-4xl font-bold text-white">{stats.free}</div>
-                  <div className="text-xs md:text-sm text-purple-200 mt-1">Usuários FREE</div>
+                  <div className="text-xs md:text-sm text-purple-200 mt-1">Usuï¿½rios FREE</div>
                 </div>
               </div>
             </div>
@@ -239,7 +239,7 @@ export const Admin = () => {
               <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
                 <input
                   type="text"
-                  placeholder="Buscar usuário..."
+                  placeholder="Buscar usuï¿½rio..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-white/50"
@@ -256,7 +256,7 @@ export const Admin = () => {
               </div>
             </div>
 
-            {/* Tabela de Usuários */}
+            {/* Tabela de Usuï¿½rios */}
             <div className="bg-white/10 backdrop-blur-lg rounded-xl border border-white/20 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -272,7 +272,7 @@ export const Admin = () => {
                         Plano
                       </th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-purple-200 uppercase tracking-wider">
-                        Ações
+                        Aï¿½ï¿½es
                       </th>
                     </tr>
                   </thead>
@@ -286,7 +286,7 @@ export const Admin = () => {
                     ) : filteredUsers.length === 0 ? (
                       <tr>
                         <td colSpan="4" className="px-4 py-8 text-center text-purple-200">
-                          Nenhum usuário encontrado
+                          Nenhum usuï¿½rio encontrado
                         </td>
                       </tr>
                     ) : (

@@ -1,4 +1,4 @@
-﻿import { useState } from "react"
+import { useState } from "react"
 import { useTrades } from "../../hooks/useTrades"
 import { Card } from "../../components/ui/Card"
 import { Button } from "../../components/ui/Button"

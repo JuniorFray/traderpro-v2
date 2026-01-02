@@ -23,14 +23,14 @@ export const AuthProvider = ({ children }) => {
       console.log('?? onAuthStateChanged disparado:', firebaseUser?.email)
       
       if (firebaseUser) {
-        // Verificar se é admin
+        // Verificar se ï¿½ admin
         try {
           const adminDoc = await getDoc(doc(db, 'artifacts/trade-journal-public/adminUsers', firebaseUser.uid))
           if (adminDoc.exists()) {
             console.log('? Admin autenticado:', firebaseUser.email)
             setUser(firebaseUser)
           } else {
-            console.log('? Não é admin')
+            console.log('? Nï¿½o ï¿½ admin')
             setUser(null)
           }
         } catch (error) {
@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }) => {
           setUser(null)
         }
       } else {
-        console.log('? Nenhum usuário logado')
+        console.log('? Nenhum usuï¿½rio logado')
         setUser(null)
       }
       

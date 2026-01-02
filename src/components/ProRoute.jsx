@@ -1,4 +1,4 @@
-﻿import { Navigate } from "react-router-dom"
+import { Navigate } from "react-router-dom"
 import { useAuth } from "../features/auth/AuthContext"
 
 export const ProRoute = ({ children }) => {

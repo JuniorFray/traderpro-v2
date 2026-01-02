@@ -62,7 +62,7 @@ export const TradesList = () => {
                 {formatCurrency(trade.pnl || 0)}
               </p>
               <p className="text-xs text-zinc-500">
-                Comissão: {formatCurrency(trade.commission || 0)}
+                Comissï¿½o: {formatCurrency(trade.commission || 0)}
               </p>
               <p className="text-xs text-zinc-500">
                 Swap: {formatCurrency(trade.swap || 0)}

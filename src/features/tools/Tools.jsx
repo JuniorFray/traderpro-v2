@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { Card } from '../../components/ui/Card'
 
 export const Tools = () => {
@@ -21,27 +21,27 @@ export const Tools = () => {
     const lossAmount = riskAmount
     
     const totalWinAmount = winAmount * config.wins
-    const totalLossAmount = lossAmount * config.losses
-    const grossProfit = totalWinAmount - totalLossAmount
+    const totaçãossAmount = lossAmount * config.losses
+    const grossProfit = totalWinAmount - totaçãossAmount
     
-    const totalCosts = config.costPerTrade * config.totalTrades
-    const netBeforeTax = grossProfit - totalCosts
+    const totaçãosts = config.costPerTrade * config.totalTrades
+    const netBeforeTax = grossProfit - totaçãosts
     const taxes = (netBeforeTax > 0 ? netBeforeTax : 0) * (config.taxRate / 100)
     const finalProfit = netBeforeTax - taxes
     
-    const profitFactor = totalLossAmount > 0 ? (totalWinAmount / totalLossAmount) : 0
+    const profitFaçãor = totaçãossAmount > 0 ? (totalWinAmount / totaçãossAmount) : 0
     const winRate = config.totalTrades > 0 ? (config.wins / config.totalTrades) * 100 : 0
     const returnPercent = config.capital > 0 ? (finalProfit / config.capital) * 100 : 0
     const finalBalance = config.capital + finalProfit
 
     return {
       totalWinAmount,
-      totalLossAmount,
+      totaçãossAmount,
       grossProfit,
-      totalCosts,
+      totaçãosts,
       taxes,
       finalProfit,
-      profitFactor,
+      profitFaçãor,
       winRate,
       returnPercent,
       finalBalance
@@ -51,7 +51,7 @@ export const Tools = () => {
   const results = calculateResults()
 
   const formatCurrency = (value) => {
-    const symbols = { BRL: 'R$', USD: '$', EUR: '�' }
+    const symbols = { BRL: 'R$', USD: '$', EUR: '�' }
     const formatted = Math.abs(value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     const sign = value >= 0 ? '+' : '-'
     return `${sign}${symbols[config.currency]} ${formatted}`
@@ -62,7 +62,7 @@ export const Tools = () => {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-ação">
       {/* Titulo */}
       <div className="text-center">
         <h1 className="text-3xl font-bold text-white">
@@ -73,9 +73,9 @@ export const Tools = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* COLUNA ESQUERDA */}
         <div className="space-y-6">
-          {/* CONFIGURACAO */}
+          {/* Configuração */}
           <Card className="bg-zinc-900">
-            <h3 className="text-sm font-semibold text-zinc-400 mb-4 uppercase tracking-wider">Configura��o</h3>
+            <h3 className="text-sm font-semibold text-zinc-400 mb-4 uppercase tracking-wider">Configuração</h3>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -87,7 +87,7 @@ export const Tools = () => {
                   >
                     <option value="BRL">BRL (R$)</option>
                     <option value="USD">USD ($)</option>
-                    <option value="EUR">EUR (�)</option>
+                    <option value="EUR">EUR (�)</option>
                   </select>
                 </div>
                 
@@ -115,7 +115,7 @@ export const Tools = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs text-zinc-500 mb-2">Alvo (R:R)</label>
+                  <label className="block text-xs text-zinc-500 mb-2">ação (R:R)</label>
                   <input
                     type="number"
                     step="0.1"
@@ -181,7 +181,7 @@ export const Tools = () => {
                   onChange={(e) => handleChange('costPerTrade', e.target.value)}
                   className="w-full px-3 py-2 bg-black border border-zinc-800 rounded text-white text-sm focus:outline-none focus:border-purple-500"
                 />
-                <p className="text-xs text-zinc-600 mt-1">Comiss�es + Fees</p>
+                <p className="text-xs text-zinc-600 mt-1">Comiss�es + Fees</p>
               </div>
 
               <div>
@@ -193,7 +193,7 @@ export const Tools = () => {
                   onChange={(e) => handleChange('taxRate', e.target.value)}
                   className="w-full px-3 py-2 bg-black border border-zinc-800 rounded text-white text-sm focus:outline-none focus:border-purple-500"
                 />
-                <p className="text-xs text-zinc-600 mt-1">% sobre o Lucro L�quido</p>
+                <p className="text-xs text-zinc-600 mt-1">% sobre o Lucro Líquido</p>
               </div>
             </div>
           </Card>
@@ -204,8 +204,8 @@ export const Tools = () => {
           {/* METRICAS */}
           <div className="grid grid-cols-2 gap-4">
             <Card className="bg-zinc-900 text-center">
-              <div className="text-3xl font-bold text-green-500">{results.profitFactor.toFixed(2)}</div>
-              <div className="text-xs text-zinc-400 mt-1">Profit Factor</div>
+              <div className="text-3xl font-bold text-green-500">{results.profitFaçãor.toFixed(2)}</div>
+              <div className="text-xs text-zinc-400 mt-1">Profit Façãor</div>
             </Card>
             <Card className="bg-zinc-900 text-center">
               <div className="text-3xl font-bold text-white">{results.winRate.toFixed(1)}%</div>
@@ -222,11 +222,11 @@ export const Tools = () => {
                 <span className="text-sm font-semibold text-green-500">{formatCurrency(results.totalWinAmount)}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-zinc-400">Preju�zo Bruto (Loss):</span>
-                <span className="text-sm font-semibold text-red-500">{formatCurrency(-results.totalLossAmount)}</span>
+                <span className="text-sm text-zinc-400">Preju�zo Bruto (Loss):</span>
+                <span className="text-sm font-semibold text-red-500">{formatCurrency(-results.totaçãossAmount)}</span>
               </div>
               <div className="flex justify-between items-center pt-3 border-t border-zinc-800">
-                <span className="text-sm text-white font-semibold">Saldo Operacional:</span>
+                <span className="text-sm text-white font-semibold">Sação Operaçãonal:</span>
                 <span className={`text-lg font-bold ${results.grossProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                   {formatCurrency(results.grossProfit)}
                 </span>
@@ -239,8 +239,8 @@ export const Tools = () => {
             <h3 className="text-sm font-semibold text-zinc-400 mb-4 uppercase tracking-wider">Descontos</h3>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-zinc-400">Total Custos/Comiss�es:</span>
-                <span className="text-sm font-semibold text-red-500">{formatCurrency(-results.totalCosts)}</span>
+                <span className="text-sm text-zinc-400">Total Custos/Comiss�es:</span>
+                <span className="text-sm font-semibold text-red-500">{formatCurrency(-results.totaçãosts)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-zinc-400">Imposto / Profit Split:</span>
@@ -253,7 +253,7 @@ export const Tools = () => {
           <Card className="bg-gradient-to-br from-zinc-900 to-zinc-800 border border-zinc-700">
             <div className="space-y-4">
               <div className="text-center">
-                <div className="text-xs text-zinc-400 mb-2">LUCRO L�QUIDO (NO BOLSO):</div>
+                <div className="text-xs text-zinc-400 mb-2">LUCRO Líquido (NO BOLSO):</div>
                 <div className={`text-4xl font-bold ${results.finalProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                   {formatCurrency(results.finalProfit)}
                 </div>
@@ -267,7 +267,7 @@ export const Tools = () => {
                   </div>
                 </div>
                 <div className="text-center">
-                  <div className="text-xs text-zinc-400 mb-1">Saldo Final:</div>
+                  <div className="text-xs text-zinc-400 mb-1">Sação Final:</div>
                   <div className="text-xl font-bold text-white">
                     R$ {results.finalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </div>

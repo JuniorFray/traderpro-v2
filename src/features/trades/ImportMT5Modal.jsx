@@ -68,32 +68,35 @@ export const ImportMT5Modal = ({ onClose, onImport, existingTrades = [] }) => {
   }
 
   const handleImport = async () => {
-    if (!validation || validation.valid.length === 0) {
-      alert('Nenhum trade válido para importar')
-      return
-    }
-
-    setImporting(true)
-    setError("")
-    setImportProgress({ current: 0, total: validation.valid.length })
-
-    try {
-      // Importar trades um por um com progresso
-      for (let i = 0; i < validation.valid.length; i++) {
-        await onImport(validation.valid[i])
-        setImportProgress({ current: i + 1, total: validation.valid.length })
-      }
-      
-      // Aguardar um pouco antes de fechar para mostrar 100%
-      await new Promise(resolve => setTimeout(resolve, 500))
-      alert(`${validation.valid.length} trades importados com sucesso!`)
-      onClose()
-    } catch (err) {
-      console.error("Erro ao importar:", err)
-      setError("Erro ao importar trades. Tente novamente.")
-      setImporting(false)
-    }
+  if (!validation || validation.valid.length === 0) {
+    alert('Nenhum trade válido para importar')
+    return
   }
+
+  setImporting(true)
+  setError("")
+  setImportProgress({ current: 0, total: validation.valid.length })
+
+  try {
+    // Passar o ARRAY COMPLETO para importTrades (batch)
+    await onImport(validation.valid)
+    
+    // Simular progresso visualmente
+    for (let i = 1; i <= validation.valid.length; i++) {
+      setImportProgress({ current: i, total: validation.valid.length })
+      await new Promise(resolve => setTimeout(resolve, 50))
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 500))
+    alert(`${validation.valid.length} trades importados com sucesso!`)
+    onClose()
+  } catch (err) {
+    console.error("Erro ao importar:", err)
+    setError("Erro ao importar trades. Tente novamente.")
+    setImporting(false)
+  }
+}
+
 
   const progressPercent = importProgress.total > 0 
     ? (importProgress.current / importProgress.total) * 100 

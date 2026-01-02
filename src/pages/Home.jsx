@@ -17,7 +17,7 @@ export const Home = () => {
             <h1 className="text-3xl font-black text-white mb-2">
               TraderPro v2.0
             </h1>
-            <p className="text-zinc-400">Olá, {user?.email}! ??</p>
+            <p className="text-zinc-400">Olï¿½, {user?.email}! ??</p>
           </div>
           
           <Button variant="outline" onClick={handleLogout}>

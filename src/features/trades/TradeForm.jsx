@@ -101,7 +101,7 @@ export const TradeForm = ({ onSubmit, initialData = null, submitLabel = "Criar T
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-zinc-400 mb-1">Comissão (R$)</label>
+          <label className="block text-sm font-medium text-zinc-400 mb-1">Comissï¿½o (R$)</label>
           <input
             type="number"
             name="commission"
@@ -125,7 +125,7 @@ export const TradeForm = ({ onSubmit, initialData = null, submitLabel = "Criar T
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-zinc-400 mb-1">Estratégia</label>
+          <label className="block text-sm font-medium text-zinc-400 mb-1">Estratï¿½gia</label>
           <input
             type="text"
             name="strategy"
@@ -137,7 +137,7 @@ export const TradeForm = ({ onSubmit, initialData = null, submitLabel = "Criar T
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-zinc-400 mb-1">Observações</label>
+        <label className="block text-sm font-medium text-zinc-400 mb-1">Observaï¿½ï¿½es</label>
         <textarea
           name="notes"
           value={formData.notes}
