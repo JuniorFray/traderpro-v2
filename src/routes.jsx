@@ -12,7 +12,9 @@ import { Charts } from './features/charts/Charts'
 import { Reports } from './features/reports/Reports'
 import { Settings } from './features/settings/Settings'
 import { Tools } from './features/tools/Tools'
+import { SupportPage } from './features/support/SupportPage'
 import { Admin } from './features/admin/Admin'
+import { AdminTicketsPage } from './features/admin/AdminTicketsPage'
 import { ProRoute } from './components/ProRoute'
 import { AdminPrivateRoute } from './components/AdminPrivateRoute'
 import { LandingWrapper } from './pages/LandingWrapper'
@@ -45,6 +47,7 @@ export const CustomerRoutes = () => {
         <Route path="reports" element={<Reports />} />
         <Route path="settings" element={<Settings />} />
         <Route path="tools" element={<Tools />} />
+        <Route path="support" element={<SupportPage />} />
       </Route>
       
       <Route path="*" element={<Navigate to="/" replace />} />

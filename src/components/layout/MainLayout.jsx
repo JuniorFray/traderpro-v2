@@ -13,6 +13,7 @@ const menuItems = [
   { path: "analytics", icon: "📈", label: "Análises" },
   { path: "charts", icon: "📉", label: "Gráficos" },
   { path: "reports", icon: "📄", label: "Relatórios" },
+{ path: "support", icon: "🎧", label: "Suporte" },
   { path: "settings", icon: "⚙️", label: "Configurações" },
   { path: "tools", icon: "🧮", label: "Ferramentas" }
 ]

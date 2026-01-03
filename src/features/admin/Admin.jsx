@@ -4,6 +4,7 @@ import { db, auth } from '../../services/firebase'
 import { Card } from '../../components/ui/Card'
 import { useNavigate } from 'react-router-dom'
 import { NotificationManager } from './NotificationManager'
+import { AdminTicketsPage } from './AdminTicketsPage'
 
 export const Admin = () => {
   const [user, setUser] = useState(null)
@@ -108,14 +109,13 @@ export const Admin = () => {
     }
   }
 
-    const handleLogout = async () => {
+  const handleLogout = async () => {
     if (confirm('Sair do painel admin?')) {
       localStorage.removeItem('adminContext')
       await auth.signOut()
       navigate('/admin/login')
     }
   }
-
 
   const filteredUsers = users.filter(u => {
     const matches = u.email?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -174,13 +174,13 @@ export const Admin = () => {
               onClick={() => navigate('/')} 
               className="px-4 py-2 bg-blue-600/80 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
             >
-               Sistema
+              Sistema
             </button>
             <button 
               onClick={handleLogout}
               className="px-4 py-2 bg-red-600/80 hover:bg-red-700 text-white rounded-lg text-sm font-medium"
             >
-               Sair
+              Sair
             </button>
           </div>
         </div>
@@ -195,7 +195,7 @@ export const Admin = () => {
                 : 'text-white hover:bg-white/10'
             }`}
           >
-             Usuários
+            👥 Usuários
           </button>
           <button
             onClick={() => setActiveTab('notifications')}
@@ -206,6 +206,16 @@ export const Admin = () => {
             }`}
           >
             🔔 Notificações
+          </button>
+          <button
+            onClick={() => setActiveTab('tickets')}
+            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+              activeTab === 'tickets'
+                ? 'bg-white text-purple-900'
+                : 'text-white hover:bg-white/10'
+            }`}
+          >
+            🎧 Suporte
           </button>
         </div>
 
@@ -286,7 +296,7 @@ export const Admin = () => {
                     ) : filteredUsers.length === 0 ? (
                       <tr>
                         <td colSpan="4" className="px-4 py-8 text-center text-purple-200">
-                          Nenhum usu rio encontrado
+                          Nenhum usuário encontrado
                         </td>
                       </tr>
                     ) : (
@@ -348,11 +358,12 @@ export const Admin = () => {
               </div>
             </div>
           </>
-        ) : (
+        ) : activeTab === 'notifications' ? (
           <NotificationManager />
+        ) : (
+          <AdminTicketsPage />
         )}
       </div>
     </div>
   )
 }
-
