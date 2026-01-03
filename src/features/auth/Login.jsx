@@ -11,10 +11,10 @@ export const Login = () => {
   const [error, setError] = useState("")
 
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate("/")
-    }
-  }, [isAuthenticated, navigate])
+  if (isAuthenticated) {
+    navigate("/app", { replace: true })
+  }
+}, [isAuthenticated, navigate])
 
   const handleGoogleLogin = async () => {
     try {

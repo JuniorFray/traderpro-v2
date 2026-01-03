@@ -5,15 +5,16 @@ import { NotificationCenter } from "../notifications/NotificationCenter"
 import { NotificationPopup } from "../notifications/NotificationPopup"
 import { getUserNotifications, markNotificationAsRead, getUserNotificationStatus } from "../../services/notifications"
 
+// ✅ ROTAS RELATIVAS (sem barra no início)
 const menuItems = [
-  { path: "/", icon: "📊", label: "Dashboard" },
-  { path: "/trades", icon: "💹", label: "Trades" },
-  { path: "/calendar", icon: "📅", label: "Calendário" },
-  { path: "/analytics", icon: "📈", label: "Análises" },
-  { path: "/charts", icon: "📉", label: "Gráficos" },
-  { path: "/reports", icon: "📄", label: "Relatórios" },
-  { path: "/settings", icon: "⚙️", label: "Configurações" },
-  { path: "/tools", icon: "🧮", label: "Ferramentas" }
+  { path: "", icon: "📊", label: "Dashboard" },
+  { path: "trades", icon: "💹", label: "Trades" },
+  { path: "calendar", icon: "📅", label: "Calendário" },
+  { path: "analytics", icon: "📈", label: "Análises" },
+  { path: "charts", icon: "📉", label: "Gráficos" },
+  { path: "reports", icon: "📄", label: "Relatórios" },
+  { path: "settings", icon: "⚙️", label: "Configurações" },
+  { path: "tools", icon: "🧮", label: "Ferramentas" }
 ]
 
 export const MainLayout = () => {
@@ -98,6 +99,14 @@ export const MainLayout = () => {
     setIsMobileMenuOpen(false)
   }
 
+  // ✅ Função auxiliar para verificar se a rota está ativa
+  const isActive = (path) => {
+    if (path === "") {
+      return location.pathname === "/app" || location.pathname === "/app/"
+    }
+    return location.pathname.includes(`/app/${path}`)
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header Mobile */}
@@ -155,7 +164,7 @@ export const MainLayout = () => {
                 key={item.path}
                 to={item.path}
                 className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
-                  location.pathname === item.path
+                  isActive(item.path)
                     ? "bg-primary text-white"
                     : "text-zinc-400 hover:bg-zinc-800 hover:text-white"
                 }`}
@@ -199,7 +208,7 @@ export const MainLayout = () => {
                   key={item.path}
                   onClick={() => handleMenuClick(item.path)}
                   className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-left ${
-                    location.pathname === item.path
+                    isActive(item.path)
                       ? "bg-primary text-white"
                       : "text-zinc-400 hover:bg-zinc-800 hover:text-white"
                   }`}
@@ -261,4 +270,3 @@ export const MainLayout = () => {
     </div>
   )
 }
-
