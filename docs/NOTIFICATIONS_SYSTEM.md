@@ -1,396 +1,509 @@
-\# 🔔 Sistema de Notificações - Diário Trader PRO
+# ðŸ”” Sistema de NotificaÃ§Ãµes - TraderPro v2
 
-
-
-\## 📋 Visão Geral
-
-
-
-Sistema completo de notificações em tempo real com popup animado, centro de notificações e gestão administrativa.
-
-
+> **VersÃ£o:** 2.1.0  
+> **Ãšltima atualizaÃ§Ã£o:** 04/01/2026  
+> **Status:** âœ… ProduÃ§Ã£o
 
 ---
 
+## ðŸ“‹ VisÃ£o Geral
 
-
-\## 🎯 Funcionalidades
-
-
-
-\### \*\*Para Administradores\*\*
-
-
-
-\#### Criar Notificações
-
-1\. Acesse: `/admin/login`
-
-2\. Aba \*\*🔔 Notificações\*\*
-
-3\. Clique \*\*+ Nova Notificação\*\*
-
-4\. Preencha os dados:
-
-&nbsp;  - \*\*Título\*\*: Resumo da notificação
-
-&nbsp;  - \*\*Mensagem\*\*: Descrição detalhada
-
-&nbsp;  - \*\*Tipo\*\*: Global, Individual, PRO, Free
-
-&nbsp;  - \*\*Categoria\*\*: Novidades, Avisos, Promoções, Dicas, Sistema
-
-&nbsp;  - \*\*Estilo\*\*: Info, Sucesso, Aviso, Erro
-
-&nbsp;  - \*\*Botão de Ação\*\* (opcional): Texto + URL
-
-&nbsp;  - \*\*Agendar\*\* (opcional): Data/hora futura
-
-
-
-\#### Buscar Destinatário (Notificações Individuais)
-
-1\. Selecione tipo \*\*Individual\*\*
-
-2\. Digite o email do usuário
-
-3\. Clique \*\*Buscar\*\*
-
-4\. Verifique os dados do usuário encontrado
-
-5\. UID será preenchido automaticamente
-
-
-
-\#### Visualizar UID dos Usuários
-
-\- Tabela de usuários mostra UID resumido
-
-\- Clique no ícone 📋 para copiar UID completo
-
-
+Sistema completo de notificaÃ§Ãµes em tempo real com:
+- âœ… Popup animado automÃ¡tico
+- âœ… Centro de notificaÃ§Ãµes
+- âœ… GestÃ£o administrativa completa
+- âœ… Busca de usuÃ¡rios por email
+- âœ… Agendamento de notificaÃ§Ãµes
+- âœ… EstatÃ­sticas de visualizaÃ§Ãµes
+- âœ… BotÃµes de aÃ§Ã£o customizÃ¡veis
 
 ---
 
+## ðŸŽ¯ Funcionalidades
 
+### **Para Administradores**
 
-\### \*\*Para Usuários\*\*
+#### 1. Criar NotificaÃ§Ãµes
 
+**Acesso:** `/admin` â†’ Aba **ðŸ”” NotificaÃ§Ãµes** â†’ **+ Nova NotificaÃ§Ã£o**
 
+**Campos obrigatÃ³rios:**
+- **TÃ­tulo**: Resumo da notificaÃ§Ã£o (ex: "Nova funcionalidade disponÃ­vel!")
+- **Mensagem**: DescriÃ§Ã£o detalhada
+- **Tipo**: 
+  - ðŸŒ **Global** - Todos os usuÃ¡rios
+  - ðŸ‘¤ **Individual** - UsuÃ¡rio especÃ­fico (precisa buscar por email)
+  - ðŸ‘‘ **PRO** - Apenas assinantes PRO
+  - ðŸ†“ **Free** - Apenas usuÃ¡rios gratuitos
+- **Categoria**:
+  - ðŸŽ‰ **Novidades** - Novas funcionalidades
+  - âš ï¸ **Avisos** - Alertas importantes
+  - ðŸŽ **PromoÃ§Ãµes** - Ofertas especiais
+  - ðŸ’¡ **Dicas** - SugestÃµes de uso
+  - ðŸ”§ **Sistema** - ManutenÃ§Ãµes e updates
+- **Estilo Visual**:
+  - ðŸ”µ **Info** - InformaÃ§Ãµes gerais (azul)
+  - ðŸŸ¢ **Sucesso** - ConfirmaÃ§Ãµes positivas (verde)
+  - ðŸŸ¡ **Aviso** - AtenÃ§Ã£o necessÃ¡ria (amarelo)
+  - ðŸ”´ **Erro** - Problemas crÃ­ticos (vermelho)
 
-\#### Receber Notificações
+**Campos opcionais:**
+- **BotÃ£o de AÃ§Ã£o**:
+  - Texto do botÃ£o (ex: "Ver Novidades")
+  - URL de destino (ex: "/dashboard")
+- **Agendar Para**: Data e hora futura para publicaÃ§Ã£o automÃ¡tica
 
-\- \*\*Popup automático\*\* ao entrar no sistema
+#### 2. Buscar DestinatÃ¡rio (NotificaÃ§Ãµes Individuais)
 
-\- \*\*Sino no header\*\* com contador de não lidas
+**Passo a passo:**
+1. Selecione tipo **Individual**
+2. Digite o **email do usuÃ¡rio** no campo de busca
+3. Clique em **Buscar**
+4. Verifique os dados do usuÃ¡rio encontrado:
+   - Email
+   - Status PRO/Free
+   - UID (preenchido automaticamente)
+5. Continue preenchendo a notificaÃ§Ã£o
 
-\- \*\*Clique no sino\*\* → Abre centro de notificações
+#### 3. Editar NotificaÃ§Ãµes
 
+1. Na lista de notificaÃ§Ãµes criadas
+2. Clique no botÃ£o **âœï¸ Editar**
+3. Modifique os campos desejados
+4. Clique em **Atualizar**
 
+#### 4. Excluir NotificaÃ§Ãµes
 
-\#### Centro de Notificações
+1. Na lista de notificaÃ§Ãµes criadas
+2. Clique no botÃ£o **ðŸ—‘ï¸ Excluir**
+3. Confirme a exclusÃ£o
 
-\- Histórico completo
+#### 5. Visualizar EstatÃ­sticas
 
-\- Filtro por não lidas
-
-\- Marcar como lida
-
-\- Botões de ação
-
-
+Cada notificaÃ§Ã£o mostra:
+- ðŸ‘ï¸ **VisualizaÃ§Ãµes**: Quantos usuÃ¡rios viram
+- ðŸ“Š **Status**: Ativa/Desativada
+- ðŸ“… **Agendamento**: Se estÃ¡ agendada
 
 ---
 
+### **Para UsuÃ¡rios**
 
+#### 1. Receber NotificaÃ§Ãµes
 
-\## 🏗️ Arquitetura
+**Popup AutomÃ¡tico:**
+- Aparece automaticamente ao fazer login
+- Mostra apenas notificaÃ§Ãµes **nÃ£o lidas**
+- AnimaÃ§Ã£o suave de entrada
+- Fecha automaticamente apÃ³s 10 segundos (ou ao clicar em X)
 
+**Sino no Header:**
+- ðŸ”” Ãcone sempre visÃ­vel
+- **Badge vermelho** com nÃºmero de nÃ£o lidas
+- Clique abre o **Centro de NotificaÃ§Ãµes**
 
+#### 2. Centro de NotificaÃ§Ãµes
 
-\### \*\*Estrutura Firestore\*\*
+**Como acessar:**
+1. Clique no ðŸ”” no header (mobile ou desktop)
+2. Modal abre com lista completa
 
-notifications/
+**Funcionalidades:**
+- ðŸ“œ HistÃ³rico completo de notificaÃ§Ãµes
+- ðŸ†• Badge "Nova" nas nÃ£o lidas
+- â° Timestamp relativo ("2h atrÃ¡s", "ontem")
+- ðŸŽ¨ Cores por estilo visual
+- ðŸ“ Mensagem completa
+- ðŸ”˜ BotÃµes de aÃ§Ã£o (se configurados)
+- âœ… Marcar como lida
 
-├── {notificationId}/
+#### 3. Marcar como Lida
 
-│ ├── title: string
+**OpÃ§Ãµes:**
+1. Clicar no **botÃ£o de aÃ§Ã£o** (marca automaticamente)
+2. Clicar em **"Marcar como lida"**
+3. Fechar o popup automÃ¡tico
 
-│ ├── message: string
+---
 
-│ ├── type: 'global' | 'individual' | 'pro' | 'free'
+## ðŸ—‚ï¸ Arquitetura
 
-│ ├── category: 'news' | 'warning' | 'promotion' | 'tip' | 'system'
+### **Estrutura no Firestore**
 
-│ ├── style: 'info' | 'success' | 'warning' | 'error'
-
-│ ├── targetUserId?: string
-
-│ ├── actionButton?: { text: string, url: string }
-
-│ ├── scheduledFor?: timestamp
-
-│ ├── isActive: boolean
-
-│ ├── createdAt: timestamp
-
-│ └── stats: { views: number, clicks: number }
-
-
-
-userNotifications/
-
-├── {userId}/
-
-│ └── notifications/
-
-│ └── {notificationId}/
-
-│ ├── read: boolean
-
-│ └── readAt?: timestamp
-
-
+firestore/
+â””â”€â”€ artifacts/
+â””â”€â”€ trade-journal-public/
+â”œâ”€â”€ notifications/ # NotificaÃ§Ãµes globais
+â”‚ â””â”€â”€ {notificationId}/
+â”‚ â”œâ”€â”€ title: string # "Nova funcionalidade!"
+â”‚ â”œâ”€â”€ message: string # "DescriÃ§Ã£o detalhada..."
+â”‚ â”œâ”€â”€ type: string # "global" | "individual" | "pro" | "free"
+â”‚ â”œâ”€â”€ category: string # "news" | "warning" | "promotion" | "tip" | "system"
+â”‚ â”œâ”€â”€ style: string # "info" | "success" | "warning" | "error"
+â”‚ â”œâ”€â”€ targetUserId: string # (opcional, para individual)
+â”‚ â”œâ”€â”€ actionButton: { # (opcional)
+â”‚ â”‚ text: string # "Ver Novidades"
+â”‚ â”‚ url: string # "/dashboard"
+â”‚ â”‚ }
+â”‚ â”œâ”€â”€ scheduledFor: timestamp # (opcional)
+â”‚ â”œâ”€â”€ isActive: boolean # true/false
+â”‚ â”œâ”€â”€ createdAt: timestamp
+â”‚ â””â”€â”€ stats: {
+â”‚ views: number # Total de visualizaÃ§Ãµes
+â”‚ }
+â”‚
+â””â”€â”€ userNotifications/ # Status de leitura por usuÃ¡rio
+â””â”€â”€ {userId}/
+â””â”€â”€ {notificationId}/
+â”œâ”€â”€ read: boolean # true/false
+â””â”€â”€ readAt: timestamp # Quando foi lida
 
 text
 
+### **Fluxo de Dados**
 
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚ 1. ADMIN CRIA NOTIFICAÃ‡ÃƒO â”‚
+â”‚ (NotificationManager.jsx) â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+â”‚
+â–¼
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚ 2. SALVA NO FIRESTORE â”‚
+â”‚ /notifications/{notificationId} â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+â”‚
+â–¼
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚ 3. USUÃRIO FAZ LOGIN/RECARREGA â”‚
+â”‚ (MainLayout.jsx) â”‚
+â”‚ â”‚
+â”‚ useEffect(() => { â”‚
+â”‚ loadNotifications() // A cada 30s â”‚
+â”‚ }, [user, isPro]) â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+â”‚
+â–¼
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚ 4. FILTRA NOTIFICAÃ‡Ã•ES RELEVANTES â”‚
+â”‚ (getUserNotifications service) â”‚
+â”‚ â”‚
+â”‚ - Se type="global" â†’ Todos recebem â”‚
+â”‚ - Se type="pro" â†’ Apenas isPro=true â”‚
+â”‚ - Se type="free" â†’ Apenas isPro=false â”‚
+â”‚ - Se type="individual" â†’ Apenas targetUserId â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+â”‚
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â–¼ â–¼
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â” â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚ NOTIFICATION â”‚ â”‚ NOTIFICATION â”‚
+â”‚ POPUP â”‚ â”‚ CENTER â”‚
+â”‚ â”‚ â”‚ â”‚
+â”‚ (AutomÃ¡tico) â”‚ â”‚ (Clica no ðŸ””) â”‚
+â”‚ (NÃ£o lidas) â”‚ â”‚ (Todas) â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜ â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+â”‚ â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+â–¼
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚ 5. MARCA COMO LIDA â”‚
+â”‚ (markNotificationAsRead) â”‚
+â”‚ â”‚
+â”‚ Salva em: â”‚
+â”‚ /userNotifications/{userId}/{notificationId} â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 
-\### \*\*Componentes Principais\*\*
-
-
-
-\#### Frontend
-
-\- `services/notifications.js` - Serviço de notificações
-
-\- `features/admin/NotificationManager.jsx` - Gestão admin
-
-\- `components/NotificationPopup.jsx` - Popup animado
-
-\- `components/NotificationCenter.jsx` - Centro de notificações
-
-\- `components/ui/Select.jsx` - Componente select
-
-
-
-\#### Backend
-
-\- Firestore Rules configuradas
-
-\- Índices automáticos
-
-\- Listeners em tempo real
-
-
-
----
-
-
-
-\## 🔒 Regras de Segurança
-
-
-
-\### \*\*Permissões\*\*
-
-\- \*\*Criar\*\*: Apenas admins
-
-\- \*\*Ler\*\*: Usuários autenticados (filtrado por tipo)
-
-\- \*\*Atualizar\*\*: Apenas admins
-
-\- \*\*Deletar\*\*: Apenas admins
-
-
-
-\### \*\*Validações\*\*
-
-\- Campos obrigatórios validados
-
-\- Tipos de dados verificados
-
-\- Timestamps automáticos
-
-
+text
 
 ---
 
-
-
-\## 🎨 Tipos e Estilos
-
-
-
-\### \*\*Tipos de Notificação\*\*
-
-\- 🌍 \*\*Global\*\*: Todos os usuários
-
-\- 👤 \*\*Individual\*\*: Usuário específico (por UID)
-
-\- 👑 \*\*PRO\*\*: Apenas assinantes PRO
-
-\- 🆓 \*\*Free\*\*: Apenas usuários gratuitos
-
-
-
-\### \*\*Categorias\*\*
-
-\- 🎉 \*\*Novidades\*\*: Novas funcionalidades
-
-\- ⚠️ \*\*Avisos\*\*: Alertas importantes
-
-\- 🎁 \*\*Promoções\*\*: Ofertas especiais
-
-\- 💡 \*\*Dicas\*\*: Sugestões de uso
-
-\- 🔧 \*\*Sistema\*\*: Manutenções e updates
-
-
-
-\### \*\*Estilos Visuais\*\*
-
-\- 🔵 \*\*Info\*\*: Informações gerais
-
-\- 🟢 \*\*Sucesso\*\*: Confirmações positivas
-
-\- 🟡 \*\*Aviso\*\*: Atenção necessária
-
-\- 🔴 \*\*Erro\*\*: Problemas críticos
-
-
-
----
-
-
-
-\## 📊 Estatísticas
-
-
-
-\### \*\*Métricas Rastreadas\*\*
-
-\- Total de visualizações
-
-\- Total de cliques em ações
-
-\- Taxa de conversão
-
-\- Notificações por categoria
-
-\- Notificações por tipo
-
-
-
----
-
-
-
-\## 🧪 Testes
-
-
-
-\### \*\*Teste Básico\*\*
-
-1\. Crie notificação global
-
-2\. Abra sistema em aba anônima
-
-3\. Faça login
-
-4\. Verifique popup
-
-5\. Verifique contador no sino
-
-6\. Abra centro de notificações
-
-7\. Marque como lida
-
-
-
-\### \*\*Teste Individual\*\*
-
-1\. Busque usuário por email
-
-2\. Crie notificação individual
-
-3\. Faça login com esse usuário
-
-4\. Verifique recebimento
-
-
-
-\### \*\*Teste PRO/Free\*\*
-
-1\. Crie notificação tipo PRO
-
-2\. Teste com usuário PRO (recebe)
-
-3\. Teste com usuário Free (não recebe)
-
-
-
----
-
-
-
-\## 🔧 Manutenção
-
-
-
-\### \*\*Limpeza de Notificações Antigas\*\*
-
-Criar função Cloud para deletar notificações com mais de 90 dias.
-
-
-
-\### \*\*Backup\*\*
-
-\- Exportar notificações mensalmente
-
-\- Manter histórico de 1 ano
-
-
-
----
-
-
-
-\## 📝 Changelog
-
-
-
-\### v2.0 - 30/12/2024
-
-\- ✅ Sistema completo implementado
-
-\- ✅ Busca de usuário por email
-
-\- ✅ Visualização de UID na tabela
-
-\- ✅ Componente Select criado
-
-
-
----
-
-
-
-\## 🚀 Próximas Melhorias
-
-
-
-\- \[ ] Notificações push (PWA)
-
-\- \[ ] Templates de notificações
-
-\- \[ ] Notificações recorrentes
-
-\- \[ ] Segmentação avançada
-
-\- \[ ] A/B testing de mensagens
-
-\- \[ ] Analytics detalhado
-
-\- \[ ] Exportação de relatórios
-
+## ðŸ“ Componentes Principais
+
+### **1. NotificationManager.jsx**
+**LocalizaÃ§Ã£o:** `src/features/admin/NotificationManager.jsx`
+
+**Responsabilidades:**
+- âœ… Interface de criaÃ§Ã£o/ediÃ§Ã£o de notificaÃ§Ãµes
+- âœ… Busca de usuÃ¡rios por email
+- âœ… ValidaÃ§Ã£o de formulÃ¡rio
+- âœ… Listagem de notificaÃ§Ãµes criadas
+- âœ… ExclusÃ£o de notificaÃ§Ãµes
+
+**FunÃ§Ãµes principais:**
+```javascript
+createNotification(data)    // Criar nova notificaÃ§Ã£o
+updateNotification(id, data) // Atualizar existente
+deleteNotification(id)       // Excluir notificaÃ§Ã£o
+getAllNotifications()        // Listar todas (admin)
+handleSearchUser()           // Buscar usuÃ¡rio por email
+2. NotificationCenter.jsx
+LocalizaÃ§Ã£o: src/components/notifications/NotificationCenter.jsx
+
+Responsabilidades:
+
+âœ… Modal com lista de notificaÃ§Ãµes
+
+âœ… Exibir status lida/nÃ£o lida
+
+âœ… FormataÃ§Ã£o de datas relativas
+
+âœ… BotÃµes de aÃ§Ã£o
+
+âœ… Marcar como lida
+
+Props:
+
+javascript
+{
+  isOpen: boolean,
+  onClose: () => void,
+  notifications: Notification[],
+  readStatus: { [notificationId]: { read, readAt } },
+  onMarkAsRead: (notificationId) => void
+}
+3. NotificationPopup.jsx
+LocalizaÃ§Ã£o: src/components/notifications/NotificationPopup.jsx
+
+Responsabilidades:
+
+âœ… Popup animado individual
+
+âœ… Aparece automaticamente para nÃ£o lidas
+
+âœ… Auto-fecha apÃ³s 10 segundos
+
+âœ… Fecha ao clicar no X
+
+âœ… Marca como lida ao interagir
+
+Props:
+
+javascript
+{
+  notification: Notification,
+  onClose: () => void,
+  onMarkAsRead: (notificationId) => void
+}
+4. notifications.js (Service)
+LocalizaÃ§Ã£o: src/services/notifications.js
+
+FunÃ§Ãµes exportadas:
+
+javascript
+// Admin
+createNotification(data)           // Criar notificaÃ§Ã£o
+updateNotification(id, data)       // Atualizar notificaÃ§Ã£o
+deleteNotification(id)             // Deletar notificaÃ§Ã£o
+getAllNotifications()              // Buscar todas (admin)
+
+// UsuÃ¡rio
+getUserNotifications(userId, isPro) // Buscar para usuÃ¡rio especÃ­fico
+markNotificationAsRead(userId, notificationId) // Marcar como lida
+getUserNotificationStatus(userId)   // Status de leitura do usuÃ¡rio
+ðŸ” Regras de SeguranÃ§a
+Firestore Rules
+javascript
+// NotificaÃ§Ãµes (leitura pÃºblica autenticada, escrita apenas admin via app)
+match /artifacts/trade-journal-public/notifications/{notifId} {
+  allow read: if request.auth != null;
+  allow write: if false; // Apenas via cÃ³digo admin
+}
+
+// Status de leitura por usuÃ¡rio
+match /artifacts/trade-journal-public/userNotifications/{userId}/{notifId} {
+  allow read, write: if request.auth != null && request.auth.uid == userId;
+}
+ValidaÃ§Ãµes no CÃ³digo
+javascript
+// ValidaÃ§Ã£o de campos obrigatÃ³rios
+if (!formData.title || !formData.message || !formData.type) {
+  throw new Error('Campos obrigatÃ³rios nÃ£o preenchidos')
+}
+
+// ValidaÃ§Ã£o de notificaÃ§Ã£o individual
+if (formData.type === 'individual' && !formData.targetUserId) {
+  throw new Error('User ID Ã© obrigatÃ³rio para notificaÃ§Ãµes individuais')
+}
+
+// ValidaÃ§Ã£o de agendamento
+if (formData.scheduledFor) {
+  const scheduledDate = new Date(formData.scheduledFor)
+  if (scheduledDate < new Date()) {
+    throw new Error('Data de agendamento deve ser futura')
+  }
+}
+ðŸŽ¨ Estilos Visuais
+Classes Tailwind por Estilo
+javascript
+const getStyleClasses = (style) => {
+  const styles = {
+    info: 'bg-blue-500/10 border-blue-500/30 text-blue-300',
+    success: 'bg-green-500/10 border-green-500/30 text-green-300',
+    warning: 'bg-yellow-500/10 border-yellow-500/30 text-yellow-300',
+    error: 'bg-red-500/10 border-red-500/30 text-red-300'
+  }
+  return styles[style] || styles.info
+}
+Ãcones por Categoria
+javascript
+const getCategoryIcon = (category) => {
+  const icons = {
+    news: 'ðŸŽ‰',
+    warning: 'âš ï¸',
+    promotion: 'ðŸŽ',
+    tip: 'ðŸ’¡',
+    system: 'ðŸ”§'
+  }
+  return icons[category] || 'ðŸ””'
+}
+ðŸ§ª Testes
+Teste 1: NotificaÃ§Ã£o Global
+bash
+1. Admin cria notificaÃ§Ã£o tipo "Global"
+2. UsuÃ¡rio Free faz login â†’ âœ… Recebe
+3. UsuÃ¡rio PRO faz login â†’ âœ… Recebe
+4. Verifica popup automÃ¡tico
+5. Verifica contador no sino
+6. Abre centro de notificaÃ§Ãµes
+7. Marca como lida
+8. Contador atualiza
+Teste 2: NotificaÃ§Ã£o Individual
+bash
+1. Admin busca usuÃ¡rio por email: "teste@email.com"
+2. Admin cria notificaÃ§Ã£o Individual
+3. Login com "teste@email.com" â†’ âœ… Recebe
+4. Login com outro usuÃ¡rio â†’ âŒ NÃ£o recebe
+Teste 3: NotificaÃ§Ã£o PRO
+bash
+1. Admin cria notificaÃ§Ã£o tipo "PRO"
+2. UsuÃ¡rio PRO faz login â†’ âœ… Recebe
+3. UsuÃ¡rio Free faz login â†’ âŒ NÃ£o recebe
+Teste 4: NotificaÃ§Ã£o Agendada
+bash
+1. Admin cria notificaÃ§Ã£o agendada para daqui 5 minutos
+2. UsuÃ¡rios nÃ£o recebem imediatamente
+3. ApÃ³s 5 minutos â†’ âœ… Todos recebem
+Teste 5: BotÃ£o de AÃ§Ã£o
+bash
+1. Admin cria notificaÃ§Ã£o com botÃ£o "Ver Dashboard" â†’ "/dashboard"
+2. UsuÃ¡rio clica no botÃ£o
+3. âœ… Redireciona para /dashboard
+4. âœ… Marca como lida automaticamente
+ðŸ“Š EstatÃ­sticas
+MÃ©tricas Rastreadas
+javascript
+stats: {
+  views: number  // Total de visualizaÃ§Ãµes
+}
+Futuras MÃ©tricas (Roadmap)
+ Cliques em botÃµes de aÃ§Ã£o
+
+ Taxa de conversÃ£o
+
+ Tempo mÃ©dio de leitura
+
+ NotificaÃ§Ãµes por categoria mais visualizadas
+
+ HorÃ¡rios de maior engajamento
+
+ðŸ”§ ManutenÃ§Ã£o
+Limpeza de NotificaÃ§Ãµes Antigas
+javascript
+// TODO: Criar Cloud Function
+// Executar mensalmente
+// Deletar notificaÃ§Ãµes com mais de 90 dias
+async function cleanOldNotifications() {
+  const threeMonthsAgo = new Date()
+  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
+  
+  const oldNotifs = await getDocs(
+    query(
+      collection(db, 'artifacts/trade-journal-public/notifications'),
+      where('createdAt', '<', threeMonthsAgo)
+    )
+  )
+  
+  // Deletar em batch
+}
+Backup
+bash
+# Exportar notificaÃ§Ãµes mensalmente
+firebase firestore:export gs://backup-bucket/notifications-2026-01
+
+# Manter histÃ³rico de 1 ano
+ðŸ“ Changelog
+v2.1.0 - 04/01/2026
+âœ… Sistema de notificaÃ§Ãµes 100% funcional
+
+âœ… Popup automÃ¡tico com animaÃ§Ãµes
+
+âœ… Centro de notificaÃ§Ãµes completo
+
+âœ… Busca de usuÃ¡rios por email
+
+âœ… Agendamento de notificaÃ§Ãµes
+
+âœ… EstatÃ­sticas de visualizaÃ§Ãµes
+
+âœ… BotÃµes de aÃ§Ã£o customizÃ¡veis
+
+v2.0.0 - 30/12/2025
+âœ… Sistema inicial implementado
+
+âœ… Componente Select criado
+
+ðŸš€ PrÃ³ximas Melhorias
+Curto Prazo
+ NotificaÃ§Ãµes push (Web Push API)
+
+ Templates de notificaÃ§Ãµes salvos
+
+ NotificaÃ§Ãµes recorrentes (diÃ¡ria, semanal)
+
+ Cliques em botÃµes rastreados
+
+MÃ©dio Prazo
+ SegmentaÃ§Ã£o avanÃ§ada (por regiÃ£o, idade, etc)
+
+ A/B testing de mensagens
+
+ Analytics detalhado
+
+ ExportaÃ§Ã£o de relatÃ³rios
+
+Longo Prazo
+ IntegraÃ§Ã£o com Telegram Bot
+
+ IntegraÃ§Ã£o com WhatsApp Business
+
+ NotificaÃ§Ãµes por SMS
+
+ Machine Learning para melhor timing
+
+ðŸ’¡ Dicas de Uso
+Boas PrÃ¡ticas para Admins
+TÃ­tulo Claro: MÃ¡ximo 50 caracteres
+
+Mensagem Objetiva: 2-3 frases no mÃ¡ximo
+
+Call-to-Action: Sempre use botÃ£o quando possÃ­vel
+
+Teste Primeiro: Crie Individual para vocÃª mesmo antes de Global
+
+HorÃ¡rio EstratÃ©gico: Agende para horÃ¡rios de pico (9h-18h)
+
+Evite Spam: MÃ¡ximo 1 notificaÃ§Ã£o global por dia
+
+Quando Usar Cada Tipo
+Global: Novidades importantes, manutenÃ§Ãµes programadas
+
+PRO: Funcionalidades exclusivas, renovaÃ§Ã£o de plano
+
+Free: PromoÃ§Ãµes de upgrade, trial PRO
+
+Individual: Suporte personalizado, alertas de conta
+
+Ãšltima atualizaÃ§Ã£o: 04/01/2026
+VersÃ£o: 2.1.0
+Desenvolvedor: Junior Fray
