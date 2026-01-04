@@ -1,8 +1,22 @@
-﻿import { useState } from "react"
+﻿// src/features/analytics/Analytics.jsx - SUBSTITUIR COMPLETAMENTE
+import { useState } from "react"
 import { useTrades } from "../../hooks/useTrades"
 import { Card } from "../../components/ui/Card"
 import { TradeFilters } from "../../components/filters/TradeFilters"
-import { formatCurrency, formatPercent } from "../../utils/metrics"
+
+// Funções auxiliares locais
+const formatCurrency = (value) => {
+  return value.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+};
+
+const formatPercent = (value) => {
+  return `${value.toFixed(1)}%`;
+};
 
 export const Analytics = () => {
   const { trades, loading } = useTrades()
@@ -191,4 +205,3 @@ export const Analytics = () => {
     </div>
   )
 }
-
