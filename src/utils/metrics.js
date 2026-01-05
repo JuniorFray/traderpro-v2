@@ -1,4 +1,5 @@
-﻿// src/utils/metrics.js - VERSÃO CORRIGIDA PARA SEUS DADOS
+﻿// src/utils/metrics.js - VERSÃO CORRIGIDA COMPLETA
+
 export const calculateMetrics = (trades = [], period = 'all') => {
   if (!trades || trades.length === 0) {
     return {
@@ -124,28 +125,42 @@ export const calculateMetrics = (trades = [], period = 'all') => {
   };
 };
 
-// Funções auxiliares
+// ===== FUNÇÃO CORRIGIDA - COMPARAÇÃO DE DATAS =====
 const filterByPeriod = (trades, period) => {
   if (period === 'all') return trades;
 
+  // Obter data de hoje no formato YYYY-MM-DD (timezone local)
   const now = new Date();
-  const startDate = new Date();
+  const today = formatDateToYYYYMMDD(now);
 
   switch (period) {
     case 'today':
-      startDate.setHours(0, 0, 0, 0);
-      break;
+      // Comparar apenas a string da data (ignora timezone)
+      return trades.filter(t => t.date === today);
+
     case 'week':
-      startDate.setDate(now.getDate() - 7);
-      break;
+      const weekAgo = new Date();
+      weekAgo.setDate(now.getDate() - 7);
+      const weekAgoStr = formatDateToYYYYMMDD(weekAgo);
+      return trades.filter(t => t.date >= weekAgoStr);
+
     case 'month':
-      startDate.setMonth(now.getMonth() - 1);
-      break;
+      const monthAgo = new Date();
+      monthAgo.setMonth(now.getMonth() - 1);
+      const monthAgoStr = formatDateToYYYYMMDD(monthAgo);
+      return trades.filter(t => t.date >= monthAgoStr);
+
     default:
       return trades;
   }
+};
 
-  return trades.filter(t => new Date(t.date) >= startDate);
+// Função auxiliar para formatar data como YYYY-MM-DD
+const formatDateToYYYYMMDD = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 const calculateStreaks = (trades) => {
