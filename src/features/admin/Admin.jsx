@@ -33,81 +33,80 @@ export const Admin = () => {
   }, [user])
 
   const loadUsers = async () => {
-    try {
-      setLoading(true)
-      const usersRef = collection(db, 'artifacts/trade-journal-public/adminUsers')
-      const snapshot = await getDocs(usersRef)
+  try {
+    setLoading(true)
+    // CORREÇÃO: Buscar de /users/ em vez de /adminUsers/
+    const usersRef = collection(db, 'artifacts/trade-journal-public/users')
+    const snapshot = await getDocs(usersRef)
 
-      const usersList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
+    const usersList = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
 
-      setUsers(usersList)
-    } catch (error) {
-      console.error('Erro:', error)
-    } finally {
-      setLoading(false)
-    }
+    setUsers(usersList)
+  } catch (error) {
+    console.error('Erro:', error)
+  } finally {
+    setLoading(false)
   }
+}
 
   const addUser = async () => {
-    const email = prompt('Email do usuario:')
-    if (!email) return
+  const email = prompt('Email do usuário:')
+  if (!email) return
 
-    const userId = prompt('User ID (UID do Firebase):')
-    if (!userId) return
+  const userId = prompt('User ID (UID do Firebase):')
+  if (!userId) return
 
-    try {
-      const userRef = doc(db, 'artifacts/trade-journal-public/adminUsers', userId)
-      await setDoc(userRef, {
-        email,
-        isPro: false,
-        addedAt: new Date().toISOString()
-      })
+  try {
+    // CORREÇÃO: Criar em /users/ (onde deve estar)
+    const userRef = doc(db, 'artifacts/trade-journal-public/users', userId)
+    await setDoc(userRef, {
+      email,
+      isPro: false,
+      createdAt: new Date().toISOString()
+    }, { merge: true })
 
-      await loadUsers()
-      alert('Usuario adicionado!')
-    } catch (error) {
-      alert('Erro: ' + error.message)
-    }
+    await loadUsers()
+    alert('Usuário adicionado!')
+  } catch (error) {
+    alert('Erro: ' + error.message)
   }
+}
 
   const togglePro = async (userId, currentStatus) => {
-    try {
-      const adminRef = doc(db, 'artifacts/trade-journal-public/adminUsers', userId)
-      await setDoc(adminRef, {
-        isPro: !currentStatus,
-        updatedAt: new Date().toISOString()
-      }, { merge: true })
+  try {
+    // CORREÇÃO: Atualizar apenas em /users/ (não precisa adminUsers)
+    const userRef = doc(db, 'artifacts/trade-journal-public/users', userId)
+    await setDoc(userRef, {
+      isPro: !currentStatus,
+      proUpdatedAt: new Date().toISOString()
+    }, { merge: true })
 
-      const userRef = doc(db, 'artifacts/trade-journal-public/users', userId)
-      await setDoc(userRef, {
-        isPro: !currentStatus,
-        proUpdatedAt: new Date().toISOString()
-      }, { merge: true })
+    setUsers(prev => prev.map(u =>
+      u.id === userId ? { ...u, isPro: !currentStatus } : u
+    ))
 
-      setUsers(prev => prev.map(u =>
-        u.id === userId ? { ...u, isPro: !currentStatus } : u
-      ))
-
-      alert('Status atualizado!')
-    } catch (error) {
-      alert('Erro: ' + error.message)
-    }
+    alert('Status PRO atualizado!')
+  } catch (error) {
+    console.error('Erro ao atualizar PRO:', error)
+    alert('Erro: ' + error.message)
   }
+}
 
   const deleteUser = async (userId) => {
-    if (!confirm('Excluir usuario?')) return
+  if (!confirm('Excluir usuário? Esta ação não pode ser desfeita!')) return
 
-    try {
-      await deleteDoc(doc(db, 'artifacts/trade-journal-public/adminUsers', userId))
-      setUsers(prev => prev.filter(u => u.id !== userId))
-      alert('Usuario removido!')
-    } catch (error) {
-      alert('Erro: ' + error.message)
-    }
+  try {
+    // ✅ CORRETO: Deletar de users (não adminUsers)
+    await deleteDoc(doc(db, 'artifacts/trade-journal-public/users', userId))
+    setUsers(prev => prev.filter(u => u.id !== userId))
+    alert('Usuário removido!')
+  } catch (error) {
+    alert('Erro: ' + error.message)
   }
+}
 
   const handleLogout = async () => {
     if (confirm('Sair do painel admin?')) {

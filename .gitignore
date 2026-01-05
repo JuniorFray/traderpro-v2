@@ -46,3 +46,15 @@ firebase-*.json
 !package.json
 !package-lock.json
 !tsconfig.json
+
+# Builds
+dist/
+dist-admin/
+
+# Scripts temporários
+fix-encoding.ps1
+serviceAccountKey.json
+
+# Admin SDK
+scripts/importAuthUsersToFirestore.mjs
+

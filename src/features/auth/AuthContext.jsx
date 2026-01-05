@@ -47,21 +47,35 @@ export const AuthProvider = ({ children }) => {
           }
         } 
         // Se estivermos no contexto NORMAL (Usuário)
-        else {
-           setUser(firebaseUser)
-           // Busca dados do usuário (isPro)
-           try {
-             const userDoc = await getDoc(doc(db, 'artifacts/trade-journal-public/users', firebaseUser.uid))
-             if (userDoc.exists()) {
-               setIsPro(userDoc.data().isPro || false)
-             } else {
-               setIsPro(false)
-             }
-           } catch (error) {
-             console.error("Erro ao buscar perfil:", error)
-             setIsPro(false)
-           }
-        }
+else {
+  setUser(firebaseUser)
+
+  try {
+    const userRef = doc(db, 'artifacts/trade-journal-public/users', firebaseUser.uid)
+    const userDoc = await getDoc(userRef)
+
+    if (!userDoc.exists()) {
+      // Se ainda não existir documento, cria um básico
+      const newUserData = {
+        email: firebaseUser.email || null,
+        isPro: false,
+        createdAt: new Date().toISOString(),
+        displayName: firebaseUser.displayName || null,
+        photoURL: firebaseUser.photoURL || null
+      }
+
+      await setDoc(userRef, newUserData, { merge: true })
+      setIsPro(false)
+    } else {
+      const data = userDoc.data()
+      setIsPro(data.isPro || false)
+    }
+  } catch (error) {
+    console.error("Erro ao buscar/criar perfil:", error)
+    setIsPro(false)
+  }
+}
+
       } else {
         // Ninguém logado
         setUser(null)

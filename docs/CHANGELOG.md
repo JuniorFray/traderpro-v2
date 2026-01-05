@@ -4,6 +4,33 @@
 
 ---
 
+## [2.1.1] - 05/01/2026
+
+### 🐛 Correções de Bugs
+
+#### Sistema de Usuários
+- **Fix:** Migração completa de 78 usuários do Authentication para Firestore
+- **Fix:** Painel admin agora lista todos os usuários corretamente
+- **Fix:** AuthContext cria documento no Firestore automaticamente no primeiro login
+- **Fix:** Correção de permissão ao promover/remover status PRO
+- **Fix:** Correção de permissão ao excluir usuários no painel admin
+
+#### Firestore Rules
+- **Add:** Permissão de leitura admin em `/users`
+- **Add:** Permissão de atualização admin para campo `isPro`
+- **Add:** Permissão de exclusão admin em `/users`
+
+#### Scripts
+- **Add:** Script de migração `importAuthUsersToFirestore.mjs`
+- **Add:** Comando `npm run import:auth-users` para migração
+
+### 📦 Dependências
+- **Add:** `firebase-admin@13.6.0` para scripts de migração
+
+---
+
+
+
 ## [2.1.0] - 04/01/2026 âœ… **SISTEMA COMPLETO**
 
 ### ðŸŽ‰ Principais Funcionalidades Adicionadas
