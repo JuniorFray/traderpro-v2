@@ -1,12 +1,14 @@
 ﻿import { useState } from 'react'
 import { Card } from '../../components/ui/Card'
 import { SimulatorTab } from './SimulatorTab'
+import { EconomicNews } from './EconomicNews'
 
 export const Tools = () => {
   const [activeTab, setActiveTab] = useState('simulator')
 
   const tabs = [
     { id: 'simulator', label: 'Simulador TraderPro Global', icon: '📊' },
+    { id: 'news', label: 'Notícias Econômicas', icon: '📰' },
     // futuras abas:
     // { id: 'position', label: 'Calculadora de Posição', icon: '🧮' },
   ]
@@ -44,6 +46,7 @@ export const Tools = () => {
       {/* Conteúdo da aba */}
       <div className="mt-4">
         {activeTab === 'simulator' && <SimulatorTab />}
+        {activeTab === 'news' && <EconomicNews />}
         {/* Outras abas no futuro:
         {activeTab === 'position' && <PositionCalculator />}
         */}
