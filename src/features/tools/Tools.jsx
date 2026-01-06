@@ -2,6 +2,7 @@
 import { Card } from '../../components/ui/Card'
 import { SimulatorTab } from './SimulatorTab'
 import { EconomicNews } from './EconomicNews'
+import { Indicadores } from './Indicadores' // ← NOVA IMPORTAÇÃO
 
 export const Tools = () => {
   const [activeTab, setActiveTab] = useState('simulator')
@@ -9,8 +10,8 @@ export const Tools = () => {
   const tabs = [
     { id: 'simulator', label: 'Simulador TraderPro Global', icon: '📊' },
     { id: 'news', label: 'Notícias Econômicas', icon: '📰' },
-    // futuras abas:
-    // { id: 'position', label: 'Calculadora de Posição', icon: '🧮' },
+{ id: 'indicadores', label: 'Indicadores', icon: '📊' },
+
   ]
 
   return (
@@ -31,7 +32,7 @@ export const Tools = () => {
               className={`
                 px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all
                 ${activeTab === tab.id 
-                  ? 'bg-purple-600 text-white shadow-lg' 
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' 
                   : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
                 }
               `}
@@ -47,9 +48,7 @@ export const Tools = () => {
       <div className="mt-4">
         {activeTab === 'simulator' && <SimulatorTab />}
         {activeTab === 'news' && <EconomicNews />}
-        {/* Outras abas no futuro:
-        {activeTab === 'position' && <PositionCalculator />}
-        */}
+        {activeTab === 'indicadores' && <Indicadores />} {/* ← NOVO CONTEÚDO */}
       </div>
     </div>
   )
