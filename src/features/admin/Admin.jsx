@@ -22,7 +22,7 @@ export const Admin = () => {
         navigate('/admin/login')
       }
     })
-    
+
     return () => unsubscribe()
   }, [navigate])
 
@@ -33,86 +33,111 @@ export const Admin = () => {
   }, [user])
 
   const loadUsers = async () => {
-  try {
-    setLoading(true)
-    // CORREÇÃO: Buscar de /users/ em vez de /adminUsers/
-    const usersRef = collection(db, 'artifacts/trade-journal-public/users')
-    const snapshot = await getDocs(usersRef)
+    try {
+      setLoading(true)
+      const usersRef = collection(db, 'artifacts/trade-journal-public/users')
+      const snapshot = await getDocs(usersRef)
 
-    const usersList = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }))
+      const usersList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
 
-    setUsers(usersList)
-  } catch (error) {
-    console.error('Erro:', error)
-  } finally {
-    setLoading(false)
+      setUsers(usersList)
+    } catch (error) {
+      console.error('Erro:', error)
+    } finally {
+      setLoading(false)
+    }
   }
-}
 
   const addUser = async () => {
-  const email = prompt('Email do usuário:')
-  if (!email) return
+    const email = prompt('Email do usuário:')
+    if (!email) return
 
-  const userId = prompt('User ID (UID do Firebase):')
-  if (!userId) return
+    const userId = prompt('User ID (UID do Firebase):')
+    if (!userId) return
 
-  try {
-    // CORREÇÃO: Criar em /users/ (onde deve estar)
-    const userRef = doc(db, 'artifacts/trade-journal-public/users', userId)
-    await setDoc(userRef, {
-      email,
-      isPro: false,
-      createdAt: new Date().toISOString()
-    }, { merge: true })
+    try {
+      const userRef = doc(db, 'artifacts/trade-journal-public/users', userId)
+      await setDoc(userRef, {
+        email,
+        isPro: false,
+        createdAt: new Date().toISOString(),
+        lastAccessAt: new Date().toISOString() // ← NOVO
+      }, { merge: true })
 
-    await loadUsers()
-    alert('Usuário adicionado!')
-  } catch (error) {
-    alert('Erro: ' + error.message)
+      await loadUsers()
+      alert('Usuário adicionado!')
+    } catch (error) {
+      alert('Erro: ' + error.message)
+    }
   }
-}
 
   const togglePro = async (userId, currentStatus) => {
-  try {
-    // CORREÇÃO: Atualizar apenas em /users/ (não precisa adminUsers)
-    const userRef = doc(db, 'artifacts/trade-journal-public/users', userId)
-    await setDoc(userRef, {
-      isPro: !currentStatus,
-      proUpdatedAt: new Date().toISOString()
-    }, { merge: true })
+    try {
+      const userRef = doc(db, 'artifacts/trade-journal-public/users', userId)
+      await setDoc(userRef, {
+        isPro: !currentStatus,
+        proUpdatedAt: new Date().toISOString()
+      }, { merge: true })
 
-    setUsers(prev => prev.map(u =>
-      u.id === userId ? { ...u, isPro: !currentStatus } : u
-    ))
+      setUsers(prev => prev.map(u =>
+        u.id === userId ? { ...u, isPro: !currentStatus } : u
+      ))
 
-    alert('Status PRO atualizado!')
-  } catch (error) {
-    console.error('Erro ao atualizar PRO:', error)
-    alert('Erro: ' + error.message)
+      alert('Status PRO atualizado!')
+    } catch (error) {
+      console.error('Erro ao atualizar PRO:', error)
+      alert('Erro: ' + error.message)
+    }
   }
-}
 
   const deleteUser = async (userId) => {
-  if (!confirm('Excluir usuário? Esta ação não pode ser desfeita!')) return
+    if (!confirm('Excluir usuário? Esta ação não pode ser desfeita!')) return
 
-  try {
-    // ✅ CORRETO: Deletar de users (não adminUsers)
-    await deleteDoc(doc(db, 'artifacts/trade-journal-public/users', userId))
-    setUsers(prev => prev.filter(u => u.id !== userId))
-    alert('Usuário removido!')
-  } catch (error) {
-    alert('Erro: ' + error.message)
+    try {
+      await deleteDoc(doc(db, 'artifacts/trade-journal-public/users', userId))
+      setUsers(prev => prev.filter(u => u.id !== userId))
+      alert('Usuário removido!')
+    } catch (error) {
+      alert('Erro: ' + error.message)
+    }
   }
-}
 
   const handleLogout = async () => {
     if (confirm('Sair do painel admin?')) {
       localStorage.removeItem('adminContext')
       await auth.signOut()
       navigate('/admin/login')
+    }
+  }
+
+  // ✅ NOVO: Função para formatar data/hora
+  const formatLastAccess = (timestamp) => {
+    if (!timestamp) return 'Nunca'
+    
+    try {
+      const date = new Date(timestamp)
+      const now = new Date()
+      const diffMs = now - date
+      const diffMins = Math.floor(diffMs / 60000)
+      const diffHours = Math.floor(diffMs / 3600000)
+      const diffDays = Math.floor(diffMs / 86400000)
+
+      if (diffMins < 1) return 'Agora'
+      if (diffMins < 60) return `${diffMins}min atrás`
+      if (diffHours < 24) return `${diffHours}h atrás`
+      if (diffDays < 7) return `${diffDays}d atrás`
+      
+      // Formato completo para mais de 7 dias
+      return date.toLocaleDateString('pt-BR', { 
+        day: '2-digit', 
+        month: '2-digit',
+        year: '2-digit'
+      })
+    } catch (error) {
+      return 'Inválido'
     }
   }
 
@@ -145,7 +170,7 @@ export const Admin = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
-        
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -155,27 +180,27 @@ export const Admin = () => {
           <div className="flex flex-wrap gap-2">
             {activeTab === 'users' && (
               <>
-                <button 
-                  onClick={loadUsers} 
+                <button
+                  onClick={loadUsers}
                   className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg backdrop-blur-sm border border-white/20 text-sm font-medium"
                 >
                   🔄️ Atualizar
                 </button>
-                <button 
-                  onClick={addUser} 
+                <button
+                  onClick={addUser}
                   className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg backdrop-blur-sm border border-white/20 text-sm font-medium"
                 >
                   + Adicionar
                 </button>
               </>
             )}
-            <button 
-              onClick={() => navigate('/')} 
+            <button
+              onClick={() => navigate('/')}
               className="px-4 py-2 bg-blue-600/80 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
             >
               Sistema
             </button>
-            <button 
+            <button
               onClick={handleLogout}
               className="px-4 py-2 bg-red-600/80 hover:bg-red-700 text-white rounded-lg text-sm font-medium"
             >
@@ -278,6 +303,9 @@ export const Admin = () => {
                         UID
                       </th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-purple-200 uppercase tracking-wider">
+                        Último Acesso
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-purple-200 uppercase tracking-wider">
                         Plano
                       </th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-purple-200 uppercase tracking-wider">
@@ -288,13 +316,13 @@ export const Admin = () => {
                   <tbody className="divide-y divide-white/5">
                     {loading ? (
                       <tr>
-                        <td colSpan="4" className="px-4 py-8 text-center text-purple-200">
+                        <td colSpan="5" className="px-4 py-8 text-center text-purple-200">
                           Carregando...
                         </td>
                       </tr>
                     ) : filteredUsers.length === 0 ? (
                       <tr>
-                        <td colSpan="4" className="px-4 py-8 text-center text-purple-200">
+                        <td colSpan="5" className="px-4 py-8 text-center text-purple-200">
                           Nenhum usuário encontrado
                         </td>
                       </tr>
@@ -317,6 +345,11 @@ export const Admin = () => {
                                 📝
                               </button>
                             </div>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="text-xs text-purple-300">
+                              {formatLastAccess(u.lastAccessAt)}
+                            </span>
                           </td>
                           <td className="px-4 py-3 text-center">
                             {u.isPro ? (

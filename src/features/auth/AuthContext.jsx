@@ -1,4 +1,4 @@
-﻿import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
 import { 
   signInWithPopup,
   signInWithEmailAndPassword,
@@ -47,34 +47,41 @@ export const AuthProvider = ({ children }) => {
           }
         } 
         // Se estivermos no contexto NORMAL (Usuário)
-else {
-  setUser(firebaseUser)
+        else {
+          setUser(firebaseUser)
 
-  try {
-    const userRef = doc(db, 'artifacts/trade-journal-public/users', firebaseUser.uid)
-    const userDoc = await getDoc(userRef)
+          try {
+            const userRef = doc(db, 'artifacts/trade-journal-public/users', firebaseUser.uid)
+            const userDoc = await getDoc(userRef)
 
-    if (!userDoc.exists()) {
-      // Se ainda não existir documento, cria um básico
-      const newUserData = {
-        email: firebaseUser.email || null,
-        isPro: false,
-        createdAt: new Date().toISOString(),
-        displayName: firebaseUser.displayName || null,
-        photoURL: firebaseUser.photoURL || null
-      }
+            if (!userDoc.exists()) {
+              // ✅ ATUALIZADO: Usuário novo - criar documento COM lastAccessAt
+              const newUserData = {
+                email: firebaseUser.email || null,
+                isPro: false,
+                createdAt: new Date().toISOString(),
+                lastAccessAt: new Date().toISOString(), // ← NOVO: primeiro acesso
+                displayName: firebaseUser.displayName || null,
+                photoURL: firebaseUser.photoURL || null
+              }
 
-      await setDoc(userRef, newUserData, { merge: true })
-      setIsPro(false)
-    } else {
-      const data = userDoc.data()
-      setIsPro(data.isPro || false)
-    }
-  } catch (error) {
-    console.error("Erro ao buscar/criar perfil:", error)
-    setIsPro(false)
-  }
-}
+              await setDoc(userRef, newUserData, { merge: true })
+              setIsPro(false)
+            } else {
+              // ✅ ATUALIZADO: Usuário existente - atualizar último acesso
+              const data = userDoc.data()
+              setIsPro(data.isPro || false)
+              
+              // Atualizar timestamp de último acesso
+              await setDoc(userRef, {
+                lastAccessAt: new Date().toISOString()
+              }, { merge: true })
+            }
+          } catch (error) {
+            console.error("Erro ao buscar/criar perfil:", error)
+            setIsPro(false)
+          }
+        }
 
       } else {
         // Ninguém logado
@@ -106,9 +113,12 @@ else {
   
   const signUpWithEmail = async (email, password) => {
     const credential = await createUserWithEmailAndPassword(auth, email, password)
-    // Cria doc inicial
+    // ✅ ATUALIZADO: Criar doc inicial COM lastAccessAt
     await setDoc(doc(db, 'artifacts/trade-journal-public/users', credential.user.uid), {
-        email, isPro: false, createdAt: new Date().toISOString()
+      email, 
+      isPro: false, 
+      createdAt: new Date().toISOString(),
+      lastAccessAt: new Date().toISOString() // ← NOVO
     })
     return credential
   }
@@ -135,4 +145,3 @@ else {
     </AuthContext.Provider>
   )
 }
-
