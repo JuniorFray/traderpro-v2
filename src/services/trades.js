@@ -1,215 +1,110 @@
-﻿import { db } from "./firebase"
-import {
-  collection,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  getDocs,
-  query,
-  where,
-  orderBy,
-  writeBatch,
-  serverTimestamp
-} from "firebase/firestore"
+﻿// src/services/trades.js
+// Serviço de Trades - TraderPro v3.0
 
-/**
- * Obtm o caminho correto da coleo de trades
- */
-const getTradesPath = (userId) => {
-  return `artifacts/trade-journal-public/users/${userId}/trades`
-}
+import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { db } from './firebase';
+import { calculateTax } from '../utils/taxes/taxCalculator';
+import { DEFAULT_MARKET, DEFAULT_CURRENCY } from '../constants/markets';
 
-/**
- * Cria um novo trade
- */
 export const createTrade = async (userId, tradeData) => {
   try {
-    const tradesRef = collection(db, getTradesPath(userId))
-    const docRef = await addDoc(tradesRef, {
-      ...tradeData,
-      userId,
+    const tradesRef = collection(db, 'artifacts/trade-journal-public/users', userId, 'trades');
+    
+    // Adicionar campos v3.0
+    const market = tradeData.market || DEFAULT_MARKET;
+    const currency = tradeData.currency || DEFAULT_CURRENCY;
+    
+    // Calcular imposto automaticamente
+    const taxInfo = calculateTax({
+      market,
+      pnl: parseFloat(tradeData.pnl || 0),
+      currency,
+      date: tradeData.date
+    });
+    
+    const trade = {
+      // Campos existentes v2.0
+      asset: tradeData.asset,
+      date: tradeData.date,
+      pnl: parseFloat(tradeData.pnl || 0),
+      commission: parseFloat(tradeData.commission || 0),
+      swap: parseFloat(tradeData.swap || 0),
+      strategy: tradeData.strategy || '',
+      notes: tradeData.notes || '',
+      
+      // NOVOS CAMPOS v3.0
+      market,
+      currency,
+      quantity: parseFloat(tradeData.quantity || 0),
+      entryPrice: parseFloat(tradeData.entryPrice || 0),
+      exitPrice: parseFloat(tradeData.exitPrice || 0),
+      entryTime: tradeData.entryTime || '',
+      exitTime: tradeData.exitTime || '',
+      
+      // Impostos calculados automaticamente
+      taxes: taxInfo,
+      
+      // Metadata
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
-    })
-
-    return {
-      success: true,
-      id: docRef.id
-    }
+    };
+    
+    const docRef = await addDoc(tradesRef, trade);
+    return { id: docRef.id, ...trade };
   } catch (error) {
-    console.error("Erro ao criar trade:", error)
-    return {
-      success: false,
-      error: error.message
-    }
+    console.error('Erro ao criar trade:', error);
+    throw error;
   }
-}
+};
 
-/**
- * Busca todos os trades de um usurio
- */
-export const getTrades = async (userId) => {
-  try {
-    const tradesRef = collection(db, getTradesPath(userId))
-    const q = query(tradesRef, orderBy("date", "desc"))
-    const snapshot = await getDocs(q)
-
-    const trades = snapshot.docs.map((doc) => {
-      const data = doc.data()
-      
-      // Converter strings para nmeros
-      return {
-        id: doc.id,
-        ...data,
-        pnl: parseFloat(data.pnl) || 0,
-        fees: parseFloat(data.fees) || 0,
-        commission: parseFloat(data.commission) || 0,
-        swap: parseFloat(data.swap) || 0
-      }
-    })
-
-    return {
-      success: true,
-      trades
-    }
-  } catch (error) {
-    console.error("Erro ao buscar trades:", error)
-    return {
-      success: false,
-      error: error.message,
-      trades: []
-    }
-  }
-}
-
-/**
- * Atualiza um trade existente
- */
 export const updateTrade = async (userId, tradeId, tradeData) => {
   try {
-    const tradeRef = doc(db, getTradesPath(userId), tradeId)
-    await updateDoc(tradeRef, {
-      ...tradeData,
+    const tradeRef = doc(db, 'artifacts/trade-journal-public/users', userId, 'trades', tradeId);
+    
+    // Recalcular imposto se PnL ou mercado mudaram
+    const market = tradeData.market || DEFAULT_MARKET;
+    const currency = tradeData.currency || DEFAULT_CURRENCY;
+    
+    const taxInfo = calculateTax({
+      market,
+      pnl: parseFloat(tradeData.pnl || 0),
+      currency,
+      date: tradeData.date
+    });
+    
+    const updates = {
+      asset: tradeData.asset,
+      date: tradeData.date,
+      pnl: parseFloat(tradeData.pnl || 0),
+      commission: parseFloat(tradeData.commission || 0),
+      swap: parseFloat(tradeData.swap || 0),
+      strategy: tradeData.strategy || '',
+      notes: tradeData.notes || '',
+      market,
+      currency,
+      quantity: parseFloat(tradeData.quantity || 0),
+      entryPrice: parseFloat(tradeData.entryPrice || 0),
+      exitPrice: parseFloat(tradeData.exitPrice || 0),
+      entryTime: tradeData.entryTime || '',
+      exitTime: tradeData.exitTime || '',
+      taxes: taxInfo,
       updatedAt: serverTimestamp()
-    })
-
-    return {
-      success: true
-    }
+    };
+    
+    await updateDoc(tradeRef, updates);
+    return { id: tradeId, ...updates };
   } catch (error) {
-    console.error("Erro ao atualizar trade:", error)
-    return {
-      success: false,
-      error: error.message
-    }
+    console.error('Erro ao atualizar trade:', error);
+    throw error;
   }
-}
+};
 
-/**
- * Deleta um trade
- */
 export const deleteTrade = async (userId, tradeId) => {
   try {
-    const tradeRef = doc(db, getTradesPath(userId), tradeId)
-    await deleteDoc(tradeRef)
-
-    return {
-      success: true
-    }
+    const tradeRef = doc(db, 'artifacts/trade-journal-public/users', userId, 'trades', tradeId);
+    await deleteDoc(tradeRef);
   } catch (error) {
-    console.error("Erro ao deletar trade:", error)
-    return {
-      success: false,
-      error: error.message
-    }
+    console.error('Erro ao deletar trade:', error);
+    throw error;
   }
-}
-
-/**
- * Deleta todos os trades de um usurio
- */
-export const deleteAllTrades = async (userId) => {
-  try {
-    const tradesRef = collection(db, getTradesPath(userId))
-    const snapshot = await getDocs(tradesRef)
-
-    // Deletar em lote
-    const batch = writeBatch(db)
-    snapshot.docs.forEach((doc) => {
-      batch.delete(doc.ref)
-    })
-
-    await batch.commit()
-
-    return {
-      success: true,
-      count: snapshot.docs.length
-    }
-  } catch (error) {
-    console.error("Erro ao deletar todos os trades:", error)
-    return {
-      success: false,
-      error: error.message
-    }
-  }
-}
-
-export const createTradesInBatch = async (userId, tradesData, onProgress) => {
-  try {
-    const batchSize = 50 // Firestore permite max 500 operaes por batch
-    const totalTrades = tradesData.length
-    let importedCount = 0
-
-    for (let i = 0; i < totalTrades; i += batchSize) {
-      const batch = writeBatch(db)
-      const currentBatch = tradesData.slice(i, i + batchSize)
-      
-      currentBatch.forEach((tradeData) => {
-        const tradesRef = collection(db, getTradesPath(userId))
-        const newDocRef = doc(tradesRef)
-        batch.set(newDocRef, {
-          ...tradeData,
-          userId,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        })
-      })
-
-      await batch.commit()
-      
-      importedCount += currentBatch.length
-      
-      // Chamar callback de progresso
-      if (onProgress) {
-        const progress = Math.round((importedCount / totalTrades) * 100)
-        onProgress(progress, importedCount, totalTrades)
-      }
-    }
-
-    return {
-      success: true,
-      count: importedCount
-    }
-  } catch (error) {
-    console.error("Erro ao importar trades em lote:", error)
-    return {
-      success: false,
-      error: error.message
-    }
-  }
-}
-
-export default {
-  createTrade,
-  getTrades,
-  updateTrade,
-  deleteTrade,
-  deleteAllTrades,
-createTradesInBatch,
-}
-/**
- * Cria mltiplos trades em lote com callback de progresso
- */
-
-
+};
