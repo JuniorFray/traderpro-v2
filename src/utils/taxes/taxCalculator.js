@@ -1,7 +1,7 @@
-ï»¿// src/utils/taxes/taxCalculator.js
+// src/utils/taxes/taxCalculator.js
 // Calculadora de Impostos TraderPro v3.0
 
-import { TAX_RULES } from './taxRules';
+import { TAX_RULES } from './taxRules.js';
 
 export const calculateTax = (trade) => {
   const { market, pnl, currency } = trade;
@@ -9,7 +9,7 @@ export const calculateTax = (trade) => {
   const rule = TAX_RULES[market];
   
   if (!rule) {
-    console.warn(\Regra fiscal nÃ£o encontrada para: \\);
+    console.warn('Regra fiscal não encontrada para:', market);
     return null;
   }
   
@@ -21,7 +21,7 @@ export const calculateTax = (trade) => {
       dueDate: null,
       isPaid: false,
       exempt: true,
-      exemptReason: 'Sem lucro no perÃ­odo'
+      exemptReason: 'Sem lucro no período'
     };
   }
   
