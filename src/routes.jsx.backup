@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+ï»¿import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './features/auth/AuthContext'
 import { MainLayout } from './components/layout/MainLayout'
 import { Login } from './features/auth/Login'
@@ -12,7 +12,6 @@ import { Charts } from './features/charts/Charts'
 import { Reports } from './features/reports/Reports'
 import { Settings } from './features/settings/Settings'
 import { Tools } from './features/tools/Tools'
-import { MarketsPage } from './features/markets/MarketsPage'
 import { SupportPage } from './features/support/SupportPage'
 import { Admin } from './features/admin/Admin'
 import { AdminTicketsPage } from './features/admin/AdminTicketsPage'
@@ -30,7 +29,7 @@ const PrivateRoute = ({ children }) => {
 export const CustomerRoutes = () => {
   return (
     <Routes>
-      {/* Landing Page Pública */}
+      {/* Landing Page PÃºblica */}
       <Route path="/" element={<LandingWrapper />} />
       
       {/* Auth */}
@@ -38,7 +37,7 @@ export const CustomerRoutes = () => {
       <Route path="/cadastro" element={<Register />} />
       <Route path="/recuperar-senha" element={<ForgotPassword />} />
       
-      {/* Sistema Principal (após login) */}
+      {/* Sistema Principal (apÃ³s login) */}
       <Route path="/app" element={<PrivateRoute><MainLayout /></PrivateRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="trades" element={<TradesPage />} />
@@ -48,8 +47,6 @@ export const CustomerRoutes = () => {
         <Route path="reports" element={<Reports />} />
         <Route path="settings" element={<Settings />} />
         <Route path="tools" element={<Tools />} />
-
-        <Route path="markets" element={<MarketsPage />} />
         <Route path="support" element={<SupportPage />} />
       </Route>
       

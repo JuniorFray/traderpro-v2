@@ -1,6 +1,5 @@
 ﻿import { useState } from 'react';
 import { Input } from '../../components/ui/Input';
-import { Select } from '../../components/ui/Select';
 import { Button } from '../../components/ui/Button';
 import { MARKETS, CURRENCIES } from '../../constants/markets';
 
@@ -35,34 +34,45 @@ export const TradeForm = ({ onSubmit, initialData = null, onCancel }) => {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Mercado e Moeda */}
-        <Select
-          label="Mercado"
-          name="market"
-          value={formData.market}
-          onChange={handleChange}
-          required
-        >
-          {MARKETS.map(market => (
-            <option key={market.value} value={market.value}>
-              {market.icon} {market.label}
-            </option>
-          ))}
-        </Select>
+        {/* Mercado */}
+        <div>
+          <label className="block text-sm font-medium text-zinc-300 mb-2">
+            Mercado *
+          </label>
+          <select
+            name="market"
+            value={formData.market}
+            onChange={handleChange}
+            required
+            className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          >
+            {MARKETS.map(market => (
+              <option key={market.value} value={market.value}>
+                {market.icon} {market.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        <Select
-          label="Moeda"
-          name="currency"
-          value={formData.currency}
-          onChange={handleChange}
-          required
-        >
-          {CURRENCIES.map(curr => (
-            <option key={curr.value} value={curr.value}>
-              {curr.label}
-            </option>
-          ))}
-        </Select>
+        {/* Moeda */}
+        <div>
+          <label className="block text-sm font-medium text-zinc-300 mb-2">
+            Moeda *
+          </label>
+          <select
+            name="currency"
+            value={formData.currency}
+            onChange={handleChange}
+            required
+            className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          >
+            {CURRENCIES.map(curr => (
+              <option key={curr.value} value={curr.value}>
+                {curr.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
         {/* Ativo e Data */}
         <Input
@@ -83,7 +93,7 @@ export const TradeForm = ({ onSubmit, initialData = null, onCancel }) => {
           required
         />
 
-        {/* NOVOS CAMPOS v3.0 */}
+        {/* Campos Novos v3.0 */}
         <Input
           label="Quantidade"
           name="quantity"

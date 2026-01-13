@@ -9,7 +9,6 @@ import { getUserNotifications, markNotificationAsRead, getUserNotificationStatus
 const menuItems = [
   { path: "", icon: "📊", label: "Dashboard" },
   { path: "trades", icon: "💹", label: "Trades" },
-  { path: "markets", icon: "🌐", label: "Mercados" },
   { path: "calendar", icon: "📅", label: "Calendário" },
   { path: "analytics", icon: "📈", label: "Análises" },
   { path: "charts", icon: "📉", label: "Gráficos" },

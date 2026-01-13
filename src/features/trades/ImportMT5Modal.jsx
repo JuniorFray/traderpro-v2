@@ -1,329 +1,287 @@
-﻿import { useState } from "react"
-import { Button } from "../../components/ui/Button"
-import { Card } from "../../components/ui/Card"
-import { parseMT5File, validateTrades } from "../../utils/mt5Parser"
-import { formatCurrency } from "../../utils/metrics"
+﻿import { useState } from "react";
+import { Button } from "../../components/ui/Button";
+import { Card } from "../../components/ui/Card";
+import { parseTradeFile, validateTrades } from "../../utils/universalTradeParser";
+import { formatCurrency } from "../../utils/metrics";
 
 export const ImportMT5Modal = ({ onClose, onImport, existingTrades = [] }) => {
-  const [file, setFile] = useState(null)
-  const [parsing, setParsing] = useState(false)
-  const [importing, setImporting] = useState(false)
-  const [importProgress, setImportProgress] = useState({ current: 0, total: 0 })
-  const [parsedData, setParsedData] = useState(null)
-  const [validation, setValidation] = useState(null)
-  const [error, setError] = useState("")
+  const [file, setFile] = useState(null);
+  const [parsing, setParsing] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
+  const [parsedData, setParsedData] = useState(null);
+  const [validation, setValidation] = useState(null);
+  const [error, setError] = useState("");
 
   const handleFileSelect = (e) => {
-    const selectedFile = e.target.files[0]
-    if (!selectedFile) return
+    const selectedFile = e.target.files[0];
+    if (!selectedFile) return;
 
-    // Validar tipo de arquivo
-    const validTypes = [
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-excel'
-    ]
+    const validExtensions = ['xlsx', 'xls', 'csv'];
+    const extension = selectedFile.name.split('.').pop().toLowerCase();
 
-    if (!validTypes.includes(selectedFile.type) && !selectedFile.name.endsWith('.xlsx')) {
-      setError("Por favor, selecione um arquivo Excel (.xlsx)")
-      return
+    if (!validExtensions.includes(extension)) {
+      setError("Por favor, selecione um arquivo Excel (.xlsx, .xls) ou CSV (.csv)");
+      return;
     }
 
-    setFile(selectedFile)
-    setError("")
-    setParsedData(null)
-    setValidation(null)
-  }
+    setFile(selectedFile);
+    setError("");
+    setParsedData(null);
+    setValidation(null);
+  };
 
   const handleParse = async () => {
-    if (!file) return
+    if (!file) return;
 
-    setParsing(true)
-    setError("")
+    setParsing(true);
+    setError("");
 
     try {
-      const result = await parseMT5File(file)
+      const result = await parseTradeFile(file);
       
-      if (!result.success) {
-        setError(result.error || "Erro ao processar arquivo")
-        return
-      }
-
       if (result.trades.length === 0) {
-        setError("Nenhum trade encontrado no arquivo. Verifique se é um relatório MT5 válido.")
-        return
+        setError("Nenhum trade válido encontrado no arquivo");
+        setParsing(false);
+        return;
       }
 
-      setParsedData(result)
+      const validationResult = validateTrades(result.trades, existingTrades);
+      
+      setParsedData(result);
+      setValidation(validationResult);
 
-      // Validar trades
-      const validationResult = validateTrades(result.trades, existingTrades)
-      setValidation(validationResult)
-
+      if (result.errors.length > 0) {
+        console.warn('Linhas com erro:', result.errors);
+      }
     } catch (err) {
-      console.error("Erro ao fazer parse:", err)
-      setError("Erro ao processar arquivo. Verifique se é um relatório MT5 válido.")
+      setError(err.message || "Erro ao processar arquivo");
+      console.error('Erro no parser:', err);
     } finally {
-      setParsing(false)
+      setParsing(false);
     }
-  }
+  };
 
   const handleImport = async () => {
-  if (!validation || validation.valid.length === 0) {
-    alert('Nenhum trade válido para importar')
-    return
-  }
+    if (!validation || validation.validCount === 0) return;
 
-  setImporting(true)
-  setError("")
-  setImportProgress({ current: 0, total: validation.valid.length })
+    setImporting(true);
+    setImportProgress({ current: 0, total: validation.validCount });
 
-  try {
-    // Passar o ARRAY COMPLETO para importTrades (batch)
-    await onImport(validation.valid)
-    
-    // Simular progresso visualmente
-    for (let i = 1; i <= validation.valid.length; i++) {
-      setImportProgress({ current: i, total: validation.valid.length })
-      await new Promise(resolve => setTimeout(resolve, 50))
+    try {
+      // ✅ CORRIGIDO: Passar array completo de uma vez
+      await onImport(validation.valid);
+      
+      setImportProgress({
+        current: validation.validCount,
+        total: validation.validCount
+      });
+
+      // Fechar modal após sucesso
+      setTimeout(() => {
+        onClose();
+      }, 500);
+    } catch (err) {
+      setError("Erro ao importar trades: " + err.message);
+      console.error('Erro na importação:', err);
+    } finally {
+      setImporting(false);
     }
-    
-    await new Promise(resolve => setTimeout(resolve, 500))
-    alert(`${validation.valid.length} trades importados com sucesso!`)
-    onClose()
-  } catch (err) {
-    console.error("Erro ao importar:", err)
-    setError("Erro ao importar trades. Tente novamente.")
-    setImporting(false)
-  }
-}
+  };
 
+  const calculateStats = () => {
+    if (!validation) return null;
 
-  const progressPercent = importProgress.total > 0 
-    ? (importProgress.current / importProgress.total) * 100 
-    : 0
+    const { valid } = validation;
+    const totalPnL = valid.reduce((sum, t) => sum + t.pnl, 0);
+    const totalTax = valid.reduce((sum, t) => sum + t.taxes.amount, 0);
+    const wins = valid.filter(t => t.pnl > 0).length;
+    const losses = valid.filter(t => t.pnl < 0).length;
+    const winRate = valid.length > 0 ? (wins / valid.length) * 100 : 0;
+
+    return { totalPnL, totalTax, wins, losses, winRate };
+  };
+
+  const stats = calculateStats();
 
   return (
-    <div 
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-      onClick={importing ? undefined : onClose}
-    >
-      <div 
-        className="bg-zinc-900 rounded-xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-zinc-800"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <Card className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-white">📤 Importar Histórico MT5</h2>
-            <p className="text-sm text-zinc-400">Faça upload do relatório de histórico do MetaTrader 5</p>
+            <h2 className="text-2xl font-bold text-white">
+              Importar Trades
+            </h2>
+            <p className="text-zinc-400 text-sm mt-1">
+              Suporta Excel (.xlsx, .xls) e CSV de qualquer plataforma
+            </p>
           </div>
-          {!importing && (
-            <button
-              onClick={onClose}
-              className="text-zinc-400 hover:text-white text-2xl"
-            >
-              ×
-            </button>
-          )}
+          <button
+            onClick={onClose}
+            className="text-zinc-400 hover:text-white"
+            disabled={importing}
+          >
+            ✕
+          </button>
         </div>
 
-        {/* Barra de Progresso - Importação Ativa */}
-        {importing && (
-          <div className="mb-6">
-            <Card className="bg-emerald-900/20 border-emerald-800">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-emerald-400 font-semibold">
-                    ⏳ Importando trades...
-                  </span>
-                  <span className="text-emerald-400 font-bold">
+        {!parsedData && (
+          <div className="space-y-4">
+            <div className="border-2 border-dashed border-zinc-700 rounded-lg p-8 text-center">
+              <input
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={handleFileSelect}
+                className="hidden"
+                id="file-upload"
+                disabled={parsing}
+              />
+              <label
+                htmlFor="file-upload"
+                className="cursor-pointer inline-block"
+              >
+                <div className="text-4xl mb-4">📊</div>
+                <div className="text-white font-medium mb-2">
+                  {file ? file.name : 'Escolher arquivo'}
+                </div>
+                <div className="text-sm text-zinc-400">
+                  Excel (.xlsx, .xls) ou CSV
+                </div>
+              </label>
+            </div>
+
+            <div className="bg-zinc-800/50 rounded-lg p-4 text-sm text-zinc-300">
+              <div className="font-medium mb-2">📋 Colunas aceitas (qualquer nome):</div>
+              <ul className="space-y-1 text-zinc-400">
+                <li>• <strong>Obrigatórias:</strong> Ativo, Data, Resultado/PnL</li>
+                <li>• <strong>Opcionais:</strong> Mercado, Moeda, Quantidade, Preços, Horários, Taxas, etc</li>
+              </ul>
+              <div className="mt-3 text-xs text-zinc-500">
+                💡 O sistema detecta automaticamente as colunas e calcula impostos
+              </div>
+            </div>
+
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-400">
+                {error}
+              </div>
+            )}
+
+            <Button
+              onClick={handleParse}
+              disabled={!file || parsing}
+              className="w-full"
+            >
+              {parsing ? "Processando..." : "Processar Arquivo"}
+            </Button>
+          </div>
+        )}
+
+        {parsedData && validation && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-zinc-800/50 rounded-lg p-4">
+                <div className="text-zinc-400 text-sm">Total Trades</div>
+                <div className="text-2xl font-bold text-white">
+                  {validation.total}
+                </div>
+              </div>
+              <div className="bg-emerald-500/10 rounded-lg p-4">
+                <div className="text-emerald-400 text-sm">Válidos</div>
+                <div className="text-2xl font-bold text-emerald-400">
+                  {validation.validCount}
+                </div>
+              </div>
+              <div className="bg-yellow-500/10 rounded-lg p-4">
+                <div className="text-yellow-400 text-sm">Duplicados</div>
+                <div className="text-2xl font-bold text-yellow-400">
+                  {validation.duplicateCount}
+                </div>
+              </div>
+              <div className="bg-blue-500/10 rounded-lg p-4">
+                <div className="text-blue-400 text-sm">Win Rate</div>
+                <div className="text-2xl font-bold text-blue-400">
+                  {stats.winRate.toFixed(1)}%
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-zinc-800/50 rounded-lg p-4 space-y-2">
+              <div className="flex justify-between">
+                <span className="text-zinc-400">Resultado Total:</span>
+                <span className={stats.totalPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                  {formatCurrency(stats.totalPnL, 'BRL')}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-400">Impostos Calculados:</span>
+                <span className="text-orange-400">
+                  {formatCurrency(stats.totalTax, 'BRL')}
+                </span>
+              </div>
+              <div className="flex justify-between border-t border-zinc-700 pt-2">
+                <span className="text-zinc-400">Resultado Líquido:</span>
+                <span className="text-white font-bold">
+                  {formatCurrency(stats.totalPnL - stats.totalTax, 'BRL')}
+                </span>
+              </div>
+            </div>
+
+            {validation.duplicateCount > 0 && (
+              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 text-yellow-400 text-sm">
+                ⚠️ {validation.duplicateCount} trade(s) já existente(s) serão ignorados
+              </div>
+            )}
+
+            {parsedData.errors.length > 0 && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-400 text-sm">
+                ⚠️ {parsedData.errors.length} linha(s) com dados incompletos foram ignoradas
+              </div>
+            )}
+
+            {importing && (
+              <div className="bg-zinc-800/50 rounded-lg p-4">
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-zinc-400">Importando...</span>
+                  <span className="text-white">
                     {importProgress.current} / {importProgress.total}
                   </span>
                 </div>
-                
-                {/* Barra de Progresso */}
-                <div className="w-full bg-zinc-800 rounded-full h-4 overflow-hidden">
-                  <div 
-                    className="bg-emerald-500 h-full transition-all duration-300 flex items-center justify-center text-xs font-bold text-black"
-                    style={{ width: `${progressPercent}%` }}
-                  >
-                    {progressPercent > 10 && `${Math.round(progressPercent)}%`}
-                  </div>
+                <div className="w-full bg-zinc-700 rounded-full h-2">
+                  <div
+                    className="bg-emerald-500 h-2 rounded-full transition-all"
+                    style={{
+                      width: `${(importProgress.current / importProgress.total) * 100}%`
+                    }}
+                  />
                 </div>
-
-                <p className="text-sm text-zinc-400 text-center">
-                  Por favor, aguarde. Não feche esta janela.
-                </p>
               </div>
-            </Card>
-          </div>
-        )}
-
-        {/* Erro */}
-        {error && (
-          <div className="mb-4 p-4 bg-red-900/30 border border-red-800 rounded-xl text-red-400 text-sm">
-            {error}
-          </div>
-        )}
-
-        {/* Passo 1: Selecionar Arquivo */}
-        {!importing && (
-          <>
-            <Card className="mb-4">
-              <h3 className="text-lg font-bold text-white mb-3">1️⃣ Selecione o Arquivo</h3>
-              <div className="space-y-3">
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={handleFileSelect}
-                  className="block w-full text-sm text-zinc-400
-                    file:mr-4 file:py-2 file:px-4
-                    file:rounded-lg file:border-0
-                    file:text-sm file:font-semibold
-                    file:bg-emerald-500 file:text-black
-                    hover:file:bg-emerald-600
-                    file:cursor-pointer cursor-pointer"
-                />
-                {file && (
-                  <div className="flex items-center justify-between p-3 bg-zinc-800 rounded-lg">
-                    <span className="text-sm text-white">📄 {file.name}</span>
-                    <Button onClick={handleParse} disabled={parsing}>
-                      {parsing ? "Processando..." : "Processar Arquivo"}
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </Card>
-
-            {/* Passo 2: Informações Detectadas */}
-            {parsedData && (
-              <Card className="mb-4">
-                <h3 className="text-lg font-bold text-white mb-3">2️⃣ Informações Detectadas</h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-zinc-400 mb-1">Formato</p>
-                    <p className="text-white font-semibold">✅ MetaTrader 5</p>
-                  </div>
-                  {parsedData.metadata.broker && (
-                    <div>
-                      <p className="text-zinc-400 mb-1">Corretora</p>
-                      <p className="text-white font-semibold">{parsedData.metadata.broker}</p>
-                    </div>
-                  )}
-                  {parsedData.metadata.account && (
-                    <div>
-                      <p className="text-zinc-400 mb-1">Conta</p>
-                      <p className="text-white font-semibold">{parsedData.metadata.account}</p>
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-zinc-400 mb-1">Trades Encontrados</p>
-                    <p className="text-white font-semibold">{parsedData.trades.length} posições</p>
-                  </div>
-                </div>
-              </Card>
             )}
 
-            {/* Passo 3: Validação */}
-            {validation && (
-              <>
-                <Card className="mb-4">
-                  <h3 className="text-lg font-bold text-white mb-3">3️⃣ Validação</h3>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between p-3 bg-emerald-900/20 border border-emerald-800 rounded-lg">
-                      <span className="text-emerald-400 font-semibold">✅ Trades Válidos</span>
-                      <span className="text-emerald-400 font-bold text-lg">{validation.valid.length}</span>
-                    </div>
-                    
-                    {validation.duplicates.length > 0 && (
-                      <div className="flex items-center justify-between p-3 bg-yellow-900/20 border border-yellow-800 rounded-lg">
-                        <span className="text-yellow-400 font-semibold">⚠️ Duplicados (serão ignorados)</span>
-                        <span className="text-yellow-400 font-bold text-lg">{validation.duplicates.length}</span>
-                      </div>
-                    )}
-
-                    {validation.errors.length > 0 && (
-                      <div className="flex items-center justify-between p-3 bg-red-900/20 border border-red-800 rounded-lg">
-                        <span className="text-red-400 font-semibold">❌ Com Erro (serão ignorados)</span>
-                        <span className="text-red-400 font-bold text-lg">{validation.errors.length}</span>
-                      </div>
-                    )}
-                  </div>
-                </Card>
-
-                {/* Preview dos Trades */}
-                <Card className="mb-4">
-                  <h3 className="text-lg font-bold text-white mb-3">📋 Preview (5 primeiros)</h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-zinc-800">
-                          <th className="text-left py-2 px-2 text-zinc-400 font-medium">Data</th>
-                          <th className="text-left py-2 px-2 text-zinc-400 font-medium">Ativo</th>
-                          <th className="text-right py-2 px-2 text-zinc-400 font-medium">P&L</th>
-                          <th className="text-right py-2 px-2 text-zinc-400 font-medium">Comissão</th>
-                          <th className="text-right py-2 px-2 text-zinc-400 font-medium">Swap</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {validation.valid.slice(0, 5).map((trade, idx) => (
-                          <tr key={idx} className="border-b border-zinc-900">
-                            <td className="py-2 px-2 text-zinc-300">
-                              {new Date(trade.date).toLocaleDateString('pt-BR')}
-                            </td>
-                            <td className="py-2 px-2 text-white font-medium">{trade.asset}</td>
-                            <td className={`py-2 px-2 text-right font-bold ${trade.pnl >= 0 ? 'text-win' : 'text-loss'}`}>
-                              {formatCurrency(trade.pnl)}
-                            </td>
-                            <td className="py-2 px-2 text-right text-zinc-400">
-                              {formatCurrency(trade.commission)}
-                            </td>
-                            <td className="py-2 px-2 text-right text-zinc-400">
-                              {formatCurrency(trade.swap)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {validation.valid.length > 5 && (
-                      <p className="text-xs text-zinc-500 mt-2 text-center">
-                        ... e mais {validation.valid.length - 5} trades
-                      </p>
-                    )}
-                  </div>
-                </Card>
-
-                {/* Aviso sobre Estratégia */}
-                <div className="mb-4 p-4 bg-blue-900/20 border border-blue-800 rounded-xl">
-                  <p className="text-blue-400 text-sm">
-                    <span className="font-semibold">ℹ️ Informação:</span> O campo "Estratégia" ficará em branco. 
-                    Você pode editar cada trade depois para adicionar a estratégia.
-                  </p>
-                </div>
-
-                {/* Botões de Ação */}
-                <div className="flex gap-3">
-                  <Button
-                    onClick={onClose}
-                    variant="secondary"
-                    className="flex-1"
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    onClick={handleImport}
-                    className="flex-1"
-                    disabled={validation.valid.length === 0}
-                  >
-                    Importar {validation.valid.length} Trades
-                  </Button>
-                </div>
-              </>
-            )}
-          </>
+            <div className="flex gap-3">
+              <Button
+                onClick={() => {
+                  setParsedData(null);
+                  setValidation(null);
+                  setFile(null);
+                }}
+                variant="secondary"
+                disabled={importing}
+                className="flex-1"
+              >
+                Escolher Outro Arquivo
+              </Button>
+              <Button
+                onClick={handleImport}
+                disabled={validation.validCount === 0 || importing}
+                className="flex-1"
+              >
+                {importing ? 'Importando...' : `Importar ${validation.validCount} Trades`}
+              </Button>
+            </div>
+          </div>
         )}
-      </div>
+      </Card>
     </div>
-  )
-}
-
+  );
+};
