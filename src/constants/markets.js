@@ -15,6 +15,15 @@ export const CURRENCIES = [
   { value: 'GBP', label: 'Libra (£)', symbol: '£' }
 ];
 
+// NOVO: Mapeamento de valores para nomes
+export const MARKET_NAMES = {
+  'b3daytrade': 'B3 Day Trade',
+  'b3swing': 'B3 Swing Trade',
+  'forex': 'Forex',
+  'b3options': 'B3 Opções',
+  'crypto': 'Cripto'
+};
+
 export const DEFAULT_MARKET = 'forex';
 export const DEFAULT_CURRENCY = 'BRL';
 
