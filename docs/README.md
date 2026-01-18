@@ -180,3 +180,5 @@ Status: Sistema 100% funcional em produção
 
 Desenvolvedor: Junior Fray
 Projeto: TraderPro v2
+
+

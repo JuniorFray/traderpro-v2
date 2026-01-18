@@ -1,7 +1,7 @@
 ﻿import { useState } from "react";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
-import { parseTradeFile, validateTrades } from "../../utils/universalTradeParser";
+import { parseTradesFile, validateTrades } from "../../utils/universalTradeParser";
 import { formatCurrency } from "../../utils/metrics";
 
 export const ImportMT5Modal = ({ onClose, onImport, existingTrades = [] }) => {
@@ -38,7 +38,7 @@ export const ImportMT5Modal = ({ onClose, onImport, existingTrades = [] }) => {
     setError("");
 
     try {
-      const result = await parseTradeFile(file);
+      const result = await parseTradesFile(file);
       
       if (result.trades.length === 0) {
         setError("Nenhum trade válido encontrado no arquivo");

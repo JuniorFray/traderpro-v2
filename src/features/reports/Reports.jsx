@@ -5,7 +5,7 @@ import { Button } from "../../components/ui/Button"
 import { TradeFilters } from "../../components/filters/TradeFilters"
 import { ExportButtons } from "../../components/exports/ExportButtons"
 import { calculateMetrics } from "../../utils/metrics"
-import { formatCurrency, formatPercent } from "../../utils/metrics"
+import { formatCurrency, formatPercentage } from "../../utils/metrics"
 import { MARKET_NAMES } from "../../constants/markets"
 
 export const Reports = () => {
@@ -102,7 +102,7 @@ export const Reports = () => {
 
           <div className="bg-zinc-800 p-4 rounded-lg">
             <p className="text-xs text-zinc-500 mb-1">Win Rate</p>
-            <p className="text-2xl font-bold text-white">{formatPercent(metrics.winRate)}</p>
+            <p className="text-2xl font-bold text-white">{formatPercentage(metrics.winRate)}</p>
           </div>
 
           <div className="bg-zinc-800 p-4 rounded-lg">

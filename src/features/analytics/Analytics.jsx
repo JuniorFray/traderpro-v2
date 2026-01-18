@@ -1,114 +1,176 @@
-﻿// src/features/analytics/Analytics.jsx - SUBSTITUIR COMPLETAMENTE
-import { useState } from "react"
-import { useTrades } from "../../hooks/useTrades"
-import { Card } from "../../components/ui/Card"
-import { TradeFilters } from "../../components/filters/TradeFilters"
-
-// Funções auxiliares locais
-const formatCurrency = (value) => {
-  return value.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
-};
-
-const formatPercent = (value) => {
-  return `${value.toFixed(1)}%`;
-};
+﻿// src/features/analytics/Analytics.jsx
+import { useState } from "react";
+import { useTrades } from "../../hooks/useTrades";
+import { Card } from "../../components/ui/Card";
+import { TradeFilters } from "../../components/filters/TradeFilters";
+import { formatCurrency } from "../../utils/metrics";
 
 export const Analytics = () => {
-  const { trades, loading } = useTrades()
+  const { trades, loading } = useTrades();
   const [filters, setFilters] = useState({
     startDate: "",
     endDate: "",
     symbol: "",
     strategy: "",
     result: "all"
-  })
+  });
 
   if (loading) {
-    return <div className="text-center p-8 text-zinc-400">Carregando...</div>
+    return <div className="text-center p-8 text-zinc-400">Carregando...</div>;
   }
 
   // Aplicar filtros
-  const filteredTrades = trades.filter((trade) => {
-    const tradePnl = parseFloat(trade.pnl) || 0
-    if (filters.startDate && trade.date < filters.startDate) return false
-    if (filters.endDate && trade.date > filters.endDate) return false
-    if (filters.symbol && !(trade.asset || trade.symbol || "").toLowerCase().includes(filters.symbol.toLowerCase())) return false
-    if (filters.strategy && !(trade.strategy || "").toLowerCase().includes(filters.strategy.toLowerCase())) return false
-    if (filters.result === "win" && tradePnl <= 0) return false
-    if (filters.result === "loss" && tradePnl >= 0) return false
-    return true
-  })
+  const filteredTrades = trades.filter(trade => {
+    const tradePnl = parseFloat(trade.pnl) || 0;
+    if (filters.startDate && trade.date < filters.startDate) return false;
+    if (filters.endDate && trade.date > filters.endDate) return false;
+    if (filters.symbol && !(trade.asset || trade.symbol || "").toLowerCase().includes(filters.symbol.toLowerCase())) return false;
+    if (filters.strategy && !(trade.strategy || "").toLowerCase().includes(filters.strategy.toLowerCase())) return false;
+    if (filters.result === "win" && tradePnl <= 0) return false;
+    if (filters.result === "loss" && tradePnl >= 0) return false;
+    return true;
+  });
+
+  // NOVO: Calcular taxa de câmbio média dos trades USD
+  const getAverageExchangeRate = (tradesArray) => {
+    const usdTrades = tradesArray.filter(t => (t.currency || (t.market === 'forex' ? 'USD' : 'BRL')) === 'USD');
+    if (usdTrades.length === 0) return 5.45; // Taxa padrão se não houver trades USD
+    
+    const totalRate = usdTrades.reduce((sum, t) => {
+      const rate = parseFloat(t.exchangeRate) || 5.45;
+      return sum + rate;
+    }, 0);
+    
+    return totalRate / usdTrades.length;
+  };
+
+  const avgExchangeRate = getAverageExchangeRate(filteredTrades);
 
   // Análise por Ativo
   const bySymbol = filteredTrades.reduce((acc, trade) => {
-    const symbol = trade.asset || trade.symbol || "N/A"
-    const tradePnl = parseFloat(trade.pnl) || 0
+    const symbol = trade.asset || trade.symbol || "NA";
+    const tradePnl = parseFloat(trade.pnl) || 0;
+    
     if (!acc[symbol]) {
-      acc[symbol] = { trades: [], pnl: 0, wins: 0, losses: 0 }
+      acc[symbol] = { 
+        trades: [], 
+        pnl: 0, 
+        wins: 0, 
+        losses: 0,
+        currency: trade.currency || (trade.market === 'forex' ? 'USD' : 'BRL')
+      };
     }
-    acc[symbol].trades.push(trade)
-    acc[symbol].pnl += tradePnl
-    if (tradePnl > 0) acc[symbol].wins++
-    else if (tradePnl < 0) acc[symbol].losses++
-    return acc
-  }, {})
+    
+    acc[symbol].trades.push(trade);
+    acc[symbol].pnl += tradePnl;
+    if (tradePnl > 0) acc[symbol].wins++;
+    else if (tradePnl < 0) acc[symbol].losses++;
+    return acc;
+  }, {});
 
-  // Análise por Estratégia
-  const byStrategy = filteredTrades.reduce((acc, trade) => {
-    const strategy = trade.strategy || "Sem Estratégia"
-    const tradePnl = parseFloat(trade.pnl) || 0
-    if (!acc[strategy]) {
-      acc[strategy] = { trades: [], pnl: 0, wins: 0, losses: 0 }
+  // Análise por Estratégia separada por moeda
+  const byStrategyRaw = filteredTrades.reduce((acc, trade) => {
+    const strategy = trade.strategy || "Sem Estratégia";
+    const tradePnl = parseFloat(trade.pnl) || 0;
+    const currency = trade.currency || (trade.market === 'forex' ? 'USD' : 'BRL');
+    
+    const key = `${strategy}|${currency}`;
+    
+    if (!acc[key]) {
+      acc[key] = { 
+        strategy, 
+        currency,
+        trades: [], 
+        pnl: 0, 
+        wins: 0, 
+        losses: 0 
+      };
     }
-    acc[strategy].trades.push(trade)
-    acc[strategy].pnl += tradePnl
-    if (tradePnl > 0) acc[strategy].wins++
-    else if (tradePnl < 0) acc[strategy].losses++
-    return acc
-  }, {})
+    
+    acc[key].trades.push(trade);
+    acc[key].pnl += tradePnl;
+    if (tradePnl > 0) acc[key].wins++;
+    else if (tradePnl < 0) acc[key].losses++;
+    return acc;
+  }, {});
 
-  // Análise por Dia da Semana
-  const byWeekday = filteredTrades.reduce((acc, trade) => {
-    const date = new Date(trade.date + "T12:00:00")
-    const weekday = date.toLocaleDateString("pt-BR", { weekday: "long" })
-    const tradePnl = parseFloat(trade.pnl) || 0
-    if (!acc[weekday]) {
-      acc[weekday] = { trades: [], pnl: 0, wins: 0, losses: 0, order: date.getDay() }
+  const byStrategyBRL = {};
+  const byStrategyUSD = {};
+  
+  Object.entries(byStrategyRaw).forEach(([key, value]) => {
+    if (value.currency === 'USD') {
+      byStrategyUSD[value.strategy] = value;
+    } else {
+      byStrategyBRL[value.strategy] = value;
     }
-    acc[weekday].trades.push(trade)
-    acc[weekday].pnl += tradePnl
-    if (tradePnl > 0) acc[weekday].wins++
-    else if (tradePnl < 0) acc[weekday].losses++
-    return acc
-  }, {})
+  });
+
+  // Análise por Dia da Semana separada por moeda
+  const byWeekdayRaw = filteredTrades.reduce((acc, trade) => {
+    const date = new Date(trade.date + "T12:00:00");
+    const weekday = date.toLocaleDateString("pt-BR", { weekday: "long" });
+    const tradePnl = parseFloat(trade.pnl) || 0;
+    const currency = trade.currency || (trade.market === 'forex' ? 'USD' : 'BRL');
+    
+    const key = `${weekday}|${currency}`;
+    
+    if (!acc[key]) {
+      acc[key] = { 
+        weekday,
+        currency,
+        trades: [], 
+        pnl: 0, 
+        wins: 0, 
+        losses: 0, 
+        order: date.getDay() 
+      };
+    }
+    
+    acc[key].trades.push(trade);
+    acc[key].pnl += tradePnl;
+    if (tradePnl > 0) acc[key].wins++;
+    else if (tradePnl < 0) acc[key].losses++;
+    return acc;
+  }, {});
+
+  const byWeekdayBRL = {};
+  const byWeekdayUSD = {};
+  
+  Object.entries(byWeekdayRaw).forEach(([key, value]) => {
+    if (value.currency === 'USD') {
+      byWeekdayUSD[value.weekday] = value;
+    } else {
+      byWeekdayBRL[value.weekday] = value;
+    }
+  });
 
   // Versão Desktop - Tabela
-  const renderTable = (data, title, icon, sortByPnl = true) => {
+  const renderTable = (data, title, icon, sortByPnl = true, currency = null) => {
+    if (Object.keys(data).length === 0) return null;
+    
     const items = Object.entries(data)
       .map(([key, value]) => ({
-        name: key,
+        name: value.strategy || value.weekday || key,
         ...value,
-        winRate: value.wins + value.losses > 0
-          ? (value.wins / (value.wins + value.losses)) * 100
+        winRate: (value.wins + value.losses) > 0 
+          ? (value.wins / (value.wins + value.losses)) * 100 
           : 0
       }))
       .sort((a, b) => {
         if (sortByPnl) {
-          return b.pnl - a.pnl
+          return b.pnl - a.pnl;
         } else {
-          return a.order - b.order
+          return a.order - b.order;
         }
-      })
+      });
 
     return (
       <Card>
-        <h3 className="text-lg font-bold text-white mb-4">{icon} {title}</h3>
-        
+        <h3 className="text-lg font-bold text-white mb-4">
+          {icon} {title}
+          {currency && <span className="text-sm ml-2 text-zinc-400">({currency === 'BRL' ? 'R$ BRL' : '$ USD'})</span>}
+        </h3>
+
         {/* Versão Desktop - Tabela */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
@@ -123,15 +185,26 @@ export const Analytics = () => {
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
+              {items.map(item => (
                 <tr key={item.name} className="border-b border-zinc-900">
                   <td className="py-3 px-2 text-white font-medium">{item.name}</td>
                   <td className="py-3 px-2 text-right text-zinc-300">{item.trades.length}</td>
                   <td className="py-3 px-2 text-right text-win">{item.wins}</td>
                   <td className="py-3 px-2 text-right text-loss">{item.losses}</td>
-                  <td className="py-3 px-2 text-right text-zinc-300">{formatPercent(item.winRate)}</td>
-                  <td className={`py-3 px-2 text-right font-bold ${item.pnl >= 0 ? "text-win" : "text-loss"}`}>
-                    {formatCurrency(item.pnl)}
+                  <td className="py-3 px-2 text-right text-zinc-300">{item.winRate.toFixed(1)}%</td>
+                  <td className={`py-3 px-2 text-right font-bold ${item.pnl > 0 ? "text-win" : "text-loss"}`}>
+                    <div>
+                      {currency 
+                        ? formatCurrency(item.pnl, currency)
+                        : formatCurrency(item.pnl, item.currency)
+                      }
+                    </div>
+                    {/* NOVO: Conversão para BRL se for USD */}
+                    {(currency === 'USD' || item.currency === 'USD') && (
+                      <div className="text-xs text-zinc-500 font-normal mt-0.5">
+                        ≈ {formatCurrency(item.pnl * avgExchangeRate, 'BRL')}
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -141,13 +214,24 @@ export const Analytics = () => {
 
         {/* Versão Mobile - Cards */}
         <div className="md:hidden space-y-3">
-          {items.map((item) => (
+          {items.map(item => (
             <div key={item.name} className="bg-zinc-900/50 rounded-lg p-4 border border-zinc-800">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-white font-bold text-base">{item.name}</h4>
-                <span className={`text-lg font-bold ${item.pnl >= 0 ? "text-win" : "text-loss"}`}>
-                  {formatCurrency(item.pnl)}
-                </span>
+                <div className="text-right">
+                  <span className={`text-lg font-bold block ${item.pnl > 0 ? "text-win" : "text-loss"}`}>
+                    {currency 
+                      ? formatCurrency(item.pnl, currency)
+                      : formatCurrency(item.pnl, item.currency)
+                    }
+                  </span>
+                  {/* NOVO: Conversão para BRL se for USD */}
+                  {(currency === 'USD' || item.currency === 'USD') && (
+                    <span className="text-xs text-zinc-500 block mt-0.5">
+                      ≈ {formatCurrency(item.pnl * avgExchangeRate, 'BRL')}
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -155,10 +239,10 @@ export const Analytics = () => {
                   <p className="text-xs text-zinc-500 mb-1">Total de Trades</p>
                   <p className="text-white font-semibold">{item.trades.length}</p>
                 </div>
-                
+
                 <div>
                   <p className="text-xs text-zinc-500 mb-1">Win Rate</p>
-                  <p className="text-white font-semibold">{formatPercent(item.winRate)}</p>
+                  <p className="text-white font-semibold">{item.winRate.toFixed(1)}%</p>
                 </div>
 
                 <div>
@@ -175,15 +259,15 @@ export const Analytics = () => {
           ))}
         </div>
       </Card>
-    )
-  }
+    );
+  };
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl md:text-3xl font-bold text-white">Análises Detalhadas</h2>
         <p className="text-sm md:text-base text-zinc-400">
-          Análise profunda por ativo, estratégia e padrões ({filteredTrades.length} trades)
+          Análise profunda por ativo, estratégia e padrões • {filteredTrades.length} trades
         </p>
       </div>
 
@@ -197,11 +281,13 @@ export const Analytics = () => {
         </Card>
       ) : (
         <>
-          {renderTable(bySymbol, "Desempenho por Ativo", "📈")}
-          {renderTable(byStrategy, "Desempenho por Estratégia", "🎯")}
-          {renderTable(byWeekday, "Desempenho por Dia da Semana", "📅", false)}
+          {renderTable(bySymbol, "Desempenho por Ativo", "📈", true)}
+          {renderTable(byStrategyBRL, "Desempenho por Estratégia", "🎯", true, 'BRL')}
+          {renderTable(byStrategyUSD, "Desempenho por Estratégia", "🎯", true, 'USD')}
+          {renderTable(byWeekdayBRL, "Desempenho por Dia da Semana", "📅", false, 'BRL')}
+          {renderTable(byWeekdayUSD, "Desempenho por Dia da Semana", "📅", false, 'USD')}
         </>
       )}
     </div>
-  )
-}
+  );
+};

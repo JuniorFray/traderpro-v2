@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { MARKETS, CURRENCIES } from '../../constants/markets';
@@ -7,7 +7,7 @@ export const TradeForm = ({ onSubmit, initialData = null, onCancel }) => {
   const [formData, setFormData] = useState({
     asset: initialData?.asset || '',
     date: initialData?.date || new Date().toISOString().split('T')[0],
-    market: initialData?.market || 'forex',
+    market: initialData?.market || 'b3daytrade',
     currency: initialData?.currency || 'BRL',
     quantity: initialData?.quantity || '',
     entryPrice: initialData?.entryPrice || '',
@@ -21,6 +21,14 @@ export const TradeForm = ({ onSubmit, initialData = null, onCancel }) => {
     notes: initialData?.notes || ''
   });
 
+  // Auto-selecionar moeda baseado no mercado
+  useEffect(() => {
+    const selectedMarket = MARKETS.find(m => m.value === formData.market);
+    if (selectedMarket) {
+      setFormData(prev => ({ ...prev, currency: selectedMarket.currency }));
+    }
+  }, [formData.market]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -28,8 +36,20 @@ export const TradeForm = ({ onSubmit, initialData = null, onCancel }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Validação extra: verificar se moeda corresponde ao mercado
+    const selectedMarket = MARKETS.find(m => m.value === formData.market);
+    if (selectedMarket && selectedMarket.currency !== formData.currency) {
+      alert(`⚠️ Atenção: Mercado ${selectedMarket.label} usa ${selectedMarket.currency}!\nMoeda será ajustada automaticamente.`);
+      formData.currency = selectedMarket.currency;
+    }
+    
     onSubmit(formData);
   };
+
+  // Obter moeda esperada do mercado
+  const expectedCurrency = MARKETS.find(m => m.value === formData.market)?.currency || 'BRL';
+  const currencyMismatch = formData.currency !== expectedCurrency;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -54,24 +74,33 @@ export const TradeForm = ({ onSubmit, initialData = null, onCancel }) => {
           </select>
         </div>
 
-        {/* Moeda */}
+        {/* Moeda (Auto-selecionada e bloqueada) */}
         <div>
           <label className="block text-sm font-medium text-zinc-300 mb-2">
-            Moeda *
+            Moeda * <span className="text-xs text-zinc-500">(auto-selecionada)</span>
           </label>
-          <select
-            name="currency"
-            value={formData.currency}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          >
-            {CURRENCIES.map(curr => (
-              <option key={curr.value} value={curr.value}>
-                {curr.label}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              name="currency"
+              value={formData.currency}
+              onChange={handleChange}
+              disabled
+              required
+              className="w-full px-4 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white opacity-75 cursor-not-allowed"
+            >
+              {CURRENCIES.map(curr => (
+                <option key={curr.value} value={curr.value}>
+                  {curr.label}
+                </option>
+              ))}
+            </select>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-400">
+              🔒
+            </span>
+          </div>
+          <p className="text-xs text-zinc-500 mt-1">
+            💡 Moeda definida automaticamente pelo mercado selecionado
+          </p>
         </div>
 
         {/* Ativo e Data */}
@@ -141,16 +170,21 @@ export const TradeForm = ({ onSubmit, initialData = null, onCancel }) => {
         />
 
         {/* Campos Financeiros */}
-        <Input
-          label="Resultado (PnL)"
-          name="pnl"
-          type="number"
-          step="0.01"
-          value={formData.pnl}
-          onChange={handleChange}
-          placeholder="0.00"
-          required
-        />
+        <div>
+          <Input
+            label={`Resultado (PnL) em ${formData.currency}`}
+            name="pnl"
+            type="number"
+            step="0.01"
+            value={formData.pnl}
+            onChange={handleChange}
+            placeholder="0.00"
+            required
+          />
+          <p className="text-xs text-amber-400 mt-1">
+            ⚠️ Insira o valor na moeda: <strong>{formData.currency}</strong>
+          </p>
+        </div>
 
         <Input
           label="Taxas/Corretagem"
@@ -181,6 +215,22 @@ export const TradeForm = ({ onSubmit, initialData = null, onCancel }) => {
         />
       </div>
 
+      {/* Alerta de Moeda */}
+      {formData.market === 'forex' && (
+        <div className="bg-blue-900/20 border border-blue-500/50 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">💱</span>
+            <div>
+              <p className="text-blue-400 font-bold mb-1">Forex - Atenção com a moeda!</p>
+              <p className="text-zinc-300 text-sm">
+                Os valores devem ser inseridos em <strong>USD (dólares)</strong>.
+                O sistema converterá automaticamente para BRL nos relatórios.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Observações */}
       <div>
         <label className="block text-sm font-medium text-zinc-300 mb-2">
@@ -202,7 +252,7 @@ export const TradeForm = ({ onSubmit, initialData = null, onCancel }) => {
           {initialData ? 'Atualizar' : 'Cadastrar'} Trade
         </Button>
         {onCancel && (
-          <Button type="button" onClick={onCancel} variant="secondary">
+          <Button type="button" onClick={onCancel} variant="outline">
             Cancelar
           </Button>
         )}

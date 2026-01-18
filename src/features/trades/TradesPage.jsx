@@ -35,12 +35,19 @@ export const TradesPage = () => {
     return true
   })
 
-  // Calcular métricas dos trades filtrados
+  // Calcular métricas dos trades filtrados COM CONVERSÃO PARA BRL
+  const totalPnLBRL = filteredTrades.reduce((sum, t) => {
+    const pnl = parseFloat(t.pnl) || 0;
+    // Converter USD para BRL se for forex
+    const pnlBRL = t.market === 'forex' ? pnl * 5.45 : pnl;
+    return sum + pnlBRL;
+  }, 0);
+
   const metrics = {
     total: filteredTrades.length,
     wins: filteredTrades.filter(t => t.pnl > 0).length,
     losses: filteredTrades.filter(t => t.pnl < 0).length,
-    totalPnL: filteredTrades.reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0)
+    totalPnL: totalPnLBRL  // Já em BRL
   }
 
   const handleSubmit = async (tradeData) => {
@@ -134,7 +141,7 @@ export const TradesPage = () => {
         <Card className="p-3 md:p-4 col-span-2 md:col-span-1">
           <div className="text-xs md:text-sm text-zinc-400 mb-1">P&L Total</div>
           <div className={`text-xl md:text-2xl font-bold ${metrics.totalPnL >= 0 ? "text-green-500" : "text-red-500"}`}>
-            {formatCurrency(metrics.totalPnL)}
+            {formatCurrency(metrics.totalPnL, 'BRL')}
           </div>
         </Card>
       </div>
@@ -186,7 +193,7 @@ export const TradesPage = () => {
                     
                     {/* P&L - Destaque no Mobile */}
                     <div className={`text-xl md:text-2xl font-bold whitespace-nowrap ml-2 ${trade.pnl >= 0 ? "text-green-500" : "text-red-500"}`}>
-                      {formatCurrency(trade.pnl)}
+                      {formatCurrency(trade.pnl, trade.currency, trade.market)}
                     </div>
                   </div>
 

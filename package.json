@@ -19,6 +19,7 @@
     "import:auth-users": "node scripts/importAuthUsersToFirestore.mjs"
   },
   "dependencies": {
+    "chartjs-node-canvas": "^5.0.0",
     "date-fns": "^3.6.0",
     "firebase": "^10.7.1",
     "html2canvas": "^1.4.1",

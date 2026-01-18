@@ -181,7 +181,7 @@ export const Calendar = () => {
                       <div className="flex items-center gap-2 mb-2">
                         <span className="font-bold text-white truncate">{trade.asset || trade.symbol || "N/A"}</span>
                         <span className={`text-sm font-bold whitespace-nowrap ${trade.pnl >= 0 ? "text-win" : "text-loss"}`}>
-                          {formatCurrency(trade.pnl)}
+                          {formatCurrency(trade.pnl, trade.currency, trade.market)}
                         </span>
                       </div>
                       {trade.strategy && (

@@ -1,0 +1,182 @@
+﻿import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import * as XLSX from 'xlsx'
+import { formatCurrency, formatPercentage } from './metrics'
+import { MARKET_NAMES } from '../constants/markets'
+
+export const exportToPDF = (trades, metrics, period = 'completo') => {
+  const doc = new jsPDF()
+
+  // Calcular custos e impostos
+  const totalCosts = (metrics.totalCommissions || 0) + (metrics.totalSwaps || 0)
+  
+  // Header
+  doc.setFontSize(20)
+  doc.setTextColor(33, 37, 41)
+  doc.text('TraderPro - Relatório de Trading', 105, 20, { align: 'center' })
+  
+  doc.setFontSize(10)
+  doc.setTextColor(108, 117, 125)
+  doc.text(`Período: ${period}`, 105, 28, { align: 'center' })
+  doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 105, 33, { align: 'center' })
+
+  // Resumo Executivo
+  doc.setFontSize(14)
+  doc.setTextColor(33, 37, 41)
+  doc.text('Resumo Executivo', 14, 45)
+
+  const summaryData = [
+    ['Total de Operações', metrics.totalTrades.toString()],
+    ['Operações Vencedoras', `${metrics.winningTrades} (${formatPercentage(metrics.winRate)})`],
+    ['Operações Perdedoras', `${metrics.losingTrades} (${formatPercentage(100 - metrics.winRate)})`],
+    ['Lucro Bruto', formatCurrency(metrics.grossProfit)],
+    ['Prejuízo Bruto', formatCurrency(Math.abs(metrics.grossLoss))],
+    ['Resultado Líquido', formatCurrency(metrics.netProfit)],
+    ['Profit Factor', metrics.profitFactor === Infinity ? '∞' : metrics.profitFactor.toFixed(2)],
+    ['Expectativa por Trade', formatCurrency(metrics.expectancy)]
+  ]
+
+  autoTable(doc, {
+    startY: 50,
+    head: [['Métrica', 'Valor']],
+    body: summaryData,
+    theme: 'grid',
+    headStyles: { fillColor: [99, 102, 241] },
+    styles: { fontSize: 10 }
+  })
+
+  // Custos Operacionais
+  const costsY = doc.lastAutoTable.finalY + 10
+  doc.setFontSize(14)
+  doc.text('Custos Operacionais', 14, costsY)
+
+  const costsData = [
+    ['Comissões', formatCurrency(Math.abs(metrics.totalCommissions || 0))],
+    ['Taxas/Swaps', formatCurrency(Math.abs(metrics.totalSwaps || 0))],
+    ['Total de Custos', formatCurrency(Math.abs(totalCosts))]
+  ]
+
+  autoTable(doc, {
+    startY: costsY + 5,
+    head: [['Tipo', 'Valor']],
+    body: costsData,
+    theme: 'grid',
+    headStyles: { fillColor: [239, 68, 68] },
+    styles: { fontSize: 10 }
+  })
+
+  // Lista de Trades (últimos 20)
+  if (trades.length > 0) {
+    doc.addPage()
+    doc.setFontSize(14)
+    doc.text('Histórico de Operações (Últimas 20)', 14, 20)
+
+    const tradesData = trades.slice(-20).map(trade => [
+      new Date(trade.date).toLocaleDateString('pt-BR'),
+      MARKET_NAMES[trade.market] || trade.market,
+      trade.asset,
+      trade.type === 'buy' ? 'Compra' : 'Venda',
+      formatCurrency(parseFloat(trade.pnl || 0))
+    ])
+
+    autoTable(doc, {
+      startY: 25,
+      head: [['Data', 'Mercado', 'Ativo', 'Tipo', 'Resultado']],
+      body: tradesData,
+      theme: 'striped',
+      headStyles: { fillColor: [99, 102, 241] },
+      styles: { fontSize: 9 }
+    })
+  }
+
+  // Footer
+  const pageCount = doc.internal.getNumberOfPages()
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i)
+    doc.setFontSize(8)
+    doc.setTextColor(108, 117, 125)
+    doc.text(
+      `Página ${i} de ${pageCount}`,
+      doc.internal.pageSize.getWidth() / 2,
+      doc.internal.pageSize.getHeight() - 10,
+      { align: 'center' }
+    )
+  }
+
+  doc.save(`traderpro-relatorio-${new Date().getTime()}.pdf`)
+}
+
+export const exportToExcel = (trades, metrics) => {
+  // Sheet 1: Resumo
+  const summaryData = [
+    ['TraderPro - Relatório de Trading'],
+    [''],
+    ['RESUMO EXECUTIVO'],
+    ['Total de Operações', metrics.totalTrades],
+    ['Operações Vencedoras', metrics.winningTrades],
+    ['Operações Perdedoras', metrics.losingTrades],
+    ['Taxa de Acerto (%)', metrics.winRate.toFixed(2)],
+    ['Lucro Bruto', metrics.grossProfit],
+    ['Prejuízo Bruto', Math.abs(metrics.grossLoss)],
+    ['Resultado Líquido', metrics.netProfit],
+    ['Profit Factor', metrics.profitFactor === Infinity ? 999 : metrics.profitFactor],
+    ['Expectativa', metrics.expectancy],
+    [''],
+    ['CUSTOS OPERACIONAIS'],
+    ['Comissões', Math.abs(metrics.totalCommissions || 0)],
+    ['Taxas/Swaps', Math.abs(metrics.totalSwaps || 0)],
+    ['Total de Custos', Math.abs((metrics.totalCommissions || 0) + (metrics.totalSwaps || 0))]
+  ]
+
+  const ws1 = XLSX.utils.aoa_to_sheet(summaryData)
+
+  // Sheet 2: Trades
+  const tradesData = trades.map(trade => ({
+    'Data': new Date(trade.date).toLocaleDateString('pt-BR'),
+    'Mercado': MARKET_NAMES[trade.market] || trade.market,
+    'Ativo': trade.asset,
+    'Tipo': trade.type === 'buy' ? 'Compra' : 'Venda',
+    'Quantidade': trade.quantity,
+    'Preço Entrada': parseFloat(trade.entryPrice || 0),
+    'Preço Saída': parseFloat(trade.exitPrice || 0),
+    'P&L': parseFloat(trade.pnl || 0),
+    'Comissão': parseFloat(trade.commission || trade.fees || 0),
+    'Swap': parseFloat(trade.swap || 0),
+    'Notas': trade.notes || ''
+  }))
+
+  const ws2 = XLSX.utils.json_to_sheet(tradesData)
+
+  // Criar workbook
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws1, 'Resumo')
+  XLSX.utils.book_append_sheet(wb, ws2, 'Operações')
+
+  // Download
+  XLSX.writeFile(wb, `traderpro-relatorio-${new Date().getTime()}.xlsx`)
+}
+
+export const exportToCSV = (trades) => {
+  const csvData = trades.map(trade => ({
+    'Data': new Date(trade.date).toLocaleDateString('pt-BR'),
+    'Mercado': MARKET_NAMES[trade.market] || trade.market,
+    'Ativo': trade.asset,
+    'Tipo': trade.type === 'buy' ? 'Compra' : 'Venda',
+    'Quantidade': trade.quantity,
+    'Preço Entrada': parseFloat(trade.entryPrice || 0),
+    'Preço Saída': parseFloat(trade.exitPrice || 0),
+    'P&L': parseFloat(trade.pnl || 0),
+    'Comissão': parseFloat(trade.commission || trade.fees || 0),
+    'Swap': parseFloat(trade.swap || 0),
+    'Notas': trade.notes || ''
+  }))
+
+  const ws = XLSX.utils.json_to_sheet(csvData)
+  const csv = XLSX.utils.sheet_to_csv(ws)
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = `traderpro-operacoes-${new Date().getTime()}.csv`
+  link.click()
+}
