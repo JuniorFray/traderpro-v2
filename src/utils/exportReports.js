@@ -1,7 +1,6 @@
 ﻿import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
-import { formatCurrency } from './metrics'
 import { MARKET_NAMES } from '../constants/markets'
 
 const formatPercent = (value) => {
@@ -9,19 +8,134 @@ const formatPercent = (value) => {
   return `${(value * 100).toFixed(2)}%`
 }
 
+// ✅ Funções auxiliares de conversão
+const convertValue = (usdValue, brlValue, selectedCurrency, exchangeRate) => {
+  if (selectedCurrency === 'USD') {
+    return usdValue + (brlValue / exchangeRate)
+  } else {
+    return (usdValue * exchangeRate) + brlValue
+  }
+}
 
-export const exportToPDF = (trades, metrics, period = 'completo') => {
+const formatCurrency = (value, currency = 'BRL', keepSign = true) => {
+  const symbol = currency === 'USD' ? '$' : 'R$'
+  const locale = currency === 'USD' ? 'en-US' : 'pt-BR'
+  const absValue = Math.abs(value)
+  const formatted = absValue.toLocaleString(locale, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+  
+  if (keepSign && value < 0) {
+    return `-${symbol} ${formatted}`
+  }
+  return `${symbol} ${formatted}`
+}
+
+
+const formatWithEquivalent = (usdValue, brlValue, selectedCurrency, exchangeRate) => {
+  const mainValue = convertValue(usdValue, brlValue, selectedCurrency, exchangeRate)
+  const mainFormatted = formatCurrency(mainValue, selectedCurrency)
+  
+  if (selectedCurrency === 'USD') {
+    const brlTotal = (usdValue * exchangeRate) + brlValue
+    return `${mainFormatted} (~ R$ ${brlTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
+  } else {
+    const usdTotal = usdValue + (brlValue / exchangeRate)
+    return `${mainFormatted} (~ $ ${usdTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
+  }
+}
+
+
+// ✅ Calcular métricas separando USD e BRL
+const calculateMetricsWithCurrency = (trades, exchangeRate) => {
+  let totalPnlUSD = 0, totalPnlBRL = 0
+  let totalCommissionUSD = 0, totalCommissionBRL = 0
+  let totalSwapUSD = 0, totalSwapBRL = 0
+  let totalTaxUSD = 0, totalTaxBRL = 0
+  let wins = 0, losses = 0
+  let maxWinUSD = 0, maxWinBRL = 0
+  let maxLossUSD = 0, maxLossBRL = 0
+  let winsUSD = [], winsBRL = []
+  let lossesUSD = [], lossesBRL = []
+
+  trades.forEach(trade => {
+    const isUSD = trade.currency === 'USD'
+    const pnl = parseFloat(trade.pnl) || 0
+    const commission = parseFloat(trade.commission) || 0
+    const swap = parseFloat(trade.swap) || 0
+    const tax = parseFloat(trade.taxes?.amount) || 0
+
+    if (isUSD) {
+      totalPnlUSD += pnl
+      totalCommissionUSD += commission
+      totalSwapUSD += swap
+      totalTaxUSD += tax
+
+      if (pnl > 0) {
+        wins++
+        winsUSD.push(pnl)
+        if (pnl > maxWinUSD) maxWinUSD = pnl
+      } else if (pnl < 0) {
+        losses++
+        lossesUSD.push(pnl)
+        if (pnl < maxLossUSD) maxLossUSD = pnl
+      }
+    } else {
+      totalPnlBRL += pnl
+      totalCommissionBRL += commission
+      totalSwapBRL += swap
+      totalTaxBRL += tax
+
+      if (pnl > 0) {
+        wins++
+        winsBRL.push(pnl)
+        if (pnl > maxWinBRL) maxWinBRL = pnl
+      } else if (pnl < 0) {
+        losses++
+        lossesBRL.push(pnl)
+        if (pnl < maxLossBRL) maxLossBRL = pnl
+      }
+    }
+  })
+
+  const winRate = trades.length > 0 ? (wins / trades.length) * 100 : 0
+  
+  const totalGrossProfitUSD = winsUSD.reduce((a, b) => a + b, 0)
+  const totalGrossProfitBRL = winsBRL.reduce((a, b) => a + b, 0)
+  const totalGrossLossUSD = Math.abs(lossesUSD.reduce((a, b) => a + b, 0))
+  const totalGrossLossBRL = Math.abs(lossesBRL.reduce((a, b) => a + b, 0))
+
+  const totalGrossProfit = totalGrossProfitUSD + (totalGrossProfitBRL / exchangeRate)
+  const totalGrossLoss = totalGrossLossUSD + (totalGrossLossBRL / exchangeRate)
+  const profitFactor = totalGrossLoss > 0 ? totalGrossProfit / totalGrossLoss : 0
+
+  return {
+    totalPnlUSD, totalPnlBRL,
+    totalCommissionUSD, totalCommissionBRL,
+    totalSwapUSD, totalSwapBRL,
+    totalTaxUSD, totalTaxBRL,
+    wins, losses, winRate, profitFactor,
+    maxWinUSD, maxWinBRL,
+    maxLossUSD, maxLossBRL,
+    totalTrades: trades.length
+  }
+}
+
+export const exportToPDF = (trades, metricsOld, period = 'completo', selectedCurrency = 'USD', exchangeRate = 5.45) => {
   const doc = new jsPDF()
+  
+  // ✅ Recalcular métricas com separação de moedas
+  const metrics = calculateMetricsWithCurrency(trades, exchangeRate)
 
-  // Calcular custos e impostos
-  const totalCommission = trades.reduce((sum, t) => sum + parseFloat(t.commission || 0), 0)
-  const totalSwap = trades.reduce((sum, t) => sum + parseFloat(t.swap || 0), 0)
-  const totalTax = trades.reduce((sum, t) => sum + parseFloat(t.taxes?.amount || 0), 0)
+  const totalPnl = convertValue(metrics.totalPnlUSD, metrics.totalPnlBRL, selectedCurrency, exchangeRate)
+  const totalCommission = convertValue(metrics.totalCommissionUSD, metrics.totalCommissionBRL, selectedCurrency, exchangeRate)
+  const totalSwap = convertValue(metrics.totalSwapUSD, metrics.totalSwapBRL, selectedCurrency, exchangeRate)
+  const totalTax = convertValue(metrics.totalTaxUSD, metrics.totalTaxBRL, selectedCurrency, exchangeRate)
   const totalCosts = totalCommission + totalSwap
-  const netProfit = metrics.netProfit - totalCosts - totalTax
-
-  // Calcular médias corretamente
-  const avgLoss = metrics.losingTrades > 0 ? metrics.grossLoss / metrics.losingTrades : 0
+  const netProfit = totalPnl - totalCosts - totalTax
+  const maxWin = convertValue(metrics.maxWinUSD, metrics.maxWinBRL, selectedCurrency, exchangeRate)
+  const maxLoss = convertValue(metrics.maxLossUSD, metrics.maxLossBRL, selectedCurrency, exchangeRate)
 
   // ========================================
   // PÁGINA 1: CAPA
@@ -40,13 +154,21 @@ export const exportToPDF = (trades, metrics, period = 'completo') => {
   doc.text('Período: ' + period, 14, 75)
   doc.text('Gerado em: ' + new Date().toLocaleString('pt-BR'), 14, 82)
   doc.text('Total de Trades: ' + metrics.totalTrades, 14, 89)
+  doc.text(`Moeda: ${selectedCurrency} (1 USD = R$ ${exchangeRate.toFixed(4)})`, 14, 96)
 
   const isProfit = netProfit >= 0
   doc.setFontSize(14)
-  doc.text('Resultado Líquido', 14, 105)
+  doc.text('Resultado Líquido', 14, 112)
   doc.setTextColor(isProfit ? 34 : 220, isProfit ? 197 : 38, isProfit ? 94 : 38)
   doc.setFontSize(28)
-  doc.text(formatCurrency(netProfit), 14, 118)
+  doc.text(formatCurrency(netProfit, selectedCurrency), 14, 125)
+  doc.setFontSize(10)
+  doc.setTextColor(120, 120, 120)
+  const equivalent = selectedCurrency === 'USD' 
+  ? `~ R$ ${((netProfit * exchangeRate)).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+  : `~ $ ${(netProfit / exchangeRate).toLocaleString('en-US', {minimumFractionDigits: 2})}`
+
+  doc.text(equivalent, 14, 132)
   doc.setTextColor(0, 0, 0)
 
   // Cards
@@ -68,105 +190,40 @@ export const exportToPDF = (trades, metrics, period = 'completo') => {
     doc.setTextColor(0, 0, 0)
   }
 
-  let cardY = 135
+  let cardY = 145
   drawCard(14, cardY, 'Win Rate', `${metrics.winRate.toFixed(1)}%`)
   drawCard(110, cardY, 'Profit Factor', metrics.profitFactor.toFixed(2))
 
   cardY += 27
-  drawCard(14, cardY, 'Vitórias', metrics.winningTrades, 1)
-  drawCard(110, cardY, 'Derrotas', metrics.losingTrades, 2)
+  drawCard(14, cardY, 'Vitórias', metrics.wins, 1)
+  drawCard(110, cardY, 'Derrotas', metrics.losses, 2)
 
   cardY += 27
-  drawCard(14, cardY, 'Maior Ganho', formatCurrency(metrics.maxWin), 1)
-  drawCard(110, cardY, 'Maior Perda', formatCurrency(metrics.maxLoss), 2)
+  drawCard(14, cardY, 'Maior Ganho', formatCurrency(maxWin, selectedCurrency), 1)
+  drawCard(110, cardY, 'Maior Perda', formatCurrency(Math.abs(maxLoss), selectedCurrency), 2)
 
   cardY += 27
-  drawCard(14, cardY, 'Impostos', formatCurrency(totalTax), 2)
-  drawCard(110, cardY, 'Custos Op.', formatCurrency(totalCosts), 2)
+  drawCard(14, cardY, 'Impostos', formatCurrency(totalTax, selectedCurrency), 2)
+  drawCard(110, cardY, 'Custos Op.', formatCurrency(totalCosts, selectedCurrency), 2)
 
   // ========================================
-  // PÁGINA 2: DISTRIBUIÇÃO DE RESULTADOS (GRÁFICO DE PIZZA)
+  // PÁGINA 2: BREAKDOWN FINANCEIRO
   // ========================================
   doc.addPage()
   doc.setFontSize(18)
   doc.setTextColor(34, 197, 94)
-  doc.text('Distribuição de Resultados', 14, 20)
-  doc.setTextColor(0, 0, 0)
-
-  // Gráfico de Pizza
-  const centerX = 105
-  const centerY = 80
-  const radius = 40
-
-  const total = metrics.winningTrades + metrics.losingTrades
-  if (total > 0) {
-    const winPercentage = (metrics.winningTrades / total) * 100
-    const lossPercentage = (metrics.losingTrades / total) * 100
-    const winAngle = (metrics.winningTrades / total) * 360
-
-    // Fatia de vitórias (verde)
-    doc.setFillColor(34, 197, 94)
-    doc.circle(centerX, centerY, radius, 'F')
-
-    // Fatia de derrotas (vermelho) - sobrepor
-    if (metrics.losingTrades > 0) {
-      const startAngle = (winAngle * Math.PI) / 180
-
-      doc.setFillColor(220, 38, 38)
-      
-      // Desenhar setor circular para derrotas
-      const points = [[centerX, centerY]]
-      
-      for (let angle = winAngle; angle <= 360; angle += 5) {
-        const rad = (angle * Math.PI) / 180
-        const x = centerX + radius * Math.cos(rad)
-        const y = centerY + radius * Math.sin(rad)
-        points.push([x, y])
-      }
-      
-      // Fechar o caminho
-      points.push([centerX, centerY])
-      
-      // Desenhar polígono
-      doc.lines(
-        points.slice(1).map((point, i) => {
-          if (i === 0) return [point[0] - centerX, point[1] - centerY]
-          return [point[0] - points[i][0], point[1] - points[i][1]]
-        }),
-        centerX,
-        centerY,
-        [1, 1],
-        'F'
-      )
-    }
-
-    // Legendas
-    doc.setFontSize(14)
-    doc.setFillColor(34, 197, 94)
-    doc.circle(30, 135, 4, 'F')
-    doc.setTextColor(0, 0, 0)
-    doc.text(`Vitórias: ${metrics.winningTrades} (${winPercentage.toFixed(1)}%)`, 40, 138)
-
-    doc.setFillColor(220, 38, 38)
-    doc.circle(30, 150, 4, 'F')
-    doc.text(`Derrotas: ${metrics.losingTrades} (${lossPercentage.toFixed(1)}%)`, 40, 153)
-  }
-
-  // Breakdown Financeiro
-  doc.setFontSize(16)
-  doc.setTextColor(34, 197, 94)
-  doc.text('Breakdown Financeiro', 14, 180)
+  doc.text('Breakdown Financeiro Detalhado', 14, 20)
   doc.setTextColor(0, 0, 0)
 
   autoTable(doc, {
-    startY: 190,
+    startY: 30,
     head: [['Descrição', 'Valor']],
     body: [
-      ['Resultado Bruto', formatCurrency(metrics.netProfit)],
-      ['- Corretagem', formatCurrency(totalCommission)],
-      ['- Swap', formatCurrency(totalSwap)],
-      ['- Impostos', formatCurrency(totalTax)],
-      ['= Resultado Líquido', formatCurrency(netProfit)],
+      ['Resultado Bruto', formatWithEquivalent(metrics.totalPnlUSD, metrics.totalPnlBRL, selectedCurrency, exchangeRate)],
+      ['- Corretagem', formatWithEquivalent(metrics.totalCommissionUSD, metrics.totalCommissionBRL, selectedCurrency, exchangeRate)],
+      ['- Swap', formatWithEquivalent(metrics.totalSwapUSD, metrics.totalSwapBRL, selectedCurrency, exchangeRate)],
+      ['- Impostos', formatWithEquivalent(metrics.totalTaxUSD, metrics.totalTaxBRL, selectedCurrency, exchangeRate)],
+      ['= Resultado Líquido', formatCurrency(netProfit, selectedCurrency)],
     ],
     theme: 'striped',
     headStyles: { fillColor: [34, 197, 94], fontStyle: 'bold' },
@@ -181,188 +238,62 @@ export const exportToPDF = (trades, metrics, period = 'completo') => {
     }
   })
 
-  // ========================================
-  // PÁGINA 3: CURVA DE CAPITAL
-  // ========================================
-  doc.addPage()
-  doc.setFontSize(18)
-  doc.setTextColor(34, 197, 94)
-  doc.text('Curva de Capital', 14, 20)
-  doc.setTextColor(0, 0, 0)
-
-  // Calcular equity curve com conversão correta de tipos
-const sortedTrades = [...trades].sort((a, b) => a.date.localeCompare(b.date));
-let accumulated = 0;
-const equityData = sortedTrades.map(t => {
-  // ⚠️ CONVERTER PARA NÚMERO antes de calcular
-  const pnl = parseFloat(t.pnl) || 0;
-  const commission = parseFloat(t.commission) || 0;
-  const swap = parseFloat(t.swap) || 0;
-  const tax = parseFloat(t.taxes?.amount) || 0;
-  
-  const liquidPnl = pnl - commission - swap - tax;
-  accumulated += liquidPnl;
-  return accumulated;
-});
-
-
-
-  // Dimensões do gráfico
-  const chartX = 20
-  const chartY = 40
-  const chartWidth = 170
-  const chartHeight = 100
-
-  // Eixos
-  doc.setDrawColor(150, 150, 150)
-  doc.line(chartX, chartY, chartX, chartY + chartHeight) // Y
-  doc.line(chartX, chartY + chartHeight, chartX + chartWidth, chartY + chartHeight) // X
-
-  // Valores min e max
-  const maxEquity = Math.max(...equityData, 0)
-  const minEquity = Math.min(...equityData, 0)
-  const range = (maxEquity - minEquity) || 1
-
-  // Linha zero
-  const zeroY = chartY + chartHeight - ((0 - minEquity) / range) * chartHeight
-  doc.setDrawColor(200, 200, 200)
-  doc.setLineDash([2, 2])
-  doc.line(chartX, zeroY, chartX + chartWidth, zeroY)
-  doc.setLineDash([])
-
-  // Desenhar curva
-  doc.setDrawColor(34, 197, 94)
-  doc.setLineWidth(1.5)
-
-  for (let i = 0; i < equityData.length - 1; i++) {
-    const x1 = chartX + (i / (equityData.length - 1)) * chartWidth
-    const y1 = chartY + chartHeight - ((equityData[i] - minEquity) / range) * chartHeight
-
-    const x2 = chartX + ((i + 1) / (equityData.length - 1)) * chartWidth
-    const y2 = chartY + chartHeight - ((equityData[i + 1] - minEquity) / range) * chartHeight
-
-    doc.line(x1, y1, x2, y2)
-  }
-
-  doc.setLineWidth(0.2)
-
-  // Labels
-doc.setFontSize(9);
-doc.setTextColor(100, 100, 100);
-
-// Valor inicial e final
-const initialEquity = 0; // Sempre começa em 0
-const finalEquity = equityData[equityData.length - 1] || 0;
-
-doc.text('Inicial', chartX, chartY + chartHeight + 8);
-doc.text(`R$ ${initialEquity.toFixed(2)}`, chartX, chartY + chartHeight + 14);
-
-doc.text('Final', chartX + chartWidth - 40, chartY + chartHeight + 8);
-doc.text(formatCurrency(finalEquity), chartX + chartWidth - 40, chartY + chartHeight + 14);
-
-// Max e Min no eixo Y
-doc.text(formatCurrency(maxEquity), chartX - 25, chartY + 5);
-doc.text(formatCurrency(minEquity), chartX - 25, chartY + chartHeight + 3);
-
-doc.setFontSize(10);
-doc.setTextColor(0, 0, 0);
-doc.text('Resultado final: ' + formatCurrency(finalEquity), chartX, chartY + chartHeight + 22);
-
-
-  // Métricas Detalhadas
+  // Distribuição Win/Loss
   doc.setFontSize(16)
   doc.setTextColor(34, 197, 94)
-  doc.text('Métricas Detalhadas', 14, 170)
+  doc.text('Distribuição de Resultados', 14, doc.lastAutoTable.finalY + 15)
   doc.setTextColor(0, 0, 0)
 
-  autoTable(doc, {
-    startY: 180,
-    head: [['Métrica', 'Valor']],
-    body: [
-      ['Total de Trades', String(metrics.totalTrades)],
-      ['Win Rate', `${metrics.winRate.toFixed(1)}%`],
-      ['Profit Factor', metrics.profitFactor.toFixed(2)],
-      ['Trades Vencedores', String(metrics.winningTrades)],
-      ['Trades Perdedores', String(metrics.losingTrades)],
-      ['Total em Lucros', formatCurrency(metrics.grossProfit)],
-      ['Total em Perdas', formatCurrency(metrics.grossLoss)],
-      ['Maior Ganho', formatCurrency(metrics.maxWin)],
-      ['Maior Perda', formatCurrency(metrics.maxLoss)],
-      ['Média de Ganho', formatCurrency(metrics.avgWin)],
-      ['Média de Perda', formatCurrency(avgLoss)],
-      ['Expectativa', formatCurrency(metrics.expectancy)],
-    ],
-    theme: 'striped',
-    headStyles: { fillColor: [34, 197, 94], fontStyle: 'bold' },
-    columnStyles: {
-      0: { cellWidth: 85 },
-      1: { cellWidth: 85, halign: 'right', fontStyle: 'bold' }
-    }
-  })
+  const centerX = 105
+  const centerY = doc.lastAutoTable.finalY + 50
+  const radius = 30
 
-  // ========================================
-  // PÁGINA 4: DESEMPENHO POR MERCADO
-  // ========================================
-  doc.addPage()
-  doc.setFontSize(18)
-  doc.setTextColor(34, 197, 94)
-  doc.text('Desempenho por Mercado', 14, 20)
-  doc.setTextColor(0, 0, 0)
+  const total = metrics.wins + metrics.losses
+  if (total > 0) {
+    const winPercentage = (metrics.wins / total) * 100
+    const winAngle = (metrics.wins / total) * 360
 
-  // Agrupar por mercado
-  const marketBreakdown = {}
-  trades.forEach(trade => {
-    const market = trade.market || 'forex'
-    if (!marketBreakdown[market]) {
-      marketBreakdown[market] = {
-        trades: 0,
-        wins: 0,
-        losses: 0,
-        totalPnL: 0,
-        totalTax: 0,
-        totalCosts: 0
+    doc.setFillColor(34, 197, 94)
+    doc.circle(centerX, centerY, radius, 'F')
+
+    if (metrics.losses > 0) {
+      doc.setFillColor(220, 38, 38)
+      const points = [[centerX, centerY]]
+      
+      for (let angle = winAngle; angle <= 360; angle += 5) {
+        const rad = (angle * Math.PI) / 180
+        const x = centerX + radius * Math.cos(rad)
+        const y = centerY + radius * Math.sin(rad)
+        points.push([x, y])
       }
+      
+      points.push([centerX, centerY])
+      
+      doc.lines(
+        points.slice(1).map((point, i) => {
+          if (i === 0) return [point[0] - centerX, point[1] - centerY]
+          return [point[0] - points[i][0], point[1] - points[i][1]]
+        }),
+        centerX,
+        centerY,
+        [1, 1],
+        'F'
+      )
     }
-    marketBreakdown[market].trades++
-    marketBreakdown[market].totalPnL += trade.pnl
-    marketBreakdown[market].totalTax += (trade.taxes?.amount || 0)
-    marketBreakdown[market].totalCosts += (trade.commission || 0) + (trade.swap || 0)
-    if (trade.pnl > 0) marketBreakdown[market].wins++
-    else if (trade.pnl < 0) marketBreakdown[market].losses++
-  })
 
-  const marketData = Object.entries(marketBreakdown).map(([market, data]) => {
-    const winRate = data.trades > 0 ? (data.wins / data.trades) : 0
+    doc.setFontSize(12)
+    doc.setFillColor(34, 197, 94)
+    doc.circle(30, centerY + 40, 3, 'F')
+    doc.setTextColor(0, 0, 0)
+    doc.text(`Vitórias: ${metrics.wins} (${winPercentage.toFixed(1)}%)`, 40, centerY + 42)
 
-    const netResult = data.totalPnL - data.totalCosts - data.totalTax
-    return [
-      MARKET_NAMES[market] || market,
-      String(data.trades),
-      formatPercent(winRate),
-      formatCurrency(data.totalPnL),
-      formatCurrency(data.totalTax),
-      formatCurrency(netResult)
-    ]
-  })
-
-  autoTable(doc, {
-    startY: 30,
-    head: [['Mercado', 'Trades', 'Win Rate', 'PnL Bruto', 'Impostos', 'Líquido']],
-    body: marketData,
-    theme: 'striped',
-    headStyles: { fillColor: [34, 197, 94], fontStyle: 'bold' },
-    columnStyles: {
-      0: { cellWidth: 35 },
-      1: { cellWidth: 20, halign: 'center' },
-      2: { cellWidth: 22, halign: 'right' },
-      3: { cellWidth: 28, halign: 'right' },
-      4: { cellWidth: 25, halign: 'right' },
-      5: { cellWidth: 30, halign: 'right', fontStyle: 'bold' }
-    }
-  })
+    doc.setFillColor(220, 38, 38)
+    doc.circle(30, centerY + 50, 3, 'F')
+    doc.text(`Derrotas: ${metrics.losses} (${(100-winPercentage).toFixed(1)}%)`, 40, centerY + 52)
+  }
 
   // ========================================
-  // PÁGINA 5: HISTÓRICO DE TRADES
+  // PÁGINA 3: HISTÓRICO DE TRADES
   // ========================================
   doc.addPage()
   doc.setFontSize(18)
@@ -372,35 +303,47 @@ doc.text('Resultado final: ' + formatCurrency(finalEquity), chartX, chartY + cha
 
   const tradeTableData = trades
     .sort((a, b) => a.date.localeCompare(b.date))
-    .map(t => [
-      t.date,
-      t.asset,
-      MARKET_NAMES[t.market] || t.market || '-',
-      t.strategy || '-',
-      formatCurrency(t.pnl),
-      formatCurrency(t.taxes?.amount || 0),
-      formatCurrency(t.pnl - (t.taxes?.amount || 0) - (t.commission || 0) - (t.swap || 0))
-    ])
+    .map(t => {
+      const pnl = parseFloat(t.pnl) || 0
+      const commission = parseFloat(t.commission) || 0
+      const swap = parseFloat(t.swap) || 0
+      const tax = parseFloat(t.taxes?.amount) || 0
+      const currency = t.currency || 'BRL'
+      
+      // Converter para moeda selecionada se necessário
+      let displayPnl = pnl
+      if (selectedCurrency === 'USD' && currency === 'BRL') {
+        displayPnl = pnl / exchangeRate
+      } else if (selectedCurrency === 'BRL' && currency === 'USD') {
+        displayPnl = pnl * exchangeRate
+      }
+      
+      return [
+        t.date,
+        t.asset,
+        currency,
+        MARKET_NAMES[t.market] || t.market || '-',
+        formatCurrency(displayPnl, selectedCurrency, true)
+      ]
+    })
 
   autoTable(doc, {
     startY: 30,
-    head: [['Data', 'Ativo', 'Mercado', 'Estratégia', 'P&L', 'Impostos', 'Líquido']],
+    head: [['Data', 'Ativo', 'Moeda Orig.', 'Mercado', `P&L (${selectedCurrency})`]],
     body: tradeTableData,
     theme: 'striped',
     headStyles: { fillColor: [34, 197, 94], fontStyle: 'bold', fontSize: 9 },
     bodyStyles: { fontSize: 8 },
     columnStyles: {
-      0: { cellWidth: 20 },
-      1: { cellWidth: 20 },
-      2: { cellWidth: 24 },
-      3: { cellWidth: 24 },
-      4: { cellWidth: 23, halign: 'right' },
-      5: { cellWidth: 23, halign: 'right' },
-      6: { cellWidth: 23, halign: 'right', fontStyle: 'bold' }
+      0: { cellWidth: 25 },
+      1: { cellWidth: 30 },
+      2: { cellWidth: 22, halign: 'center' },
+      3: { cellWidth: 30 },
+      4: { cellWidth: 35, halign: 'right', fontStyle: 'bold' }
     }
   })
 
-  // Footer em todas as páginas
+  // Footer
   const pageCount = doc.internal.getNumberOfPages()
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i)
@@ -414,141 +357,106 @@ doc.text('Resultado final: ' + formatCurrency(finalEquity), chartX, chartY + cha
     )
   }
 
-  // Fazer download
   doc.save(`traderpro-relatorio-${Date.now()}.pdf`)
   return doc
 }
 
 // EXPORTAR PARA EXCEL
-export const exportToExcel = (trades, metrics) => {
+export const exportToExcel = (trades, metricsOld, period, selectedCurrency = 'USD', exchangeRate = 5.45) => {
   const wb = XLSX.utils.book_new()
+  const metrics = calculateMetricsWithCurrency(trades, exchangeRate)
 
-  // Calcular custos
-  const totalCommission = trades.reduce((sum, t) => sum + parseFloat(t.commission || 0), 0)
-  const totalSwap = trades.reduce((sum, t) => sum + parseFloat(t.swap || 0), 0)
-  const totalTax = trades.reduce((sum, t) => sum + parseFloat(t.taxes?.amount || 0), 0)
-  const netProfit = metrics.netProfit - totalCommission - totalSwap - totalTax
+  const totalPnl = convertValue(metrics.totalPnlUSD, metrics.totalPnlBRL, selectedCurrency, exchangeRate)
+  const totalCommission = convertValue(metrics.totalCommissionUSD, metrics.totalCommissionBRL, selectedCurrency, exchangeRate)
+  const totalSwap = convertValue(metrics.totalSwapUSD, metrics.totalSwapBRL, selectedCurrency, exchangeRate)
+  const totalTax = convertValue(metrics.totalTaxUSD, metrics.totalTaxBRL, selectedCurrency, exchangeRate)
+  const netProfit = totalPnl - totalCommission - totalSwap - totalTax
 
   // ABA 1: Resumo
   const summaryData = [
     ['TraderPro - Relatório de Trading v3.0'],
     ['Gerado em:', new Date().toLocaleString('pt-BR')],
+    [`Moeda: ${selectedCurrency}`, `1 USD = R$ ${exchangeRate.toFixed(4)}`],
     [],
     ['RESUMO GERAL'],
     ['Total de Trades', metrics.totalTrades],
-    ['Resultado Bruto', metrics.netProfit],
+    ['Resultado Bruto', totalPnl],
     ['Corretagem', -totalCommission],
     ['Swap', -totalSwap],
     ['Impostos', -totalTax],
     ['Resultado Líquido', netProfit],
     [],
     ['MÉTRICAS'],
-    ['Win Rate', `${(metrics.winRate * 100).toFixed(2)}%`],
-    ['Profit Factor', metrics.profitFactor],
-    ['Vitórias', metrics.winningTrades],
-    ['Derrotas', metrics.losingTrades],
-    ['Maior Ganho', metrics.maxWin],
-    ['Maior Perda', metrics.maxLoss],
-    ['Média de Ganho', metrics.avgWin],
-    ['Expectativa', metrics.expectancy]
+    ['Win Rate', `${metrics.winRate.toFixed(2)}%`],
+    ['Profit Factor', metrics.profitFactor.toFixed(2)],
+    ['Vitórias', metrics.wins],
+    ['Derrotas', metrics.losses],
   ]
   const ws1 = XLSX.utils.aoa_to_sheet(summaryData)
   XLSX.utils.book_append_sheet(wb, ws1, 'Resumo')
 
-  // ABA 2: Por Mercado
-  const marketBreakdown = {}
-  trades.forEach(trade => {
-    const market = trade.market || 'forex'
-    if (!marketBreakdown[market]) {
-      marketBreakdown[market] = {
-        trades: 0, wins: 0, totalPnL: 0, totalTax: 0, totalCosts: 0
-      }
-    }
-    marketBreakdown[market].trades++
-    marketBreakdown[market].totalPnL += trade.pnl
-    marketBreakdown[market].totalTax += (trade.taxes?.amount || 0)
-    marketBreakdown[market].totalCosts += (trade.commission || 0) + (trade.swap || 0)
-    if (trade.pnl > 0) marketBreakdown[market].wins++
-  })
-
-  const marketData = [
-    ['Mercado', 'Trades', 'Win Rate', 'PnL Bruto', 'Impostos', 'Custos', 'Líquido']
+  // ABA 2: Trades
+  const tradesData = [
+    ['Data', 'Ativo', 'Moeda Original', 'Mercado', `P&L (${selectedCurrency})`, 'P&L Original', 'Corretagem', 'Impostos']
   ]
-  Object.entries(marketBreakdown).forEach(([market, data]) => {
-    const winRate = (data.wins / data.trades) * 100
-    const netResult = data.totalPnL - data.totalCosts - data.totalTax
-    marketData.push([
-      MARKET_NAMES[market] || market,
-      data.trades,
-      `${winRate.toFixed(2)}%`,
-      data.totalPnL,
-      data.totalTax,
-      data.totalCosts,
-      netResult
+
+  trades.sort((a, b) => a.date.localeCompare(b.date)).forEach(t => {
+    const pnl = parseFloat(t.pnl) || 0
+    const currency = t.currency || 'BRL'
+    
+    let displayPnl = pnl
+    if (selectedCurrency === 'USD' && currency === 'BRL') {
+      displayPnl = pnl / exchangeRate
+    } else if (selectedCurrency === 'BRL' && currency === 'USD') {
+      displayPnl = pnl * exchangeRate
+    }
+
+    tradesData.push([
+      t.date,
+      t.asset,
+      currency,
+      MARKET_NAMES[t.market] || t.market || '-',
+      displayPnl,
+      pnl,
+      t.commission || 0,
+      t.taxes?.amount || 0
     ])
   })
 
-  const ws2 = XLSX.utils.aoa_to_sheet(marketData)
-  XLSX.utils.book_append_sheet(wb, ws2, 'Por Mercado')
+  const ws2 = XLSX.utils.aoa_to_sheet(tradesData)
+  XLSX.utils.book_append_sheet(wb, ws2, 'Trades')
 
-  // ABA 3: Trades
-  const tradesData = [
-    ['Data', 'Ativo', 'Mercado', 'Estratégia', 'Qtd', 'Entrada', 'Saída', 'PnL', 'Corretagem', 'Swap', 'Impostos', 'Líquido']
-  ]
-
-  trades
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .forEach(t => {
-      const netResult = t.pnl - (t.commission || 0) - (t.swap || 0) - (t.taxes?.amount || 0)
-      tradesData.push([
-        t.date,
-        t.asset,
-        MARKET_NAMES[t.market] || t.market || '-',
-        t.strategy || '-',
-        t.quantity || 1,
-        t.entryPrice || 0,
-        t.exitPrice || 0,
-        t.pnl,
-        t.commission || 0,
-        t.swap || 0,
-        t.taxes?.amount || 0,
-        netResult
-      ])
-    })
-
-  const ws3 = XLSX.utils.aoa_to_sheet(tradesData)
-  XLSX.utils.book_append_sheet(wb, ws3, 'Trades')
-
-  // Gerar arquivo
   XLSX.writeFile(wb, `traderpro-relatorio-${Date.now()}.xlsx`)
 }
 
 // EXPORTAR PARA CSV
-export const exportToCSV = (trades) => {
+export const exportToCSV = (trades, selectedCurrency = 'USD', exchangeRate = 5.45) => {
   const headers = [
-    'Data', 'Ativo', 'Mercado', 'Estratégia', 'Quantidade',
-    'Preço Entrada', 'Preço Saída', 'PnL', 'Corretagem', 'Swap',
-    'Impostos', 'Taxa Imposto', 'Líquido'
+    'Data', 'Ativo', 'Moeda Original', 'Mercado', `P&L (${selectedCurrency})`, 'P&L Original', 'Corretagem', 'Impostos'
   ]
 
   const rows = trades
     .sort((a, b) => a.date.localeCompare(b.date))
     .map(t => {
-      const netResult = t.pnl - (t.commission || 0) - (t.swap || 0) - (t.taxes?.amount || 0)
+      const pnl = parseFloat(t.pnl) || 0
+      const currency = t.currency || 'BRL'
+      
+      let displayPnl = pnl
+      if (selectedCurrency === 'USD' && currency === 'BRL') {
+        displayPnl = pnl / exchangeRate
+      } else if (selectedCurrency === 'BRL' && currency === 'USD') {
+        displayPnl = pnl * exchangeRate
+      }
+
       return [
         t.date,
         t.asset,
+        currency,
         MARKET_NAMES[t.market] || t.market || '-',
-        t.strategy || '-',
-        t.quantity || 1,
-        t.entryPrice || 0,
-        t.exitPrice || 0,
-        t.pnl,
-        t.commission || 0,
-        t.swap || 0,
-        t.taxes?.amount || 0,
-        t.taxes?.rate || 0,
-        netResult
+        displayPnl.toFixed(2),
+        pnl.toFixed(2),
+        (t.commission || 0).toFixed(2),
+        (t.taxes?.amount || 0).toFixed(2)
       ]
     })
 

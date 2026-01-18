@@ -472,7 +472,13 @@ export const Reports = () => {
               Nenhum trade encontrado com os filtros aplicados
             </div>
           ) : (
-            <ExportButtons trades={trades} filteredTrades={filteredTrades} />
+            <ExportButtons 
+  trades={trades} 
+  filteredTrades={filteredTrades}
+  selectedCurrency={selectedCurrency}
+  exchangeRate={exchangeRate}
+/>
+
           )}
         </div>
       </Card>

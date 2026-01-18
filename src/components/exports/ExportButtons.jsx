@@ -3,7 +3,12 @@ import { exportToPDF, exportToExcel, exportToCSV } from "../../utils/exportRepor
 import { calculateMetrics } from "../../utils/metrics"
 import { useAuth } from "../../features/auth/AuthContext"
 
-export const ExportButtons = ({ trades, filteredTrades = null }) => {
+export const ExportButtons = ({ 
+  trades, 
+  filteredTrades = null,
+  selectedCurrency = 'BRL', // ✅ NOVO
+  exchangeRate = 5.45 // ✅ NOVO
+}) => {
   const { isPro } = useAuth()
   const tradesToExport = filteredTrades || trades
 
@@ -19,7 +24,8 @@ export const ExportButtons = ({ trades, filteredTrades = null }) => {
     }
 
     const metrics = calculateMetrics(tradesToExport)
-    exportToPDF(tradesToExport, metrics, getPeriodLabel())
+    // ✅ Passar moeda e cotação
+    exportToPDF(tradesToExport, metrics, getPeriodLabel(), selectedCurrency, exchangeRate)
   }
 
   const handleExportExcel = () => {
@@ -29,7 +35,8 @@ export const ExportButtons = ({ trades, filteredTrades = null }) => {
     }
 
     const metrics = calculateMetrics(tradesToExport)
-    exportToExcel(tradesToExport, metrics, getPeriodLabel())
+    // ✅ Passar moeda e cotação
+    exportToExcel(tradesToExport, metrics, getPeriodLabel(), selectedCurrency, exchangeRate)
   }
 
   const handleExportCSV = () => {
@@ -38,7 +45,8 @@ export const ExportButtons = ({ trades, filteredTrades = null }) => {
       return
     }
 
-    exportToCSV(tradesToExport)
+    // ✅ Passar moeda e cotação
+    exportToCSV(tradesToExport, selectedCurrency, exchangeRate)
   }
 
   const getPeriodLabel = () => {
@@ -87,4 +95,3 @@ export const ExportButtons = ({ trades, filteredTrades = null }) => {
     </div>
   )
 }
-
