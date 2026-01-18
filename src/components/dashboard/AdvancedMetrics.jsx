@@ -2,8 +2,16 @@
 import { useState } from 'react';
 import { MetricCard } from '../ui/MetricCard';
 
-export const AdvancedMetrics = ({ metrics }) => {
+export const AdvancedMetrics = ({ metrics, currency = 'BRL' }) => {
   const [isOpen, setIsOpen] = useState(false);
+
+  // ✅ Calcular valores que podem estar faltando
+  const consecutiveWins = metrics.consecutiveWins || 0;
+  const consecutiveLosses = metrics.consecutiveLosses || 0;
+  const maxDrawdown = metrics.maxDrawdown || 0;
+  const expectancy = metrics.expectancy || 0;
+  const sharpeRatio = metrics.sharpeRatio || 0;
+  const profitFactor = metrics.profitFactor || 0;
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
@@ -26,38 +34,44 @@ export const AdvancedMetrics = ({ metrics }) => {
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
             <MetricCard
               label="Sequência Vitórias"
-              value={metrics.consecutiveWins}
+              value={consecutiveWins}
               type="number"
               icon="🔥"
+              currency={currency}
             />
             <MetricCard
               label="Sequência Derrotas"
-              value={metrics.consecutiveLosses}
+              value={consecutiveLosses}
               type="number"
               icon="❄️"
+              currency={currency}
             />
             <MetricCard
               label="Drawdown Máx."
-              value={Math.abs(metrics.maxDrawdown)}
+              value={Math.abs(maxDrawdown)}
               type="currency"
               negative={true}
+              currency={currency}
             />
             <MetricCard
               label="Fator de Lucro"
-              value={metrics.profitFactor === Infinity ? '∞' : metrics.profitFactor?.toFixed(2) || '0.00'}
+              value={profitFactor === Infinity ? '∞' : profitFactor?.toFixed(2) || '0.00'}
               type="number"
+              currency={currency}
             />
             <MetricCard
               label="Expectativa"
-              value={metrics.expectancy}
+              value={expectancy}
               type="currency"
-              positive={metrics.expectancy > 0}
-              negative={metrics.expectancy < 0}
+              positive={expectancy > 0}
+              negative={expectancy < 0}
+              currency={currency}
             />
             <MetricCard
               label="Sharpe Ratio"
-              value={metrics.sharpeRatio?.toFixed(2) || 'N/A'}
+              value={sharpeRatio ? sharpeRatio.toFixed(2) : 'N/A'}
               type="number"
+              currency={currency}
             />
           </div>
         </div>

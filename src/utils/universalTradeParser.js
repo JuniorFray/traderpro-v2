@@ -1,31 +1,60 @@
-﻿// src/utils/universalTradeParser.js - ARQUIVO COMPLETO CORRIGIDO
+﻿// src/utils/universalTradeParser.js - VERSÃO CORRIGIDA PARA MT5
 import * as XLSX from 'xlsx';
 
+
 const FIELD_ALIASES = {
-  asset: ['ativo', 'asset', 'símbolo', 'symbol', 'ticket', 'instrument'],
-  date: ['data', 'date', 'time', 'datetime', 'abertura'],
+  asset: ['ativo', 'asset', 'símbolo', 'symbol', 'ticket', 'instrument', 'simbolo'],
+  date: ['data', 'date', 'time', 'datetime', 'abertura', 'horario', 'horário'],
   market: ['mercado', 'market', 'type', 'categoria'],
   currency: ['moeda', 'currency'],
   quantity: ['quantidade', 'quantity', 'volume', 'lotes', 'lots', 'size'],
-  entryPrice: ['preço_entrada', 'entry_price', 'entrada', 'entry', 'preço_abertura', 'open_price'],
-  exitPrice: ['preço_saída', 'exit_price', 'saída', 'exit', 'preço_fechamento', 'close_price'],
+  entryPrice: ['preço_entrada', 'entry_price', 'entrada', 'entry', 'preço_abertura', 'open_price', 'preco', 'precoentrada'],
+  exitPrice: ['preço_saída', 'exit_price', 'saída', 'exit', 'preço_fechamento', 'close_price', 'precosaida'],
   entryTime: ['hora_entrada', 'entry_time', 'horário_entrada'],
   exitTime: ['hora_saída', 'exit_time', 'horário_saída'],
-  pnl: ['resultado', 'pnl', 'profit', 'lucro', 'p&l', 'gain'],
-  commission: ['corretagem', 'commission', 'taxas', 'fees', 'custos'],
+  pnl: ['resultado', 'pnl', 'profit', 'lucro', 'p&l', 'gain', 'lucro'],
+  commission: ['corretagem', 'commission', 'taxas', 'fees', 'custos', 'comissao', 'comissão'],
   swap: ['swap', 'rollover', 'overnight'],
-  strategy: ['estratégia', 'strategy', 'setup'],
-  notes: ['observações', 'notes', 'comentários', 'comments', 'anotações']
+  strategy: ['estratégia', 'strategy', 'setup', 'estrategia'],
+  notes: ['observações', 'notes', 'comentários', 'comments', 'anotações', 'observacoes', 'comentario']
 };
 
+
 function detectMarket(asset) {
-  if (!asset) return 'b3daytrade';
-  const assetUpper = asset.toUpperCase();
-  if (assetUpper.includes('FUT') || assetUpper.match(/^(WIN|WDO|IND|DOL)/)) return 'b3daytrade';
-  if (assetUpper.match(/^[A-Z]{6}$/)) return 'forex';
-  if (assetUpper.match(/^[A-Z]{4}[0-9]/)) return 'b3swing';
-  return 'b3daytrade';
+  if (!asset) return 'forex';
+  
+  // Remover sufixo .h (mesa proprietária)
+  const assetClean = asset.toUpperCase().replace('.H', '').replace('.h', '');
+  
+  // ✅ Forex: pares de moedas (EURUSD, GBPUSD, etc)
+  if (assetClean.match(/^(EUR|USD|GBP|JPY|AUD|CAD|CHF|NZD|XAU|XAG|BTC|ETH)/)) {
+    return 'forex';
+  }
+  
+  // ✅ Qualquer ativo com 6 letras (padrão forex)
+  if (assetClean.match(/^[A-Z]{6,8}$/)) {
+    return 'forex';
+  }
+  
+  // B3 Futuros
+  if (assetClean.includes('FUT') || assetClean.match(/^(WIN|WDO|IND|DOL)/)) {
+    return 'b3daytrade';
+  }
+  
+  // B3 Ações
+  if (assetClean.match(/^[A-Z]{4}[0-9]/)) {
+    return 'b3swing';
+  }
+  
+  // Padrão: se tem .h ou não detectou, é forex
+  if (asset.includes('.h') || asset.includes('.H')) {
+    return 'forex';
+  }
+  
+  return 'forex'; // Padrão forex
 }
+
+
 
 function detectCurrency(market) {
   const currencyMap = {
@@ -34,8 +63,9 @@ function detectCurrency(market) {
     'b3options': 'BRL',
     'forex': 'USD'
   };
-  return currencyMap[market] || 'BRL';
+  return currencyMap[market] || 'USD';
 }
+
 
 function calculateTax(market, pnl) {
   const taxRates = {
@@ -63,58 +93,84 @@ function calculateTax(market, pnl) {
   };
 }
 
+
+// ✅ CORRIGIDO: Remove espaços de valores como "- 5.00"
 function parseNumber(value) {
   if (value === null || value === undefined || value === '') return null;
-  const str = String(value).trim();
+  
+  // Se já é número, retorna direto
   if (typeof value === 'number') return value;
   
-  const hasComma = str.includes(',');
-  const hasDot = str.includes('.');
-  const lastComma = str.lastIndexOf(',');
-  const lastDot = str.lastIndexOf('.');
+  // Remover TODOS os espaços (MT5 usa "- 5.00")
+  const cleaned = String(value)
+    .trim()
+    .replace(/\s+/g, '') // Remove espaços
+    .replace(/R\$/g, '')
+    .replace(/[€£¥]/g, '');
   
-  let cleaned = str;
+  // Detectar formato: ponto ou vírgula como decimal
+  const hasComma = cleaned.includes(',');
+  const hasDot = cleaned.includes('.');
+  const lastComma = cleaned.lastIndexOf(',');
+  const lastDot = cleaned.lastIndexOf('.');
+  
+  let normalized = cleaned;
   
   if (hasDot && (!hasComma || lastDot > lastComma)) {
-    cleaned = str.replace(/,/g, '');
+    // Formato: 1.234,56 ou 1234.56
+    normalized = cleaned.replace(/,/g, '');
   } else if (hasComma && (!hasDot || lastComma > lastDot)) {
-    cleaned = str.replace(/\./g, '').replace(',', '.');
+    // Formato: 1,234.56 ou 1234,56
+    normalized = cleaned.replace(/\./g, '').replace(',', '.');
   } else if (hasComma && !hasDot) {
-    cleaned = str.replace(',', '.');
+    normalized = cleaned.replace(',', '.');
   } else if (hasDot && !hasComma) {
-    const afterDot = str.split('.')[1];
+    const afterDot = cleaned.split('.')[1];
     if (afterDot && afterDot.length <= 2) {
-      cleaned = str;
+      normalized = cleaned;
     } else {
-      cleaned = str.replace(/\./g, '');
+      normalized = cleaned.replace(/\./g, '');
     }
   }
   
-  cleaned = cleaned.replace(/[R$€£¥\s]/g, '').trim();
-  const num = parseFloat(cleaned);
+  const num = parseFloat(normalized);
   return isNaN(num) ? null : num;
 }
 
+
+// ✅ CORRIGIDO: Reconhece formato MT5 "2025.04.21 02:45:07"
 function parseDate(value) {
   if (!value) return null;
   if (value instanceof Date) return value.toISOString().split('T')[0];
   
   const str = String(value).trim();
+  
+  // ISO 8601
   if (str.match(/^\d{4}-\d{2}-\d{2}/)) return str.split('T')[0];
   
+  // ✅ FORMATO MT5: "2025.04.21 02:45:07"
+  if (str.match(/^\d{4}\.\d{2}\.\d{2}/)) {
+    const cleanDate = str.split(' ')[0]; // Remove a hora
+    const [year, month, day] = cleanDate.split('.');
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+  
+  // DD/MM/YYYY
   if (str.match(/^\d{2}\/\d{2}\/\d{4}/)) {
     const [day, month, year] = str.split('/');
     return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   }
   
-  if (str.match(/^\d{1,2}\/\d{1,2}\/\d{4}/)) {
-    const parts = str.split('/');
+  // DD-MM-YYYY ou DD.MM.YYYY
+  if (str.match(/^\d{1,2}[\-\.\/]\d{1,2}[\-\.\/]\d{4}/)) {
+    const parts = str.split(/[\-\.\/]/);
     if (parts[0] > 12) {
       return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
     }
     return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
   }
   
+  // Excel serial date
   const num = parseFloat(value);
   if (!isNaN(num) && num > 40000) {
     const date = new Date((num - 25569) * 86400 * 1000);
@@ -123,8 +179,10 @@ function parseDate(value) {
   
   const parsed = new Date(value);
   if (!isNaN(parsed.getTime())) return parsed.toISOString().split('T')[0];
+  
   return null;
 }
+
 
 export function parseUniversalTrade(row, headers) {
   if (!row || !headers) return null;
@@ -150,7 +208,6 @@ export function parseUniversalTrade(row, headers) {
   
   if (!asset || !date || pnl === null) return null;
   
-  // ✅ CORREÇÃO: Priorizar coluna do Excel
   const marketFromFile = getValue('market');
   const currencyFromFile = getValue('currency');
   
@@ -188,6 +245,8 @@ export function parseUniversalTrade(row, headers) {
   };
 }
 
+
+// ✅ CORRIGIDO: Detecta seção "Posições" do MT5
 async function readFileData(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -196,7 +255,7 @@ async function readFileData(file) {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
         resolve(jsonData);
       } catch (error) {
         reject(new Error('Erro ao ler arquivo: ' + error.message));
@@ -207,6 +266,8 @@ async function readFileData(file) {
   });
 }
 
+
+// ✅ CORRIGIDO: Processa seção "Posições" do MT5
 export async function parseTradesFile(fileOrData, existingTrades = []) {
   let data;
   
@@ -224,11 +285,30 @@ export async function parseTradesFile(fileOrData, existingTrades = []) {
     throw new Error('Arquivo vazio ou inválido');
   }
   
-  const headers = data[0];
+  // ✅ DETECTAR seção "Posições" do MT5
+  let startIndex = 0;
+  for (let i = 0; i < data.length; i++) {
+    const firstCell = String(data[i][0] || '').toLowerCase();
+    if (firstCell.includes('posições') || firstCell.includes('posicoes') || firstCell.includes('position')) {
+      startIndex = i + 1; // Próxima linha é o header
+      break;
+    }
+  }
   
-  for (let i = 1; i < data.length; i++) {
+  const headers = data[startIndex];
+  
+  // ✅ Processar linhas da seção "Posições"
+  for (let i = startIndex + 1; i < data.length; i++) {
     const row = data[i];
+    
+    // Pular linhas vazias
     if (!row || row.every(cell => !cell)) continue;
+    
+    // ✅ PARAR se encontrar outra seção (Ordens, Transações)
+    const firstCell = String(row[0] || '').toLowerCase();
+    if (firstCell.includes('ordens') || firstCell.includes('transações') || firstCell.includes('transacoes') || firstCell.includes('orders') || firstCell.includes('deals')) {
+      break; // Fim da seção Posições
+    }
     
     try {
       const trade = parseUniversalTrade(row, headers);
@@ -252,6 +332,7 @@ export async function parseTradesFile(fileOrData, existingTrades = []) {
   
   return { trades, errors, duplicates, total: data.length - 1 };
 }
+
 
 export function validateTrades(trades) {
   const errors = [];

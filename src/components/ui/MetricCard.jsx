@@ -6,11 +6,15 @@ export const MetricCard = ({
   positive = false, 
   negative = false, 
   icon = null, 
-  subtext = null 
+  subtext = null,
+  currency = 'BRL' // ✅ Nova prop
 }) => {
   const formatValue = () => {
     if (type === 'currency') {
-      return `R$ ${Math.abs(value).toLocaleString('pt-BR', { 
+      const symbol = currency === 'USD' ? '$' : 'R$';
+      const locale = currency === 'USD' ? 'en-US' : 'pt-BR';
+      
+      return `${symbol} ${Math.abs(value).toLocaleString(locale, { 
         minimumFractionDigits: 2,
         maximumFractionDigits: 2 
       })}`;
@@ -21,7 +25,6 @@ export const MetricCard = ({
     return value;
   };
 
-  // Determinar cor do valor
   const getValueColor = () => {
     if (positive) return 'text-win';
     if (negative) return 'text-loss';

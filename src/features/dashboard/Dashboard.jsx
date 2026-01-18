@@ -2,10 +2,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTrades } from '../../hooks/useTrades';
-import { calculateMetrics } from '../../utils/metrics';
 import { Loading } from '../../components/ui/Loading';
 import { MetricCard } from '../../components/ui/MetricCard';
 import { AdvancedMetrics } from '../../components/dashboard/AdvancedMetrics';
+import { getExchangeRate } from '../../services/currency/exchangeRates';
 import { 
   AreaChart, 
   Area, 
@@ -16,24 +16,213 @@ import {
   CartesianGrid 
 } from 'recharts';
 
-// Função auxiliar para formatar moeda
-const formatCurrency = (value) => {
-  return value.toLocaleString('pt-BR', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
-};
-
 export const Dashboard = () => {
   const navigate = useNavigate();
   const { trades, loading } = useTrades();
   const [selectedPeriod, setSelectedPeriod] = useState('all');
-  const metrics = calculateMetrics(trades, selectedPeriod);
+  const [selectedCurrency, setSelectedCurrency] = useState('USD');
+  const [exchangeRate, setExchangeRate] = useState(5.45);
+  const [loadingRate, setLoadingRate] = useState(false);
 
-  // Log para debug
+  // Buscar cotação
   useEffect(() => {
-    console.log('Dashboard metrics:', metrics);
-  }, [metrics]);
+    const fetchRate = async () => {
+      try {
+        setLoadingRate(true);
+        const rate = await getExchangeRate('USD', 'BRL');
+        setExchangeRate(rate);
+      } catch (error) {
+        console.error('Erro ao buscar cotação:', error);
+      } finally {
+        setLoadingRate(false);
+      }
+    };
+    
+    fetchRate();
+  }, []);
+
+  // ✅ Calcular métricas considerando moeda original
+  const calculateMetricsWithCurrency = (tradesData, period) => {
+    let filteredTrades = tradesData;
+
+    // Filtrar por período
+    const now = new Date();
+    if (period === 'today') {
+      const today = now.toISOString().split('T')[0];
+      filteredTrades = tradesData.filter(t => t.date === today);
+    } else if (period === 'week') {
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      filteredTrades = tradesData.filter(t => new Date(t.date) >= weekAgo);
+    } else if (period === 'month') {
+      const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      filteredTrades = tradesData.filter(t => new Date(t.date) >= monthAgo);
+    }
+
+    if (filteredTrades.length === 0) {
+      return {
+        totalTrades: 0,
+        netProfitUSD: 0,
+        netProfitBRL: 0,
+        grossProfitUSD: 0,
+        grossProfitBRL: 0,
+        grossLossUSD: 0,
+        grossLossBRL: 0,
+        winningTrades: 0,
+        losingTrades: 0,
+        winRate: 0,
+        avgWinUSD: 0,
+        avgWinBRL: 0,
+        avgLossUSD: 0,
+        avgLossBRL: 0,
+        maxWinUSD: 0,
+        maxWinBRL: 0,
+        maxLossUSD: 0,
+        maxLossBRL: 0,
+        totalCommissionsUSD: 0,
+        totalCommissionsBRL: 0,
+        totalSwapsUSD: 0,
+        totalSwapsBRL: 0,
+        profitFactor: 0,
+        equityCurve: []
+      };
+    }
+
+    let netProfitUSD = 0, netProfitBRL = 0;
+    let grossProfitUSD = 0, grossProfitBRL = 0;
+    let grossLossUSD = 0, grossLossBRL = 0;
+    let winningTrades = 0, losingTrades = 0;
+    let winsUSD = [], winsBRL = [];
+    let lossesUSD = [], lossesBRL = [];
+    let maxWinUSD = 0, maxWinBRL = 0;
+    let maxLossUSD = 0, maxLossBRL = 0;
+    let totalCommissionsUSD = 0, totalCommissionsBRL = 0;
+    let totalSwapsUSD = 0, totalSwapsBRL = 0;
+    const equityCurve = [];
+    let cumulativeEquityUSD = 0, cumulativeEquityBRL = 0;
+
+    filteredTrades
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .forEach(trade => {
+        const isUSD = trade.currency === 'USD';
+        const pnl = trade.pnl || 0;
+        const commission = trade.commission || 0;
+        const swap = trade.swap || 0;
+
+        if (isUSD) {
+          netProfitUSD += pnl;
+          totalCommissionsUSD += commission;
+          totalSwapsUSD += swap;
+          cumulativeEquityUSD += pnl;
+
+          if (pnl > 0) {
+            grossProfitUSD += pnl;
+            winsUSD.push(pnl);
+            if (pnl > maxWinUSD) maxWinUSD = pnl;
+            winningTrades++;
+          } else if (pnl < 0) {
+            grossLossUSD += pnl;
+            lossesUSD.push(pnl);
+            if (pnl < maxLossUSD) maxLossUSD = pnl;
+            losingTrades++;
+          }
+        } else {
+          netProfitBRL += pnl;
+          totalCommissionsBRL += commission;
+          totalSwapsBRL += swap;
+          cumulativeEquityBRL += pnl;
+
+          if (pnl > 0) {
+            grossProfitBRL += pnl;
+            winsBRL.push(pnl);
+            if (pnl > maxWinBRL) maxWinBRL = pnl;
+            winningTrades++;
+          } else if (pnl < 0) {
+            grossLossBRL += pnl;
+            lossesBRL.push(pnl);
+            if (pnl < maxLossBRL) maxLossBRL = pnl;
+            losingTrades++;
+          }
+        }
+
+        // Equity curve (convertido para moeda selecionada)
+        const equityConverted = selectedCurrency === 'USD' 
+          ? cumulativeEquityUSD + (cumulativeEquityBRL / exchangeRate)
+          : (cumulativeEquityUSD * exchangeRate) + cumulativeEquityBRL;
+
+        equityCurve.push({
+          date: trade.date,
+          equity: equityConverted
+        });
+      });
+
+    const avgWinUSD = winsUSD.length > 0 ? winsUSD.reduce((a, b) => a + b, 0) / winsUSD.length : 0;
+    const avgWinBRL = winsBRL.length > 0 ? winsBRL.reduce((a, b) => a + b, 0) / winsBRL.length : 0;
+    const avgLossUSD = lossesUSD.length > 0 ? lossesUSD.reduce((a, b) => a + b, 0) / lossesUSD.length : 0;
+    const avgLossBRL = lossesBRL.length > 0 ? lossesBRL.reduce((a, b) => a + b, 0) / lossesBRL.length : 0;
+
+    const winRate = filteredTrades.length > 0 ? (winningTrades / filteredTrades.length) * 100 : 0;
+    
+    const totalGrossProfit = grossProfitUSD + (grossProfitBRL / exchangeRate);
+    const totalGrossLoss = Math.abs(grossLossUSD + (grossLossBRL / exchangeRate));
+    const profitFactor = totalGrossLoss > 0 ? totalGrossProfit / totalGrossLoss : 0;
+
+    return {
+      totalTrades: filteredTrades.length,
+      netProfitUSD,
+      netProfitBRL,
+      grossProfitUSD,
+      grossProfitBRL,
+      grossLossUSD,
+      grossLossBRL,
+      winningTrades,
+      losingTrades,
+      winRate,
+      avgWinUSD,
+      avgWinBRL,
+      avgLossUSD,
+      avgLossBRL,
+      maxWinUSD,
+      maxWinBRL,
+      maxLossUSD,
+      maxLossBRL,
+      totalCommissionsUSD,
+      totalCommissionsBRL,
+      totalSwapsUSD,
+      totalSwapsBRL,
+      profitFactor,
+      equityCurve
+    };
+  };
+
+  const metrics = calculateMetricsWithCurrency(trades, selectedPeriod);
+
+  // ✅ Converter valor considerando moeda original
+  const convertValue = (usdValue, brlValue) => {
+    if (selectedCurrency === 'USD') {
+      return usdValue + (brlValue / exchangeRate);
+    } else {
+      return (usdValue * exchangeRate) + brlValue;
+    }
+  };
+
+  const formatCurrency = (value) => {
+    return value.toLocaleString(selectedCurrency === 'BRL' ? 'pt-BR' : 'en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  };
+
+  const getCurrencySymbol = () => selectedCurrency === 'USD' ? '$' : 'R$';
+
+  const netProfit = convertValue(metrics.netProfitUSD, metrics.netProfitBRL);
+  const grossProfit = convertValue(metrics.grossProfitUSD, metrics.grossProfitBRL);
+  const grossLoss = convertValue(metrics.grossLossUSD, metrics.grossLossBRL);
+  const avgWin = convertValue(metrics.avgWinUSD, metrics.avgWinBRL);
+  const avgLoss = convertValue(metrics.avgLossUSD, metrics.avgLossBRL);
+  const maxWin = convertValue(metrics.maxWinUSD, metrics.maxWinBRL);
+  const maxLoss = convertValue(metrics.maxLossUSD, metrics.maxLossBRL);
+  const totalCommissions = convertValue(metrics.totalCommissionsUSD, metrics.totalCommissionsBRL);
+  const totalSwaps = convertValue(metrics.totalSwapsUSD, metrics.totalSwapsBRL);
 
   if (loading) {
     return (
@@ -45,20 +234,58 @@ export const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background p-4 pb-32 lg:p-6 lg:pb-6">
-      {/* HEADER - Seletor de Período */}
-      <div className="flex items-center justify-between mb-6">
+      {/* HEADER - Seletor de Período e Moeda */}
+      <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl lg:text-3xl font-bold text-white">Resultado</h1>
-        <select
-          value={selectedPeriod}
-          onChange={(e) => setSelectedPeriod(e.target.value)}
-          className="bg-zinc-800 text-white px-4 py-2 rounded-xl border border-zinc-700 font-medium text-sm lg:text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="today">Hoje</option>
-          <option value="week">Última Semana</option>
-          <option value="month">Último Mês</option>
-          <option value="all">Todos os Períodos</option>
-        </select>
+        
+        <div className="flex gap-2">
+          {/* Seletor de Período */}
+          <select
+            value={selectedPeriod}
+            onChange={(e) => setSelectedPeriod(e.target.value)}
+            className="bg-zinc-800 text-white px-3 lg:px-4 py-2 rounded-xl border border-zinc-700 font-medium text-xs lg:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="today">Hoje</option>
+            <option value="week">Última Semana</option>
+            <option value="month">Último Mês</option>
+            <option value="all">Todos os Períodos</option>
+          </select>
+
+          {/* Seletor de Moeda */}
+          <div className="flex gap-1 bg-zinc-800 rounded-lg p-1 border border-zinc-700">
+            <button
+              onClick={() => setSelectedCurrency('BRL')}
+              className={`px-3 py-1.5 rounded-lg transition-colors text-xs lg:text-sm font-medium ${
+                selectedCurrency === 'BRL'
+                  ? 'bg-emerald-500 text-white'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              R$
+            </button>
+            <button
+              onClick={() => setSelectedCurrency('USD')}
+              className={`px-3 py-1.5 rounded-lg transition-colors text-xs lg:text-sm font-medium ${
+                selectedCurrency === 'USD'
+                  ? 'bg-emerald-500 text-white'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              $
+            </button>
+          </div>
+        </div>
       </div>
+
+      {/* Cotação */}
+      {!loadingRate && (
+        <div className="bg-blue-900/20 border border-blue-500/50 rounded-lg p-3 mb-4">
+          <div className="flex items-center gap-2 text-xs lg:text-sm text-blue-300">
+            <span>💱</span>
+            <span>Cotação atual: 1 USD = R$ {exchangeRate.toFixed(4)}</span>
+          </div>
+        </div>
+      )}
 
       {/* Verificar se há trades */}
       {metrics.totalTrades === 0 ? (
@@ -73,7 +300,7 @@ export const Dashboard = () => {
         </div>
       ) : (
         <>
-          {/* BLOCO 1: GRÁFICO DE EQUITY - Destaque Principal */}
+          {/* BLOCO 1: GRÁFICO DE EQUITY */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 lg:p-6 mb-4">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm lg:text-base font-semibold text-zinc-400">
@@ -84,7 +311,6 @@ export const Dashboard = () => {
               </span>
             </div>
 
-            {/* Gráfico - altura ajustada para mobile/desktop */}
             <div className="h-[200px] lg:h-[280px] -mx-2">
               {metrics.equityCurve && metrics.equityCurve.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
@@ -96,12 +322,12 @@ export const Dashboard = () => {
                       <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop 
                           offset="5%" 
-                          stopColor={metrics.netProfit >= 0 ? "#00E676" : "#FF1744"}
+                          stopColor={netProfit >= 0 ? "#00E676" : "#FF1744"}
                           stopOpacity={0.3}
                         />
                         <stop 
                           offset="95%" 
-                          stopColor={metrics.netProfit >= 0 ? "#00E676" : "#FF1744"}
+                          stopColor={netProfit >= 0 ? "#00E676" : "#FF1744"}
                           stopOpacity={0}
                         />
                       </linearGradient>
@@ -123,7 +349,7 @@ export const Dashboard = () => {
                       fontSize={10}
                       tickLine={false}
                       axisLine={false}
-                      tickFormatter={(value) => `R$ ${value.toLocaleString('pt-BR')}`}
+                      tickFormatter={(value) => `${getCurrencySymbol()} ${value.toLocaleString(selectedCurrency === 'BRL' ? 'pt-BR' : 'en-US')}`}
                     />
                     <Tooltip
                       contentStyle={{
@@ -133,7 +359,7 @@ export const Dashboard = () => {
                         fontSize: '12px'
                       }}
                       formatter={(value) => [
-                        `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 
+                        `${getCurrencySymbol()} ${value.toLocaleString(selectedCurrency === 'BRL' ? 'pt-BR' : 'en-US', { minimumFractionDigits: 2 })}`, 
                         'Resultado'
                       ]}
                       labelFormatter={(label) => `Data: ${label}`}
@@ -141,7 +367,7 @@ export const Dashboard = () => {
                     <Area
                       type="monotone"
                       dataKey="equity"
-                      stroke={metrics.netProfit >= 0 ? "#00E676" : "#FF1744"}
+                      stroke={netProfit >= 0 ? "#00E676" : "#FF1744"}
                       strokeWidth={2}
                       fill="url(#equityGradient)"
                       animationDuration={500}
@@ -156,21 +382,20 @@ export const Dashboard = () => {
             </div>
           </div>
 
-          {/* BLOCO 2: RESULTADO PRINCIPAL - Card Destacado */}
+          {/* BLOCO 2: RESULTADO PRINCIPAL */}
           <div className={`rounded-2xl p-6 mb-4 border-2 ${
-            metrics.netProfit >= 0 
+            netProfit >= 0 
               ? 'bg-gradient-to-br from-emerald-900/30 to-emerald-950/20 border-win/30' 
               : 'bg-gradient-to-br from-red-900/30 to-red-950/20 border-loss/30'
           }`}>
             <div className="text-center">
               <p className="text-zinc-400 text-sm mb-2">Saldo Líquido Total</p>
               <p className={`text-4xl md:text-5xl lg:text-6xl font-black mb-2 ${
-                metrics.netProfit >= 0 ? 'text-win' : 'text-loss'
+                netProfit >= 0 ? 'text-win' : 'text-loss'
               }`}>
-                R$ {formatCurrency(Math.abs(metrics.netProfit))}
+                {getCurrencySymbol()} {formatCurrency(Math.abs(netProfit))}
               </p>
               
-              {/* Métricas rápidas em linha */}
               <div className="flex items-center justify-center gap-4 lg:gap-6 mt-4 pt-4 border-t border-white/10">
                 <div>
                   <p className="text-zinc-500 text-xs mb-1">Taxa de Acerto</p>
@@ -196,41 +421,40 @@ export const Dashboard = () => {
             </div>
           </div>
 
-          {/* BLOCO 3: GRID DE MÉTRICAS - Estilo Profit Mobile */}
+          {/* BLOCO 3: GRID DE MÉTRICAS */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-            {/* Lucro Bruto */}
             <MetricCard
               label="Lucro Bruto"
-              value={metrics.grossProfit}
+              value={grossProfit}
               type="currency"
               positive={true}
+              currency={selectedCurrency}
             />
             
-            {/* Prejuízo Bruto */}
             <MetricCard
               label="Prejuízo Bruto"
-              value={Math.abs(metrics.grossLoss)}
+              value={Math.abs(grossLoss)}
               type="currency"
               negative={true}
+              currency={selectedCurrency}
             />
 
-            {/* Média Ganho */}
             <MetricCard
               label="Média Ganho"
-              value={metrics.avgWin}
+              value={avgWin}
               type="currency"
               icon="📈"
+              currency={selectedCurrency}
             />
 
-            {/* Média Perda */}
             <MetricCard
               label="Média Perda"
-              value={Math.abs(metrics.avgLoss)}
+              value={Math.abs(avgLoss)}
               type="currency"
               icon="📉"
+              currency={selectedCurrency}
             />
 
-            {/* Operações Vencedoras */}
             <MetricCard
               label="Ops. Vencedoras"
               value={metrics.winningTrades}
@@ -239,7 +463,6 @@ export const Dashboard = () => {
               positive={true}
             />
 
-            {/* Operações Perdedoras */}
             <MetricCard
               label="Ops. Perdedoras"
               value={metrics.losingTrades}
@@ -248,20 +471,20 @@ export const Dashboard = () => {
               negative={true}
             />
 
-            {/* Maior Ganho */}
             <MetricCard
               label="Maior Ganho"
-              value={metrics.maxWin}
+              value={maxWin}
               type="currency"
               icon="🎯"
+              currency={selectedCurrency}
             />
 
-            {/* Maior Perda */}
             <MetricCard
               label="Maior Perda"
-              value={Math.abs(metrics.maxLoss)}
+              value={Math.abs(maxLoss)}
               type="currency"
               icon="⚠️"
+              currency={selectedCurrency}
             />
           </div>
 
@@ -274,28 +497,42 @@ export const Dashboard = () => {
               <div>
                 <p className="text-zinc-500 text-xs mb-1">Comissões</p>
                 <p className="text-red-400 font-bold text-sm lg:text-base">
-                  R$ {formatCurrency(Math.abs(metrics.totalCommissions))}
+                  {getCurrencySymbol()} {formatCurrency(Math.abs(totalCommissions))}
                 </p>
               </div>
               <div>
                 <p className="text-zinc-500 text-xs mb-1">Taxas/Swaps</p>
                 <p className="text-red-400 font-bold text-sm lg:text-base">
-                  R$ {formatCurrency(Math.abs(metrics.totalSwaps))}
+                  {getCurrencySymbol()} {formatCurrency(Math.abs(totalSwaps))}
                 </p>
               </div>
               <div>
                 <p className="text-zinc-500 text-xs mb-1">Total</p>
                 <p className="text-red-500 font-bold text-base lg:text-lg">
-                  R$ {formatCurrency(Math.abs(metrics.totalCommissions + metrics.totalSwaps))}
+                  {getCurrencySymbol()} {formatCurrency(Math.abs(totalCommissions + totalSwaps))}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* BLOCO 5: ANÁLISE AVANÇADA (Collapsible) */}
-          <AdvancedMetrics metrics={metrics} />
+          {/* BLOCO 5: ANÁLISE AVANÇADA */}
+          <AdvancedMetrics 
+            metrics={{
+              ...metrics,
+              netProfit,
+              grossProfit,
+              grossLoss,
+              avgWin,
+              avgLoss,
+              maxWin,
+              maxLoss,
+              totalCommissions,
+              totalSwaps
+            }} 
+            currency={selectedCurrency}
+          />
 
-          {/* AÇÕES RÁPIDAS - Desktop apenas */}
+          {/* AÇÕES RÁPIDAS */}
           <div className="hidden lg:flex gap-3 mt-6">
             <button
               onClick={() => navigate('/app/trades')}
