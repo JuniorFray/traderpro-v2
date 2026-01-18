@@ -1,5 +1,5 @@
 ﻿import { useState } from "react"
-import { Card, Button } from "../ui"
+import { Card } from "../ui"
 
 export const TradeFilters = ({ onFilterChange }) => {
   const [filters, setFilters] = useState({
@@ -7,7 +7,8 @@ export const TradeFilters = ({ onFilterChange }) => {
     endDate: "",
     symbol: "",
     strategy: "",
-    result: "all" // all, win, loss
+    result: "all",
+    market: "all" // ✅ ADICIONADO
   })
 
   const handleChange = (field, value) => {
@@ -22,7 +23,8 @@ export const TradeFilters = ({ onFilterChange }) => {
       endDate: "",
       symbol: "",
       strategy: "",
-      result: "all"
+      result: "all",
+      market: "all" // ✅ ADICIONADO
     }
     setFilters(resetFilters)
     onFilterChange(resetFilters)
@@ -40,7 +42,7 @@ export const TradeFilters = ({ onFilterChange }) => {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
         <div>
           <label className="block text-sm font-medium text-zinc-400 mb-2">
             Data Início
@@ -91,6 +93,25 @@ export const TradeFilters = ({ onFilterChange }) => {
           />
         </div>
 
+        {/* ✅ NOVO: Filtro por Mercado */}
+        <div>
+          <label className="block text-sm font-medium text-zinc-400 mb-2">
+            Mercado
+          </label>
+          <select
+            value={filters.market}
+            onChange={(e) => handleChange("market", e.target.value)}
+            className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:border-primary"
+          >
+            <option value="all">Todos</option>
+            <option value="forex">💱 Forex</option>
+            <option value="b3daytrade">📊 B3 Day Trade</option>
+            <option value="b3swing">📈 B3 Swing</option>
+            <option value="b3options">🎯 B3 Opções</option>
+            <option value="crypto">₿ Cripto</option>
+          </select>
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-zinc-400 mb-2">
             Resultado
@@ -109,4 +130,3 @@ export const TradeFilters = ({ onFilterChange }) => {
     </Card>
   )
 }
-
