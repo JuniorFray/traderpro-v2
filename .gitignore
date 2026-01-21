@@ -58,3 +58,5 @@ serviceAccountKey.json
 # Admin SDK
 scripts/importAuthUsersToFirestore.mjs
 
+
+.vercel

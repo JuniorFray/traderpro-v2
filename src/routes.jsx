@@ -1,3 +1,4 @@
+ï»¿import { IntegrationsPage } from "./features/integrations/IntegrationsPage"
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './features/auth/AuthContext'
 import { MainLayout } from './components/layout/MainLayout'
@@ -30,7 +31,7 @@ const PrivateRoute = ({ children }) => {
 export const CustomerRoutes = () => {
   return (
     <Routes>
-      {/* Landing Page Pública */}
+      {/* Landing Page P blica */}
       <Route path="/" element={<LandingWrapper />} />
       
       {/* Auth */}
@@ -38,7 +39,7 @@ export const CustomerRoutes = () => {
       <Route path="/cadastro" element={<Register />} />
       <Route path="/recuperar-senha" element={<ForgotPassword />} />
       
-      {/* Sistema Principal (após login) */}
+      {/* Sistema Principal (ap s login) */}
       <Route path="/app" element={<PrivateRoute><MainLayout /></PrivateRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="trades" element={<TradesPage />} />
@@ -48,7 +49,7 @@ export const CustomerRoutes = () => {
         <Route path="reports" element={<Reports />} />
         <Route path="settings" element={<Settings />} />
         <Route path="tools" element={<Tools />} />
-
+<Route path="integrations" element={<IntegrationsPage />} />
         <Route path="markets" element={<MarketsPage />} />
         <Route path="support" element={<SupportPage />} />
       </Route>

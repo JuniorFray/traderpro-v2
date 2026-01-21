@@ -16,7 +16,8 @@ const menuItems = [
   { path: "reports", icon: "📄", label: "Relatórios" },
 { path: "support", icon: "🎧", label: "Suporte" },
   { path: "settings", icon: "⚙️", label: "Configurações" },
-  { path: "tools", icon: "🧮", label: "Ferramentas" }
+  { path: "tools", icon: "🧮", label: "Ferramentas" },
+{ path: "integrations", icon: "🔗", label: "Integrações" }
 ]
 
 export const MainLayout = () => {

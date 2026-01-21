@@ -1,0 +1,147 @@
+/* src/components/ApiKeyManager.css */
+
+.api-key-manager {
+  background: #fff;
+  border-radius: 12px;
+  padding: 30px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  max-width: 700px;
+}
+
+.api-key-manager h2 {
+  font-size: 24px;
+  color: #111827;
+  margin-bottom: 10px;
+}
+
+.api-key-description {
+  color: #6b7280;
+  font-size: 14px;
+  margin-bottom: 25px;
+  line-height: 1.6;
+}
+
+.api-key-loading {
+  padding: 20px;
+  text-align: center;
+  color: #6b7280;
+}
+
+/* Display da API Key */
+.api-key-display {
+  margin-bottom: 30px;
+}
+
+.api-key-box {
+  background: #f9fafb;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 15px;
+  overflow-x: auto;
+}
+
+.api-key-box code {
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  color: #1f2937;
+  word-break: break-all;
+}
+
+/* Botões */
+.api-key-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-copy,
+.btn-regenerate,
+.btn-generate {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-copy {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-copy:hover {
+  background: #2563eb;
+}
+
+.btn-regenerate {
+  background: #f59e0b;
+  color: white;
+}
+
+.btn-regenerate:hover {
+  background: #d97706;
+}
+
+.btn-regenerate:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+}
+
+.btn-generate {
+  background: #10b981;
+  color: white;
+  padding: 12px 30px;
+  font-size: 16px;
+}
+
+.btn-generate:hover {
+  background: #059669;
+}
+
+.btn-generate:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+}
+
+/* Estado vazio */
+.api-key-empty {
+  text-align: center;
+  padding: 40px 20px;
+  background: #f9fafb;
+  border-radius: 8px;
+  margin-bottom: 30px;
+}
+
+.api-key-empty p {
+  color: #6b7280;
+  margin-bottom: 20px;
+  font-size: 15px;
+}
+
+/* Instruções */
+.api-key-instructions {
+  background: #eff6ff;
+  border-left: 4px solid #3b82f6;
+  border-radius: 6px;
+  padding: 20px;
+}
+
+.api-key-instructions h3 {
+  font-size: 16px;
+  color: #1e40af;
+  margin-bottom: 15px;
+}
+
+.api-key-instructions ol {
+  margin: 0;
+  padding-left: 20px;
+  color: #1e40af;
+}
+
+.api-key-instructions li {
+  margin-bottom: 8px;
+  line-height: 1.6;
+  font-size: 14px;
+}
