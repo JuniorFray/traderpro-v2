@@ -1,13 +1,13 @@
 // src/components/ApiKeyManager.jsx
 import { useState, useEffect } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '../firebase/config';
-import { useAuth } from '../contexts/AuthContext';
+import { db } from '../services/firebase';
+import { useAuth } from '../features/auth/AuthContext';
 import { generateApiKey } from '../utils/apiKeyGenerator';
 import './ApiKeyManager.css';
 
 export default function ApiKeyManager() {
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
   const [apiKey, setApiKey] = useState('');
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -16,11 +16,11 @@ export default function ApiKeyManager() {
   // Buscar API Key existente
   useEffect(() => {
     const fetchApiKey = async () => {
-      if (!currentUser) return;
+      if (!user) return;
       
       try {
-        const docRef = doc(db, 'users', currentUser.uid);
-        const docSnap = await getDoc(docRef);
+        const userRef = doc(db, 'artifacts', 'trade-journal-public', 'users', user.uid);
+        const docSnap = await getDoc(userRef);
         
         if (docSnap.exists() && docSnap.data().apiKey) {
           setApiKey(docSnap.data().apiKey);
@@ -33,38 +33,52 @@ export default function ApiKeyManager() {
     };
 
     fetchApiKey();
-  }, [currentUser]);
+  }, [user]);
 
   // Gerar nova API Key
-  const handleGenerateKey = async () => {
-    if (!currentUser) return;
+const handleGenerateKey = async () => {
+  if (!user) {
+    console.error('❌ Usuário não autenticado');
+    return;
+  }
+  
+  console.log('✅ User ID:', user.uid);
+  
+  const confirmed = window.confirm(
+    'Tem certeza? A chave antiga deixará de funcionar e você precisará atualizar o EA no MT5.'
+  );
+  
+  if (!confirmed) return;
+  
+  setGenerating(true);
+  
+  try {
+    const newKey = generateApiKey();
+    console.log('✅ Nova chave gerada:', newKey);
     
-    const confirmed = window.confirm(
-      'Tem certeza? A chave antiga deixará de funcionar e você precisará atualizar o EA no MT5.'
+    const userRef = doc(db, 'artifacts', 'trade-journal-public', 'users', user.uid);
+    console.log('✅ Referência do documento criada');
+    
+    await setDoc(
+      userRef,
+      { apiKey: newKey },
+      { merge: true }
     );
     
-    if (!confirmed) return;
+    console.log('✅ Chave salva no Firestore com sucesso!');
     
-    setGenerating(true);
-    
-    try {
-      const newKey = generateApiKey();
-      
-      await setDoc(
-        doc(db, 'users', currentUser.uid),
-        { apiKey: newKey },
-        { merge: true }
-      );
-      
-      setApiKey(newKey);
-      alert('✅ Nova API Key gerada com sucesso!');
-    } catch (error) {
-      console.error('Erro ao gerar API Key:', error);
-      alert('❌ Erro ao gerar API Key. Tente novamente.');
-    } finally {
-      setGenerating(false);
-    }
-  };
+    setApiKey(newKey);
+    alert('✅ Nova API Key gerada com sucesso!');
+  } catch (error) {
+    console.error('❌ Erro ao gerar API Key:', error);
+    console.error('❌ Código do erro:', error.code);
+    console.error('❌ Mensagem:', error.message);
+    alert(`❌ Erro: ${error.message}`);
+  } finally {
+    setGenerating(false);
+  }
+};
+
 
   // Copiar para clipboard
   const handleCopy = () => {
