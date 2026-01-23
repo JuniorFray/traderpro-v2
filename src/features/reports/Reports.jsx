@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { useTrades } from "../../hooks/useTrades"
 import { Card } from "../../components/ui/Card"
 import { TradeFilters } from "../../components/filters/TradeFilters"
@@ -53,7 +53,7 @@ export const Reports = () => {
     return true
   })
 
-  // ✅ Calcular métricas separando USD e BRL
+  // ✅ Calcular métricas separando USD e BRL - COM parseFloat()
   const calculateMetrics = () => {
     let totalPnlUSD = 0, totalPnlBRL = 0
     let totalCommissionUSD = 0, totalCommissionBRL = 0
@@ -67,10 +67,10 @@ export const Reports = () => {
 
     filteredTrades.forEach(trade => {
       const isUSD = trade.currency === 'USD'
-      const pnl = trade.pnl || 0
-      const commission = trade.commission || 0
-      const swap = trade.swap || 0
-      const tax = trade.taxes?.amount || 0
+      const pnl = parseFloat(trade.pnl) || 0
+      const commission = parseFloat(trade.commission) || 0
+      const swap = parseFloat(trade.swap) || 0
+      const tax = parseFloat(trade.taxes?.amount) || 0
 
       if (isUSD) {
         totalPnlUSD += pnl
@@ -149,31 +149,38 @@ export const Reports = () => {
 
   // ✅ Converter valores
   const convertValue = (usdValue, brlValue) => {
+    const usd = parseFloat(usdValue) || 0
+    const brl = parseFloat(brlValue) || 0
+    
     if (selectedCurrency === 'USD') {
-      return usdValue + (brlValue / exchangeRate)
+      return usd + (brl / exchangeRate)
     } else {
-      return (usdValue * exchangeRate) + brlValue
+      return (usd * exchangeRate) + brl
     }
   }
 
   const formatCurrency = (value) => {
+    const numValue = parseFloat(value) || 0
     const symbol = selectedCurrency === 'USD' ? '$' : 'R$'
     const locale = selectedCurrency === 'USD' ? 'en-US' : 'pt-BR'
-    return `${symbol} ${Math.abs(value).toLocaleString(locale, {
+    return `${symbol} ${Math.abs(numValue).toLocaleString(locale, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     })}`
   }
 
   const formatEquivalent = (usdValue, brlValue) => {
+    const usd = parseFloat(usdValue) || 0
+    const brl = parseFloat(brlValue) || 0
+    
     if (selectedCurrency === 'USD') {
-      const totalBRL = (usdValue * exchangeRate) + brlValue
+      const totalBRL = (usd * exchangeRate) + brl
       return `≈ R$ ${totalBRL.toLocaleString('pt-BR', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
       })}`
     } else {
-      const totalUSD = usdValue + (brlValue / exchangeRate)
+      const totalUSD = usd + (brl / exchangeRate)
       return `≈ $ ${totalUSD.toLocaleString('en-US', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
@@ -181,7 +188,10 @@ export const Reports = () => {
     }
   }
 
-  const formatPercentage = (value) => `${value.toFixed(1)}%`
+  const formatPercentage = (value) => {
+    const numValue = parseFloat(value) || 0
+    return `${numValue.toFixed(1)}%`
+  }
 
   const totalPnl = convertValue(metrics.totalPnlUSD, metrics.totalPnlBRL)
   const totalCommission = convertValue(metrics.totalCommissionUSD, metrics.totalCommissionBRL)
@@ -192,7 +202,7 @@ export const Reports = () => {
   const maxWin = convertValue(metrics.maxWinUSD, metrics.maxWinBRL)
   const maxLoss = convertValue(metrics.maxLossUSD, metrics.maxLossBRL)
 
-  // Breakdown por mercado
+  // Breakdown por mercado - COM parseFloat()
   const marketBreakdown = {}
   filteredTrades.forEach(trade => {
     const market = trade.market || 'forex'
@@ -212,18 +222,23 @@ export const Reports = () => {
     marketBreakdown[market].trades.push(trade)
     
     const isUSD = trade.currency === 'USD'
+    const pnl = parseFloat(trade.pnl) || 0
+    const tax = parseFloat(trade.taxes?.amount) || 0
+    const commission = parseFloat(trade.commission) || 0
+    const swap = parseFloat(trade.swap) || 0
+    
     if (isUSD) {
-      marketBreakdown[market].totalPnLUSD += trade.pnl
-      marketBreakdown[market].totalTaxUSD += (trade.taxes?.amount || 0)
-      marketBreakdown[market].totalCostsUSD += (trade.commission || 0) + (trade.swap || 0)
+      marketBreakdown[market].totalPnLUSD += pnl
+      marketBreakdown[market].totalTaxUSD += tax
+      marketBreakdown[market].totalCostsUSD += (commission + swap)
     } else {
-      marketBreakdown[market].totalPnLBRL += trade.pnl
-      marketBreakdown[market].totalTaxBRL += (trade.taxes?.amount || 0)
-      marketBreakdown[market].totalCostsBRL += (trade.commission || 0) + (trade.swap || 0)
+      marketBreakdown[market].totalPnLBRL += pnl
+      marketBreakdown[market].totalTaxBRL += tax
+      marketBreakdown[market].totalCostsBRL += (commission + swap)
     }
 
-    if (trade.pnl > 0) marketBreakdown[market].wins++
-    else if (trade.pnl < 0) marketBreakdown[market].losses++
+    if (pnl > 0) marketBreakdown[market].wins++
+    else if (pnl < 0) marketBreakdown[market].losses++
   })
 
   return (
