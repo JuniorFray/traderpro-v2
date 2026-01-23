@@ -4,14 +4,12 @@ import { Card } from '../../components/ui'
 import { MARKETS, getCurrencySymbol } from '../../constants/markets'
 import { getExchangeRate } from '../../services/currency/exchangeRates'
 
-
 export const ConsolidatedDashboard = ({ trades }) => {
   const { isPro } = useAuth()
-  const [selectedCurrency, setSelectedCurrency] = useState('USD') // ✅ Padrão USD
+  const [selectedCurrency, setSelectedCurrency] = useState('USD')
   const [summary, setSummary] = useState({})
   const [exchangeRate, setExchangeRate] = useState(5.45)
   const [loading, setLoading] = useState(false)
-
 
   useEffect(() => {
     const fetchRate = async () => {
@@ -25,19 +23,18 @@ export const ConsolidatedDashboard = ({ trades }) => {
         setLoading(false)
       }
     }
-    
+
     fetchRate()
   }, [])
-
 
   // ✅ CALCULAR RESUMO CONSIDERANDO A MOEDA DE CADA TRADE
   useEffect(() => {
     if (trades.length > 0) {
       const marketSummary = {}
-      
+
       trades.forEach(trade => {
         const market = trade.market || 'forex'
-        
+
         if (!marketSummary[market]) {
           marketSummary[market] = {
             trades: 0,
@@ -48,117 +45,118 @@ export const ConsolidatedDashboard = ({ trades }) => {
             totalTaxBRL: 0
           }
         }
-        
+
+        const pnl = parseFloat(trade.pnl) || 0
+        const taxAmount = parseFloat(trade.taxes?.amount) || 0
+
         marketSummary[market].trades++
-        if (trade.pnl > 0) marketSummary[market].winningTrades++
-        
+        if (pnl > 0) marketSummary[market].winningTrades++
+
         // ✅ Separar por moeda original
         if (trade.currency === 'USD') {
-          marketSummary[market].totalPnlUSD += trade.pnl
-          marketSummary[market].totalTaxUSD += trade.taxes?.amount || 0
+          marketSummary[market].totalPnlUSD += pnl
+          marketSummary[market].totalTaxUSD += taxAmount
         } else {
-          marketSummary[market].totalPnlBRL += trade.pnl
-          marketSummary[market].totalTaxBRL += trade.taxes?.amount || 0
+          marketSummary[market].totalPnlBRL += pnl
+          marketSummary[market].totalTaxBRL += taxAmount
         }
       })
-      
+
       setSummary(marketSummary)
     }
   }, [trades, exchangeRate])
 
-
   // ✅ CONVERTER valores considerando moeda original
   const convertValue = (usdValue, brlValue) => {
+    const usd = parseFloat(usdValue) || 0
+    const brl = parseFloat(brlValue) || 0
+    
     if (selectedCurrency === 'USD') {
-      // Converter tudo para USD
-      return usdValue + (brlValue / exchangeRate)
+      return usd + (brl / exchangeRate)
     } else {
-      // Converter tudo para BRL
-      return (usdValue * exchangeRate) + brlValue
+      return (usd * exchangeRate) + brl
     }
   }
 
-
   const formatValue = (value) => {
-    return value.toLocaleString(selectedCurrency === 'BRL' ? 'pt-BR' : 'en-US', { 
-      minimumFractionDigits: 2, 
-      maximumFractionDigits: 2 
+    const num = parseFloat(value) || 0
+    return num.toLocaleString(selectedCurrency === 'BRL' ? 'pt-BR' : 'en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
     })
   }
 
-
   // ✅ Mostrar equivalente correto
   const formatEquivalent = (usdValue, brlValue) => {
+    const usd = parseFloat(usdValue) || 0
+    const brl = parseFloat(brlValue) || 0
+    
     if (selectedCurrency === 'USD') {
-      const totalBRL = (usdValue * exchangeRate) + brlValue
-      return `≈ R$ ${totalBRL.toLocaleString('pt-BR', { 
-        minimumFractionDigits: 2, 
-        maximumFractionDigits: 2 
+      const totalBRL = (usd * exchangeRate) + brl
+      return `≈ R$ ${totalBRL.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
       })}`
     } else {
-      const totalUSD = usdValue + (brlValue / exchangeRate)
-      return `≈ $ ${totalUSD.toLocaleString('en-US', { 
-        minimumFractionDigits: 2, 
-        maximumFractionDigits: 2 
+      const totalUSD = usd + (brl / exchangeRate)
+      return `≈ $ ${totalUSD.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
       })}`
     }
   }
-
 
   const getTotalPnl = () => {
     let totalUSD = 0
     let totalBRL = 0
     Object.values(summary).forEach(market => {
-      totalUSD += market.totalPnlUSD
-      totalBRL += market.totalPnlBRL
+      totalUSD += parseFloat(market.totalPnlUSD) || 0
+      totalBRL += parseFloat(market.totalPnlBRL) || 0
     })
     return convertValue(totalUSD, totalBRL)
   }
-
 
   const getTotalPnlRaw = () => {
     let totalUSD = 0
     let totalBRL = 0
     Object.values(summary).forEach(market => {
-      totalUSD += market.totalPnlUSD
-      totalBRL += market.totalPnlBRL
+      totalUSD += parseFloat(market.totalPnlUSD) || 0
+      totalBRL += parseFloat(market.totalPnlBRL) || 0
     })
     return { usd: totalUSD, brl: totalBRL }
   }
-
 
   const getTotalTax = () => {
     let totalUSD = 0
     let totalBRL = 0
     Object.values(summary).forEach(market => {
-      totalUSD += market.totalTaxUSD
-      totalBRL += market.totalTaxBRL
+      totalUSD += parseFloat(market.totalTaxUSD) || 0
+      totalBRL += parseFloat(market.totalTaxBRL) || 0
     })
     return convertValue(totalUSD, totalBRL)
   }
-
 
   const getTotalTaxRaw = () => {
     let totalUSD = 0
     let totalBRL = 0
     Object.values(summary).forEach(market => {
-      totalUSD += market.totalTaxUSD
-      totalBRL += market.totalTaxBRL
+      totalUSD += parseFloat(market.totalTaxUSD) || 0
+      totalBRL += parseFloat(market.totalTaxBRL) || 0
     })
     return { usd: totalUSD, brl: totalBRL }
   }
 
-
   const getNetProfit = () => {
-    return getTotalPnl() - getTotalTax()
+    const pnl = getTotalPnl()
+    const tax = getTotalTax()
+    return pnl - tax
   }
-
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-white">Dashboard Consolidado</h1>
-        
+
         <div className="flex gap-2 bg-zinc-800 rounded-lg p-1">
           <button
             onClick={() => setSelectedCurrency('BRL')}
@@ -183,7 +181,6 @@ export const ConsolidatedDashboard = ({ trades }) => {
         </div>
       </div>
 
-
       {!loading && (
         <Card className="bg-blue-900/20 border-blue-500/50">
           <div className="flex items-center gap-2 text-sm text-blue-300">
@@ -192,7 +189,6 @@ export const ConsolidatedDashboard = ({ trades }) => {
           </div>
         </Card>
       )}
-
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
@@ -208,7 +204,6 @@ export const ConsolidatedDashboard = ({ trades }) => {
           </div>
         </Card>
 
-
         <Card>
           <div className="text-center">
             <p className="text-zinc-400 text-sm mb-2">Impostos</p>
@@ -223,7 +218,6 @@ export const ConsolidatedDashboard = ({ trades }) => {
             </p>
           </div>
         </Card>
-
 
         <Card>
           <div className="text-center">
@@ -242,21 +236,17 @@ export const ConsolidatedDashboard = ({ trades }) => {
         </Card>
       </div>
 
-
       <Card>
         <h2 className="text-xl font-bold text-white mb-4">📊 Performance por Mercado</h2>
-
 
         <div className="space-y-3">
           {MARKETS.map(market => {
             const data = summary[market.value]
             if (!data || data.trades === 0) return null
 
-
             const winRate = ((data.winningTrades / data.trades) * 100).toFixed(1)
             const pnl = convertValue(data.totalPnlUSD, data.totalPnlBRL)
             const tax = convertValue(data.totalTaxUSD, data.totalTaxBRL)
-
 
             return (
               <div key={market.value} className="bg-zinc-800 rounded-lg p-4">
@@ -267,7 +257,6 @@ export const ConsolidatedDashboard = ({ trades }) => {
                   </div>
                   <span className="text-zinc-400 text-sm">{data.trades} trades</span>
                 </div>
-
 
                 <div className="grid grid-cols-3 gap-4 mt-3">
                   <div>
@@ -280,7 +269,6 @@ export const ConsolidatedDashboard = ({ trades }) => {
                     </p>
                   </div>
 
-
                   <div>
                     <p className="text-xs text-zinc-500">Imposto</p>
                     <p className="text-lg font-bold text-red-400">
@@ -290,7 +278,6 @@ export const ConsolidatedDashboard = ({ trades }) => {
                       {formatEquivalent(data.totalTaxUSD, data.totalTaxBRL)}
                     </p>
                   </div>
-
 
                   <div>
                     <p className="text-xs text-zinc-500">Win Rate</p>
