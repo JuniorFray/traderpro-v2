@@ -77,11 +77,13 @@ export const calculateMetrics = (trades = [], period = 'all') => {
     .filter(t => t.pnl > 0)
     .reduce((sum, t) => sum + t.pnl, 0);
 
-  const grossLoss = sortedTrades
-    .filter(t => t.pnl < 0)
-    .reduce((sum, t) => sum + t.pnl, 0);
+  const grossLoss = Math.abs(
+    sortedTrades
+      .filter(t => t.pnl < 0)
+      .reduce((sum, t) => sum + t.pnl, 0)
+  );
 
-  const netProfit = grossProfit + grossLoss;
+  const netProfit = grossProfit - grossLoss;
 
   // Médias
   const avgWin = winningTrades > 0 ? grossProfit / winningTrades : 0;
@@ -93,22 +95,22 @@ export const calculateMetrics = (trades = [], period = 'all') => {
     : 0;
 
   const maxLoss = sortedTrades.length > 0
-    ? Math.min(...sortedTrades.map(t => t.pnl))
+    ? Math.abs(Math.min(...sortedTrades.map(t => t.pnl)))
     : 0;
 
   // Profit Factor
-  const profitFactor = grossLoss !== 0
-    ? Math.abs(grossProfit / grossLoss)
+  const profitFactor = grossLoss > 0
+    ? grossProfit / grossLoss
     : grossProfit > 0 ? Infinity : 0;
 
   // Expectativa
   const expectancy = totalTrades > 0
-    ? netProfit / totalTrades
+    ? (grossProfit - grossLoss) / totalTrades
     : 0;
 
-  // Custos (usar fees OU commission+swap)
-  const totalCommissions = sortedTrades.reduce((sum, t) =>
-    sum + (t.commission || t.fees || 0), 0
+  // Custos (converter para valores absolutos)
+  const totalCommissions = Math.abs(
+    sortedTrades.reduce((sum, t) => sum + (t.commission || t.fees || 0), 0)
   );
 
   const totalSwaps = sortedTrades.reduce((sum, t) =>

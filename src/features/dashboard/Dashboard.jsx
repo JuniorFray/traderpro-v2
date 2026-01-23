@@ -104,12 +104,11 @@ export const Dashboard = () => {
       .sort((a, b) => new Date(a.date) - new Date(b.date))
       .forEach(trade => {
         const isUSD = trade.currency === 'USD';
-        const pnl = trade.pnl || 0;
-        const commission = trade.commission || 0;
-        const swap = trade.swap || 0;
+        const pnl = parseFloat(trade.pnl) || 0;
+        const commission = Math.abs(parseFloat(trade.commission) || 0);
+        const swap = parseFloat(trade.swap) || 0;
 
         if (isUSD) {
-          netProfitUSD += pnl;
           totalCommissionsUSD += commission;
           totalSwapsUSD += swap;
           cumulativeEquityUSD += pnl;
@@ -120,13 +119,12 @@ export const Dashboard = () => {
             if (pnl > maxWinUSD) maxWinUSD = pnl;
             winningTrades++;
           } else if (pnl < 0) {
-            grossLossUSD += pnl;
-            lossesUSD.push(pnl);
-            if (pnl < maxLossUSD) maxLossUSD = pnl;
+            grossLossUSD += Math.abs(pnl);
+            lossesUSD.push(Math.abs(pnl));
+            if (Math.abs(pnl) > maxLossUSD) maxLossUSD = Math.abs(pnl);
             losingTrades++;
           }
         } else {
-          netProfitBRL += pnl;
           totalCommissionsBRL += commission;
           totalSwapsBRL += swap;
           cumulativeEquityBRL += pnl;
@@ -137,9 +135,9 @@ export const Dashboard = () => {
             if (pnl > maxWinBRL) maxWinBRL = pnl;
             winningTrades++;
           } else if (pnl < 0) {
-            grossLossBRL += pnl;
-            lossesBRL.push(pnl);
-            if (pnl < maxLossBRL) maxLossBRL = pnl;
+            grossLossBRL += Math.abs(pnl);
+            lossesBRL.push(Math.abs(pnl));
+            if (Math.abs(pnl) > maxLossBRL) maxLossBRL = Math.abs(pnl);
             losingTrades++;
           }
         }
@@ -155,6 +153,10 @@ export const Dashboard = () => {
         });
       });
 
+    // ✅ CALCULAR NET PROFIT CORRETAMENTE
+    netProfitUSD = grossProfitUSD - grossLossUSD;
+    netProfitBRL = grossProfitBRL - grossLossBRL;
+
     const avgWinUSD = winsUSD.length > 0 ? winsUSD.reduce((a, b) => a + b, 0) / winsUSD.length : 0;
     const avgWinBRL = winsBRL.length > 0 ? winsBRL.reduce((a, b) => a + b, 0) / winsBRL.length : 0;
     const avgLossUSD = lossesUSD.length > 0 ? lossesUSD.reduce((a, b) => a + b, 0) / lossesUSD.length : 0;
@@ -163,7 +165,7 @@ export const Dashboard = () => {
     const winRate = filteredTrades.length > 0 ? (winningTrades / filteredTrades.length) * 100 : 0;
     
     const totalGrossProfit = grossProfitUSD + (grossProfitBRL / exchangeRate);
-    const totalGrossLoss = Math.abs(grossLossUSD + (grossLossBRL / exchangeRate));
+    const totalGrossLoss = grossLossUSD + (grossLossBRL / exchangeRate);
     const profitFactor = totalGrossLoss > 0 ? totalGrossProfit / totalGrossLoss : 0;
 
     return {
