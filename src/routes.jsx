@@ -1,4 +1,4 @@
-﻿import { IntegrationsPage } from "./features/integrations/IntegrationsPage"
+import { IntegrationsPage } from "./features/integrations/IntegrationsPage"
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './features/auth/AuthContext'
 import { MainLayout } from './components/layout/MainLayout'
@@ -13,6 +13,7 @@ import { Charts } from './features/charts/Charts'
 import { Reports } from './features/reports/Reports'
 import { Settings } from './features/settings/Settings'
 import { Tools } from './features/tools/Tools'
+import { CapitalPage } from './features/capital/CapitalPage'
 import { MarketsPage } from './features/markets/MarketsPage'
 import { SupportPage } from './features/support/SupportPage'
 import { Admin } from './features/admin/Admin'
@@ -48,7 +49,7 @@ export const CustomerRoutes = () => {
         <Route path="charts" element={<ProRoute><Charts /></ProRoute>} />
         <Route path="reports" element={<Reports />} />
         <Route path="settings" element={<Settings />} />
-        <Route path="tools" element={<Tools />} />
+        <Route path="tools" element={<Tools />} />`n            <Route path="capital" element={<CapitalPage />} />
 <Route path="integrations" element={<IntegrationsPage />} />
         <Route path="markets" element={<MarketsPage />} />
         <Route path="support" element={<SupportPage />} />
