@@ -1,241 +1,132 @@
-﻿// src/utils/universalTradeParser.js - VERSÃO CORRIGIDA PARA MT5
-import * as XLSX from 'xlsx';
-
+﻿import * as XLSX from 'xlsx';
 
 const FIELD_ALIASES = {
-  asset: ['ativo', 'asset', 'símbolo', 'symbol', 'ticket', 'instrument', 'simbolo'],
-  date: ['data', 'date', 'time', 'datetime', 'abertura', 'horario', 'horário'],
+  asset: ['ativo', 'asset', 'simbolo', 'symbol', 'ticket', 'instrument'],
+  date: ['data', 'date', 'time', 'datetime', 'abertura', 'horario'],
   market: ['mercado', 'market', 'type', 'categoria'],
   currency: ['moeda', 'currency'],
   quantity: ['quantidade', 'quantity', 'volume', 'lotes', 'lots', 'size'],
-  entryPrice: ['preço_entrada', 'entry_price', 'entrada', 'entry', 'preço_abertura', 'open_price', 'preco', 'precoentrada'],
-  exitPrice: ['preço_saída', 'exit_price', 'saída', 'exit', 'preço_fechamento', 'close_price', 'precosaida'],
-  entryTime: ['hora_entrada', 'entry_time', 'horário_entrada'],
-  exitTime: ['hora_saída', 'exit_time', 'horário_saída'],
-  pnl: ['resultado', 'pnl', 'profit', 'lucro', 'p&l', 'gain', 'lucro'],
-  commission: ['corretagem', 'commission', 'taxas', 'fees', 'custos', 'comissao', 'comissão'],
+  entryPrice: ['preco_entrada', 'entry_price', 'entrada', 'entry', 'open_price', 'preco'],
+  exitPrice: ['preco_saida', 'exit_price', 'saida', 'exit', 'close_price'],
+  entryTime: ['hora_entrada', 'entry_time'],
+  exitTime: ['hora_saida', 'exit_time'],
+  pnl: ['resultado', 'pnl', 'profit', 'lucro', 'gain'],
+  commission: ['corretagem', 'commission', 'taxas', 'fees', 'custos', 'comissao'],
   swap: ['swap', 'rollover', 'overnight'],
-  strategy: ['estratégia', 'strategy', 'setup', 'estrategia'],
-  notes: ['observações', 'notes', 'comentários', 'comments', 'anotações', 'observacoes', 'comentario']
+  strategy: ['estrategia', 'strategy', 'setup'],
+  notes: ['observacoes', 'notes', 'comentarios', 'comments']
 };
-
 
 function detectMarket(asset) {
   if (!asset) return 'forex';
-  
-  // Remover sufixo .h (mesa proprietária)
-  const assetClean = asset.toUpperCase().replace('.H', '').replace('.h', '');
-  
-  // ✅ Forex: pares de moedas (EURUSD, GBPUSD, etc)
-  if (assetClean.match(/^(EUR|USD|GBP|JPY|AUD|CAD|CHF|NZD|XAU|XAG|BTC|ETH)/)) {
-    return 'forex';
-  }
-  
-  // ✅ Qualquer ativo com 6 letras (padrão forex)
-  if (assetClean.match(/^[A-Z]{6,8}$/)) {
-    return 'forex';
-  }
-  
-  // B3 Futuros
-  if (assetClean.includes('FUT') || assetClean.match(/^(WIN|WDO|IND|DOL)/)) {
-    return 'b3daytrade';
-  }
-  
-  // B3 Ações
-  if (assetClean.match(/^[A-Z]{4}[0-9]/)) {
-    return 'b3swing';
-  }
-  
-  // Padrão: se tem .h ou não detectou, é forex
-  if (asset.includes('.h') || asset.includes('.H')) {
-    return 'forex';
-  }
-  
-  return 'forex'; // Padrão forex
+  const clean = asset.toUpperCase().replace('.H', '');
+  if (clean.match(/^(EUR|USD|GBP|JPY|AUD|CAD|CHF|NZD|XAU|XAG|BTC|ETH)/)) return 'forex';
+  if (clean.match(/^[A-Z]{6,8}$/)) return 'forex';
+  if (clean.includes('FUT') || clean.match(/^(WIN|WDO|IND|DOL)/)) return 'b3daytrade';
+  if (clean.match(/^[A-Z]{4}[0-9]/)) return 'b3swing';
+  return 'forex';
 }
-
-
 
 function detectCurrency(market) {
-  const currencyMap = {
-    'b3daytrade': 'BRL',
-    'b3swing': 'BRL',
-    'b3options': 'BRL',
-    'forex': 'USD'
-  };
-  return currencyMap[market] || 'USD';
+  const map = { b3daytrade: 'BRL', b3swing: 'BRL', b3options: 'BRL', forex: 'USD' };
+  return map[market] || 'USD';
 }
-
 
 function calculateTax(market, pnl) {
-  const taxRates = {
-    'b3daytrade': 0.20,
-    'b3swing': 0.15,
-    'b3options': 0.15,
-    'forex': 0.15,
-    'crypto': 0.15
-  };
-  const rate = taxRates[market] || 0.15;
+  const rates = { b3daytrade: 0.20, b3swing: 0.15, b3options: 0.15, forex: 0.15, crypto: 0.15 };
+  const rate = rates[market] || 0.15;
   const currency = detectCurrency(market);
-  
-  if (pnl <= 0) {
-    return { rate, amount: 0, category: market, dueDate: null, isPaid: false, exempt: false, currency };
-  }
-  
-  return {
-    rate,
-    amount: parseFloat((pnl * rate).toFixed(2)),
-    category: market,
-    dueDate: null,
-    isPaid: false,
-    exempt: false,
-    currency
-  };
+  if (pnl <= 0) return { rate, amount: 0, category: market, dueDate: null, isPaid: false, exempt: false, currency };
+  return { rate, amount: parseFloat((pnl * rate).toFixed(2)), category: market, dueDate: null, isPaid: false, exempt: false, currency };
 }
 
-
-// ✅ CORRIGIDO: Remove espaços de valores como "- 5.00"
 function parseNumber(value) {
   if (value === null || value === undefined || value === '') return null;
-  
-  // Se já é número, retorna direto
   if (typeof value === 'number') return value;
-  
-  // Remover TODOS os espaços (MT5 usa "- 5.00")
-  const cleaned = String(value)
-    .trim()
-    .replace(/\s+/g, '') // Remove espaços
-    .replace(/R\$/g, '')
-    .replace(/[€£¥]/g, '');
-  
-  // Detectar formato: ponto ou vírgula como decimal
+  const cleaned = String(value).trim().replace(/\s+/g, '').replace(/R\$/g, '');
   const hasComma = cleaned.includes(',');
   const hasDot = cleaned.includes('.');
-  const lastComma = cleaned.lastIndexOf(',');
-  const lastDot = cleaned.lastIndexOf('.');
-  
   let normalized = cleaned;
-  
-  if (hasDot && (!hasComma || lastDot > lastComma)) {
-    // Formato: 1.234,56 ou 1234.56
-    normalized = cleaned.replace(/,/g, '');
-  } else if (hasComma && (!hasDot || lastComma > lastDot)) {
-    // Formato: 1,234.56 ou 1234,56
-    normalized = cleaned.replace(/\./g, '').replace(',', '.');
-  } else if (hasComma && !hasDot) {
+  if (hasDot && hasComma) {
+    normalized = cleaned.lastIndexOf('.') > cleaned.lastIndexOf(',') ? cleaned.replace(/,/g, '') : cleaned.replace(/\./g, '').replace(',', '.');
+  } else if (hasComma) {
     normalized = cleaned.replace(',', '.');
-  } else if (hasDot && !hasComma) {
-    const afterDot = cleaned.split('.')[1];
-    if (afterDot && afterDot.length <= 2) {
-      normalized = cleaned;
-    } else {
-      normalized = cleaned.replace(/\./g, '');
-    }
   }
-  
   const num = parseFloat(normalized);
   return isNaN(num) ? null : num;
 }
 
-
-// ✅ CORRIGIDO: Reconhece formato MT5 "2025.04.21 02:45:07"
 function parseDate(value) {
   if (!value) return null;
   if (value instanceof Date) return value.toISOString().split('T')[0];
-  
   const str = String(value).trim();
   
-  // ISO 8601
+  // Formato MT5: "2025.04.21 02:45:07"
+  if (str.match(/^\d{4}\.\d{2}\.\d{2}/)) {
+    const parts = str.split(' ')[0].split('.');
+    return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+  }
+  
+  // ISO: "2025-04-21"
   if (str.match(/^\d{4}-\d{2}-\d{2}/)) return str.split('T')[0];
   
-  // ✅ FORMATO MT5: "2025.04.21 02:45:07"
-  if (str.match(/^\d{4}\.\d{2}\.\d{2}/)) {
-    const cleanDate = str.split(' ')[0]; // Remove a hora
-    const [year, month, day] = cleanDate.split('.');
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-  }
-  
-  // DD/MM/YYYY
+  // BR: "21/04/2025"
   if (str.match(/^\d{2}\/\d{2}\/\d{4}/)) {
-    const [day, month, year] = str.split('/');
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    const parts = str.split('/');
+    return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
   }
-  
-  // DD-MM-YYYY ou DD.MM.YYYY
-  if (str.match(/^\d{1,2}[\-\.\/]\d{1,2}[\-\.\/]\d{4}/)) {
-    const parts = str.split(/[\-\.\/]/);
-    if (parts[0] > 12) {
-      return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-    }
-    return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
-  }
-  
-  // Excel serial date
-  const num = parseFloat(value);
-  if (!isNaN(num) && num > 40000) {
-    const date = new Date((num - 25569) * 86400 * 1000);
-    return date.toISOString().split('T')[0];
-  }
-  
-  const parsed = new Date(value);
-  if (!isNaN(parsed.getTime())) return parsed.toISOString().split('T')[0];
   
   return null;
 }
 
-
 export function parseUniversalTrade(row, headers) {
   if (!row || !headers) return null;
   
-  const normalizedHeaders = headers.map(h => 
-    h.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_')
+  const normalized = headers.map(h => 
+    String(h).toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, '_')
   );
   
-  const getValue = (field) => {
+  const getValue = (field, columnIndex) => {
+    // Se columnIndex for fornecido, use diretamente
+    if (columnIndex !== undefined && row[columnIndex]) {
+      return row[columnIndex];
+    }
+    
     const aliases = FIELD_ALIASES[field] || [];
     for (const alias of aliases) {
-      const index = normalizedHeaders.findIndex(h => 
-        h.includes(alias.toLowerCase().replace(/\s+/g, '_'))
-      );
+      const cleanAlias = alias.toLowerCase().replace(/\s+/g, '_');
+      const index = normalized.findIndex(h => h.includes(cleanAlias));
       if (index !== -1 && row[index]) return row[index];
     }
     return null;
   };
   
-  const asset = getValue('asset') || '';
-  const date = parseDate(getValue('date'));
+  // MT5 tem 2 colunas "Horário": entrada (índice 0) e saída (índice 8)
+  const entryDateCol = normalized[0] && normalized[0].includes('horario') ? 0 : undefined;
+  const exitDateCol = normalized[8] && normalized[8].includes('horario') ? 8 : undefined;
+  
+  const asset = getValue('asset');
+  const entryDate = entryDateCol !== undefined ? parseDate(row[entryDateCol]) : parseDate(getValue('date'));
   const pnl = parseNumber(getValue('pnl'));
   
-  if (!asset || !date || pnl === null) return null;
+  if (!asset || !entryDate || pnl === null) return null;
   
-  const marketFromFile = getValue('market');
-  const currencyFromFile = getValue('currency');
-  
-  let market;
-  let currency;
-  
-  if (marketFromFile) {
-    market = marketFromFile.toLowerCase();
-  } else {
-    market = detectMarket(asset);
-  }
-  
-  if (currencyFromFile) {
-    currency = currencyFromFile.toUpperCase();
-  } else {
-    currency = detectCurrency(market);
-  }
+  const market = getValue('market') ? getValue('market').toLowerCase() : detectMarket(asset);
+  const currency = getValue('currency') ? getValue('currency').toUpperCase() : detectCurrency(market);
   
   return {
     asset,
-    date,
+    date: entryDate,
     market,
     currency,
     quantity: parseNumber(getValue('quantity')) || 1,
     entryPrice: parseNumber(getValue('entryPrice')) || 0,
     exitPrice: parseNumber(getValue('exitPrice')) || 0,
-    entryTime: getValue('entryTime') || '',
-    exitTime: getValue('exitTime') || '',
+    entryTime: entryDateCol !== undefined ? String(row[entryDateCol]).split(' ')[1] || '' : getValue('entryTime') || '',
+    exitTime: exitDateCol !== undefined ? String(row[exitDateCol]).split(' ')[1] || '' : getValue('exitTime') || '',
     pnl,
     commission: parseNumber(getValue('commission')) || 0,
     swap: parseNumber(getValue('swap')) || 0,
@@ -245,8 +136,6 @@ export function parseUniversalTrade(row, headers) {
   };
 }
 
-
-// ✅ CORRIGIDO: Detecta seção "Posições" do MT5
 async function readFileData(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -258,7 +147,7 @@ async function readFileData(file) {
         const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
         resolve(jsonData);
       } catch (error) {
-        reject(new Error('Erro ao ler arquivo: ' + error.message));
+        reject(new Error('Erro ao ler arquivo'));
       }
     };
     reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
@@ -266,90 +155,89 @@ async function readFileData(file) {
   });
 }
 
-
-// ✅ CORRIGIDO: Processa seção "Posições" do MT5
 export async function parseTradesFile(fileOrData, existingTrades = []) {
-  let data;
-  
-  if (fileOrData instanceof File) {
-    data = await readFileData(fileOrData);
-  } else {
-    data = fileOrData;
-  }
-  
+  let data = fileOrData instanceof File ? await readFileData(fileOrData) : fileOrData;
   const trades = [];
   const errors = [];
   const duplicates = [];
   
-  if (!data || data.length < 2) {
-    throw new Error('Arquivo vazio ou inválido');
-  }
+  if (!data || data.length < 2) throw new Error('Arquivo vazio');
   
-  // ✅ DETECTAR seção "Posições" do MT5
+  // Procurar linha com "Posições"
   let startIndex = 0;
-  for (let i = 0; i < data.length; i++) {
-    const firstCell = String(data[i][0] || '').toLowerCase();
-    if (firstCell.includes('posições') || firstCell.includes('posicoes') || firstCell.includes('position')) {
-      startIndex = i + 1; // Próxima linha é o header
+  for (let i = 0; i < Math.min(data.length, 20); i++) {
+    const cell = String(data[i][0] || '').toLowerCase();
+    if (cell.includes('posicoes') || cell.includes('posições') || cell.includes('position')) {
+      startIndex = i + 1; // Headers na próxima linha
       break;
     }
   }
   
+  if (startIndex >= data.length - 1) {
+    throw new Error('Formato de arquivo não reconhecido');
+  }
+  
   const headers = data[startIndex];
   
-  // ✅ Processar linhas da seção "Posições"
+  // Debug
+  console.log('🔍 Headers encontrados:', headers);
+  console.log('🔍 Primeira linha de dados:', data[startIndex + 1]);
+  
   for (let i = startIndex + 1; i < data.length; i++) {
     const row = data[i];
+    if (!row || row.every(c => !c)) continue;
     
-    // Pular linhas vazias
-    if (!row || row.every(cell => !cell)) continue;
-    
-    // ✅ PARAR se encontrar outra seção (Ordens, Transações)
-    const firstCell = String(row[0] || '').toLowerCase();
-    if (firstCell.includes('ordens') || firstCell.includes('transações') || firstCell.includes('transacoes') || firstCell.includes('orders') || firstCell.includes('deals')) {
-      break; // Fim da seção Posições
-    }
+    // Parar em "Ordens" ou "Ofertas"
+    const cell = String(row[0] || '').toLowerCase();
+    if (cell.includes('ordens') || cell.includes('orders') || cell.includes('ofertas')) break;
     
     try {
       const trade = parseUniversalTrade(row, headers);
       if (trade) {
-        const isDuplicate = existingTrades.some(existing =>
-          existing.asset === trade.asset &&
-          existing.date === trade.date &&
-          Math.abs(existing.pnl - trade.pnl) < 0.01
+        const isDup = existingTrades.some(e => 
+          e.asset === trade.asset && 
+          e.date === trade.date && 
+          Math.abs(e.pnl - trade.pnl) < 0.01
         );
-        
-        if (isDuplicate) {
-          duplicates.push({ ...trade, index: i });
+        if (isDup) {
+          duplicates.push(trade);
         } else {
           trades.push(trade);
         }
       }
     } catch (error) {
-      errors.push({ line: i + 1, error: error.message, data: row });
+      errors.push({ line: i + 1, error: error.message });
     }
   }
   
-  return { trades, errors, duplicates, total: data.length - 1 };
+  console.log(`✅ ${trades.length} trades válidos | ⚠️ ${duplicates.length} duplicados | ❌ ${errors.length} erros`);
+  
+  return { trades, errors, duplicates, total: data.length - startIndex - 1 };
 }
 
-
-export function validateTrades(trades) {
-  const errors = [];
+export function validateTrades(trades, existingTrades = []) {
   const valid = [];
   const invalid = [];
+  const duplicates = [];
+  const errors = [];
   
   trades.forEach((trade, index) => {
-    const tradeErrors = [];
-    if (!trade.asset) tradeErrors.push({ field: 'asset', message: 'Ativo é obrigatório' });
-    if (!trade.date) tradeErrors.push({ field: 'date', message: 'Data é obrigatória' });
-    if (trade.pnl === null || trade.pnl === undefined) {
-      tradeErrors.push({ field: 'pnl', message: 'Resultado (PnL) é obrigatório' });
-    }
+    const errs = [];
+    if (!trade.asset) errs.push({ field: 'asset', message: 'Ativo obrigatório' });
+    if (!trade.date) errs.push({ field: 'date', message: 'Data obrigatória' });
+    if (trade.pnl === null) errs.push({ field: 'pnl', message: 'PnL obrigatório' });
     
-    if (tradeErrors.length > 0) {
-      errors.push({ line: index + 1, errors: tradeErrors });
+    const isDup = existingTrades.some(e => 
+      e.asset === trade.asset && 
+      e.date === trade.date && 
+      Math.abs(e.pnl - trade.pnl) < 0.01
+    );
+    
+    if (errs.length > 0) {
+      errors.push({ line: index + 1, errors: errs });
       invalid.push(trade);
+    } else if (isDup) {
+      duplicates.push(trade);
     } else {
       valid.push(trade);
     }
@@ -358,10 +246,11 @@ export function validateTrades(trades) {
   return {
     valid,
     invalid,
+    duplicates,
     errors,
     validCount: valid.length,
     invalidCount: invalid.length,
-    total: trades.length,
-    duplicateCount: 0
+    duplicateCount: duplicates.length,
+    total: trades.length
   };
 }

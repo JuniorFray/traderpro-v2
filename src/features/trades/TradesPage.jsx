@@ -22,7 +22,6 @@ export const TradesPage = () => {
     result: "all"
   })
 
-  // Aplicar filtros
   const filteredTrades = trades.filter(trade => {
     if (filters.startDate && trade.date < filters.startDate) return false
     if (filters.endDate && trade.date > filters.endDate) return false
@@ -35,11 +34,9 @@ export const TradesPage = () => {
     return true
   })
 
-  // Calcular métricas dos trades filtrados COM CONVERSÃO PARA BRL
   const totalPnLBRL = filteredTrades.reduce((sum, t) => {
     const pnl = parseFloat(t.pnl) || 0;
-    // Converter USD para BRL se for forex
-    const pnlBRL = t.market === 'forex' ? pnl * 5.45 : pnl;
+    const pnlBRL = t.market === "forex" ? pnl * 5.45 : pnl;
     return sum + pnlBRL;
   }, 0);
 
@@ -47,7 +44,7 @@ export const TradesPage = () => {
     total: filteredTrades.length,
     wins: filteredTrades.filter(t => t.pnl > 0).length,
     losses: filteredTrades.filter(t => t.pnl < 0).length,
-    totalPnL: totalPnLBRL  // Já em BRL
+    totalPnL: totalPnLBRL
   }
 
   const handleSubmit = async (tradeData) => {
@@ -96,7 +93,6 @@ export const TradesPage = () => {
 
   return (
     <div className="space-y-4 md:space-y-6 p-3 md:p-0">
-      {/* Header Responsivo */}
       <div className="space-y-3">
         <h1 className="text-2xl md:text-3xl font-bold text-white">Trades</h1>
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
@@ -124,7 +120,6 @@ export const TradesPage = () => {
         </div>
       </div>
 
-      {/* Métricas Responsivas */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <Card className="p-3 md:p-4">
           <div className="text-xs md:text-sm text-zinc-400 mb-1">Total</div>
@@ -141,15 +136,13 @@ export const TradesPage = () => {
         <Card className="p-3 md:p-4 col-span-2 md:col-span-1">
           <div className="text-xs md:text-sm text-zinc-400 mb-1">P&L Total</div>
           <div className={`text-xl md:text-2xl font-bold ${metrics.totalPnL >= 0 ? "text-green-500" : "text-red-500"}`}>
-            {formatCurrency(metrics.totalPnL, 'BRL')}
+            {formatCurrency(metrics.totalPnL, "BRL")}
           </div>
         </Card>
       </div>
 
-      {/* Filtros */}
       <TradeFilters onFilterChange={setFilters} />
 
-      {/* Formulário */}
       {showForm && (
         <TradeForm
           onSubmit={handleSubmit}
@@ -158,7 +151,6 @@ export const TradesPage = () => {
         />
       )}
 
-      {/* Lista de Trades Responsiva */}
       <Card className="p-3 md:p-4">
         <h2 className="text-lg md:text-xl font-bold text-white mb-3 md:mb-4">
           Histórico ({filteredTrades.length})
@@ -175,9 +167,7 @@ export const TradesPage = () => {
                 key={trade.id}
                 className="p-3 md:p-4 bg-zinc-800 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-colors"
               >
-                {/* Layout Mobile: Tudo empilhado */}
                 <div className="flex flex-col gap-3">
-                  {/* Linha 1: Asset e Data */}
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
@@ -191,18 +181,15 @@ export const TradesPage = () => {
                       )}
                     </div>
                     
-                    {/* P&L - Destaque no Mobile */}
                     <div className={`text-xl md:text-2xl font-bold whitespace-nowrap ml-2 ${trade.pnl >= 0 ? "text-green-500" : "text-red-500"}`}>
                       {formatCurrency(trade.pnl, trade.currency, trade.market)}
                     </div>
                   </div>
 
-                  {/* Linha 2: Notas (se existir) */}
                   {trade.notes && (
                     <p className="text-sm text-zinc-500 line-clamp-2">{trade.notes}</p>
                   )}
 
-                  {/* Linha 3: Botões de Ação */}
                   <div className="flex gap-2 pt-2 border-t border-zinc-700">
                     <Button
                       variant="outline"
@@ -228,11 +215,11 @@ export const TradesPage = () => {
         )}
       </Card>
 
-      {/* Modais */}
       {showImportModal && (
         <ImportMT5Modal
           onClose={() => setShowImportModal(false)}
           onImport={importTrades}
+          existingTrades={trades}
         />
       )}
 
