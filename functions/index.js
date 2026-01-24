@@ -1,137 +1,161 @@
-﻿const {onRequest} = require("firebase-functions/v2/https");
+﻿const { onRequest } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const logger = require("firebase-functions/logger");
 
 // Inicializar Firebase Admin
 admin.initializeApp();
 
+// ✅ FUNÇÃO PARA DETECTAR MERCADO (igual ao frontend)
+function detectMarket(asset) {
+  if (!asset) return 'forex';
+  
+  // Limpar sufixos
+  const clean = asset.toUpperCase()
+    .replace(/\.H$/i, '')
+    .replace(/\.h$/i, '')
+    .trim();
+  
+  console.log('🔍 [Cloud Function] Detectando mercado para:', clean);
+  
+  // ✅ PRIORIDADE 1: CRYPTO = FOREX (ANTES DE TUDO!)
+  if (clean.match(/^BTC|^ETH|^LTC|^XRP|^DOGE|^ADA|^SOL|^DOT|^MATIC|^AVAX|^LINK/)) {
+    console.log('✅ CRYPTO detectado:', clean, '→ FOREX');
+    return 'forex';
+  }
+  
+  // ✅ PRIORIDADE 2: B3 Futuros (WIN, WDO, etc)
+  if (clean.match(/^WIN|^WDO|^IND|^DOL/) || clean.includes('FUT')) {
+    console.log('✅ FUTURO B3 detectado:', clean, '→ B3DAYTRADE');
+    return 'b3daytrade';
+  }
+  
+  // ✅ PRIORIDADE 3: B3 Ações (4 letras + número)
+  if (clean.match(/^[A-Z]{4}\d/)) {
+    console.log('✅ AÇÃO B3 detectada:', clean, '→ B3SWING');
+    return 'b3swing';
+  }
+  
+  // ✅ PRIORIDADE 4: Metais preciosos
+  if (clean.match(/^XAU|^XAG|^GOLD|^SILVER/)) {
+    console.log('✅ METAL detectado:', clean, '→ FOREX');
+    return 'forex';
+  }
+  
+  // ✅ PRIORIDADE 5: Pares forex clássicos (EURUSD, GBPJPY, etc)
+  if (clean.match(/^(EUR|USD|GBP|JPY|AUD|CAD|CHF|NZD)[A-Z]{3}$/)) {
+    console.log('✅ PAR FOREX detectado:', clean, '→ FOREX');
+    return 'forex';
+  }
+  
+  // ✅ PRIORIDADE 6: Forex genérico (6-8 letras)
+  if (clean.match(/^[A-Z]{6,8}$/)) {
+    console.log('✅ FOREX GENÉRICO detectado:', clean, '→ FOREX');
+    return 'forex';
+  }
+  
+  console.log('⚠️ Nenhum match, retornando FOREX padrão');
+  return 'forex'; // Padrão
+}
+
+
+function detectCurrency(market) {
+  const map = { 
+    b3daytrade: 'BRL', 
+    b3swing: 'BRL', 
+    b3options: 'BRL', 
+    forex: 'USD'
+  };
+  return map[market] || 'USD';
+}
+
 /**
  * Endpoint para sincronizar trades do MT5
- * POST /syncMT5
- * Body: { apiKey, trades: [...] }
+ * POST /sync-mt5
+ * Body: { userId, trades: [...] }
  */
-exports.syncMT5 = onRequest({
-  cors: true,
-  maxInstances: 10,
-}, async (req, res) => {
-  // Apenas aceitar POST
-  if (req.method !== "POST") {
-    return res.status(405).json({error: "Método não permitido"});
-  }
-
-  try {
-    const {apiKey, trades} = req.body;
-
-    // Validações básicas
-    if (!apiKey) {
-      return res.status(400).json({error: "apiKey é obrigatório"});
+exports.syncMT5 = onRequest(
+  {
+    cors: true,
+    maxInstances: 10,
+  },
+  async (req, res) => {
+    // Apenas aceitar POST
+    if (req.method !== "POST") {
+      return res.status(405).json({ error: "Método não permitido" });
     }
 
-    if (!Array.isArray(trades)) {
-      return res.status(400).json({error: "trades deve ser um array"});
-    }
+    try {
+      const { userId, trades, apiKey } = req.body;
 
-    logger.info("Validando API Key...");
-
-    // Buscar usuário pela API Key
-    const db = admin.firestore();
-    const usersRef = db.collection("artifacts").doc("trade-journal-public").collection("users");
-    const querySnapshot = await usersRef.where("apiKey", "==", apiKey).limit(1).get();
-
-    if (querySnapshot.empty) {
-      logger.warn("API Key inválida:", apiKey);
-      return res.status(401).json({error: "API Key inválida"});
-    }
-
-    // Pegar userId do documento encontrado
-    const userDoc = querySnapshot.docs[0];
-    const userId = userDoc.id;
-
-    logger.info(`API Key válida. Sincronizando trades para usuário: ${userId}`);
-
-    const batch = db.batch();
-    let imported = 0;
-    const duplicates = [];
-
-    for (const trade of trades) {
-      // Validar campos obrigatórios do trade
-      if (!trade.ticket || !trade.symbol || !trade.type) {
-        logger.warn("Trade inválido ignorado:", trade);
-        continue;
+      // Validações básicas
+      if (!userId) {
+        return res.status(400).json({ error: "userId obrigatório" });
       }
 
-      // Verificar se trade já existe (evitar duplicatas)
-      const existingTradeQuery = await db
-        .collection("artifacts")
-        .doc("trade-journal-public")
-        .collection("users")
-        .doc(userId)
-        .collection("trades")
-        .where("mt5Ticket", "==", trade.ticket)
-        .limit(1)
-        .get();
-
-      if (!existingTradeQuery.empty) {
-        duplicates.push(trade.ticket);
-        logger.info(`Trade duplicado ignorado: ${trade.ticket}`);
-        continue;
+      if (!Array.isArray(trades)) {
+        return res.status(400).json({ error: "trades deve ser um array" });
       }
 
-      // Criar documento do trade
-      const tradeRef = db
-        .collection("artifacts")
-        .doc("trade-journal-public")
-        .collection("users")
-        .doc(userId)
-        .collection("trades")
-        .doc();
+      // TODO: Validar apiKey do usuário
+      logger.info("Sincronizando trades para usuário", { userId });
+
+      const db = admin.firestore();
+      const batch = db.batch();
+      let imported = 0;
+
+      for (const trade of trades) {
+        // Validar campos obrigatórios do trade
+        if (!trade.ticket || !trade.symbol || !trade.type) {
+          logger.warn("Trade inválido (ignorado)", trade);
+          continue;
+        }
+
+        // ✅ FORÇAR DETECÇÃO DE MERCADO
+        let market = trade.market || 'forex';
         
-      batch.set(tradeRef, {
-        // Campos do MT5
-        mt5Ticket: trade.ticket,
-        symbol: trade.symbol,
-        type: trade.type,
-        entryPrice: trade.entryPrice || 0,
-        exitPrice: trade.exitPrice || 0,
-        quantity: trade.quantity || 0,
-        pnl: trade.pnl || 0,
-        commission: trade.commission || 0,
-        swap: trade.swap || 0,
+        // ✅ CONVERTER "crypto" → "forex"
+        if (market === 'crypto') {
+          market = 'forex';
+        }
         
-        // Campos padrão TraderPro
-        asset: trade.symbol,
-        market: trade.market || "forex",
-        currency: trade.currency || "USD",
-        date: trade.date || new Date().toISOString().split("T")[0],
-        strategy: trade.strategy || "",
-        notes: trade.notes || "Sincronizado do MT5",
+        // ✅ SE NÃO VEIO MARKET, DETECTAR PELO ASSET
+        if (!trade.market) {
+          market = detectMarket(trade.symbol);
+        }
         
-        // Metadados
-        source: "MT5",
-        syncedAt: admin.firestore.FieldValue.serverTimestamp(),
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        // ✅ CURRENCY CORRETO
+        const currency = trade.currency || detectCurrency(market);
+
+        // Criar documento do trade
+        const tradeRef = db.collection(`artifacts/trade-journal-public/users/${userId}/trades`).doc();
+        batch.set(tradeRef, {
+          ...trade,
+          market,        // ✅ FORÇADO
+          currency,      // ✅ FORÇADO
+          source: "MT5",
+          syncedAt: admin.firestore.FieldValue.serverTimestamp(),
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        imported++;
+      }
+
+      // Salvar todos os trades
+      await batch.commit();
+
+      logger.info(`${imported} trades sincronizados com sucesso`);
+
+      return res.status(200).json({
+        success: true,
+        imported: imported,
+        total: trades.length,
       });
-
-      imported++;
+    } catch (error) {
+      logger.error("Erro ao sincronizar trades", error);
+      return res.status(500).json({
+        error: "Erro ao processar sincronização",
+        details: error.message,
+      });
     }
-
-    // Salvar todos os trades
-    await batch.commit();
-
-    logger.info(`${imported} trades sincronizados com sucesso`);
-
-    return res.status(200).json({
-      success: true,
-      imported: imported,
-      total: trades.length,
-      duplicates: duplicates.length,
-      message: `${imported} trades importados com sucesso`,
-    });
-  } catch (error) {
-    logger.error("Erro ao sincronizar trades:", error);
-    return res.status(500).json({
-      error: "Erro ao processar sincronização",
-      details: error.message,
-    });
   }
-});
+);

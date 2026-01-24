@@ -19,21 +19,72 @@ const FIELD_ALIASES = {
 
 function detectMarket(asset) {
   if (!asset) return 'forex';
-  const clean = asset.toUpperCase().replace('.H', '');
-  if (clean.match(/^(EUR|USD|GBP|JPY|AUD|CAD|CHF|NZD|XAU|XAG|BTC|ETH)/)) return 'forex';
-  if (clean.match(/^[A-Z]{6,8}$/)) return 'forex';
-  if (clean.includes('FUT') || clean.match(/^(WIN|WDO|IND|DOL)/)) return 'b3daytrade';
-  if (clean.match(/^[A-Z]{4}[0-9]/)) return 'b3swing';
-  return 'forex';
+  
+  // Limpar sufixos
+  const clean = asset.toUpperCase()
+    .replace(/\.H$/i, '')
+    .replace(/\.h$/i, '')
+    .trim();
+  
+  console.log('🔍 [Cloud Function] Detectando mercado para:', clean);
+  
+  // ✅ PRIORIDADE 1: CRYPTO = FOREX (ANTES DE TUDO!)
+  if (clean.match(/^BTC|^ETH|^LTC|^XRP|^DOGE|^ADA|^SOL|^DOT|^MATIC|^AVAX|^LINK/)) {
+    console.log('✅ CRYPTO detectado:', clean, '→ FOREX');
+    return 'forex';
+  }
+  
+  // ✅ PRIORIDADE 2: B3 Futuros (WIN, WDO, etc)
+  if (clean.match(/^WIN|^WDO|^IND|^DOL/) || clean.includes('FUT')) {
+    console.log('✅ FUTURO B3 detectado:', clean, '→ B3DAYTRADE');
+    return 'b3daytrade';
+  }
+  
+  // ✅ PRIORIDADE 3: B3 Ações (4 letras + número)
+  if (clean.match(/^[A-Z]{4}\d/)) {
+    console.log('✅ AÇÃO B3 detectada:', clean, '→ B3SWING');
+    return 'b3swing';
+  }
+  
+  // ✅ PRIORIDADE 4: Metais preciosos
+  if (clean.match(/^XAU|^XAG|^GOLD|^SILVER/)) {
+    console.log('✅ METAL detectado:', clean, '→ FOREX');
+    return 'forex';
+  }
+  
+  // ✅ PRIORIDADE 5: Pares forex clássicos (EURUSD, GBPJPY, etc)
+  if (clean.match(/^(EUR|USD|GBP|JPY|AUD|CAD|CHF|NZD)[A-Z]{3}$/)) {
+    console.log('✅ PAR FOREX detectado:', clean, '→ FOREX');
+    return 'forex';
+  }
+  
+  // ✅ PRIORIDADE 6: Forex genérico (6-8 letras)
+  if (clean.match(/^[A-Z]{6,8}$/)) {
+    console.log('✅ FOREX GENÉRICO detectado:', clean, '→ FOREX');
+    return 'forex';
+  }
+  
+  console.log('⚠️ Nenhum match, retornando FOREX padrão');
+  return 'forex'; // Padrão
 }
 
 function detectCurrency(market) {
-  const map = { b3daytrade: 'BRL', b3swing: 'BRL', b3options: 'BRL', forex: 'USD' };
+  const map = { 
+    b3daytrade: 'BRL', 
+    b3swing: 'BRL', 
+    b3options: 'BRL', 
+    forex: 'USD'
+  };
   return map[market] || 'USD';
 }
 
 function calculateTax(market, pnl) {
-  const rates = { b3daytrade: 0.20, b3swing: 0.15, b3options: 0.15, forex: 0.15, crypto: 0.15 };
+  const rates = { 
+    b3daytrade: 0.20, 
+    b3swing: 0.15, 
+    b3options: 0.15, 
+    forex: 0.15
+  };
   const rate = rates[market] || 0.15;
   const currency = detectCurrency(market);
   if (pnl <= 0) return { rate, amount: 0, category: market, dueDate: null, isPaid: false, exempt: false, currency };
@@ -114,7 +165,19 @@ export function parseUniversalTrade(row, headers) {
   
   if (!asset || !entryDate || pnl === null) return null;
   
-  const market = getValue('market') ? getValue('market').toLowerCase() : detectMarket(asset);
+  // ✅ FORÇA O MARKET ENVIADO PELO EA (se vier)
+  let market = getValue('market') ? getValue('market').toLowerCase() : null;
+  
+  // ✅ CONVERTE "crypto" → "forex"
+  if (market === 'crypto') {
+    market = 'forex';
+  }
+  
+  // Se não vier market, detecta pelo asset
+  if (!market) {
+    market = detectMarket(asset);
+  }
+  
   const currency = getValue('currency') ? getValue('currency').toUpperCase() : detectCurrency(market);
   
   return {
