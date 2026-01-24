@@ -1,19 +1,20 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '../../components/ui/Card';
-import { getCurrencySymbol } from '../../constants/markets';
+import { calculatePeriodTax } from '../../utils/taxes/taxCalculator';
 
 export const ForexDashboard = ({ trades = [] }) => {
   const [stats, setStats] = useState({
     totalTrades: 0,
     winningTrades: 0,
     losingTrades: 0,
-    totalPnl: 0,
+    consolidatedPnL: 0,
     totalTax: 0,
     avgPnl: 0,
     winRate: 0,
     bestTrade: 0,
     worstTrade: 0,
-    currentQuarter: ''
+    currentYear: '',
+    isNegativeYear: false
   });
 
   useEffect(() => {
@@ -23,31 +24,30 @@ export const ForexDashboard = ({ trades = [] }) => {
       return;
     }
 
+    // ✅ NOVO: Calcular imposto consolidado ANUAL
+    const currentYear = new Date().getFullYear();
+    const currentPeriod = `${currentYear}-01-01`; // Ano completo
+    const taxInfo = calculatePeriodTax(forexTrades, 'forex', currentPeriod);
+
     const winning = forexTrades.filter(t => t.pnl > 0);
     const losing = forexTrades.filter(t => t.pnl < 0);
-    const totalPnl = forexTrades.reduce((sum, t) => sum + parseFloat(t.pnl || 0), 0);
-    const totalTax = forexTrades.reduce((sum, t) => sum + (t.taxes?.amount || 0), 0);
     
     const pnls = forexTrades.map(t => parseFloat(t.pnl || 0));
     const bestTrade = Math.max(...pnls);
     const worstTrade = Math.min(...pnls);
 
-    // Determinar trimestre atual
-    const now = new Date();
-    const quarter = Math.floor(now.getMonth() / 3) + 1;
-    const currentQuarter = `Q${quarter}/${now.getFullYear()}`;
-
     setStats({
       totalTrades: forexTrades.length,
       winningTrades: winning.length,
       losingTrades: losing.length,
-      totalPnl,
-      totalTax,
-      avgPnl: totalPnl / forexTrades.length,
+      consolidatedPnL: taxInfo.consolidatedPnL || 0,
+      totalTax: taxInfo.taxAmount || 0,
+      avgPnl: taxInfo.consolidatedPnL / forexTrades.length,
       winRate: (winning.length / forexTrades.length) * 100,
       bestTrade,
       worstTrade,
-      currentQuarter
+      currentYear: currentYear.toString(),
+      isNegativeYear: taxInfo.consolidatedPnL < 0
     });
   }, [trades]);
 
@@ -60,6 +60,41 @@ export const ForexDashboard = ({ trades = [] }) => {
           <p className="text-zinc-400">Mercado de câmbio internacional</p>
         </div>
       </div>
+
+      {/* ✅ NOVO: Alerta sobre mudança da lei */}
+      <Card className="bg-purple-900/20 border-purple-500/50">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl">📜</span>
+          <div>
+            <p className="text-purple-400 font-bold mb-1">Lei 14.754/2023 - Mudança Importante</p>
+            <p className="text-zinc-300 text-sm">
+              Desde <strong>2024</strong>, Forex passou de tributação <strong className="line-through">trimestral</strong> para <strong>ANUAL</strong>.
+              <br />
+              Imposto de <strong>15%</strong> calculado sobre o resultado do ano inteiro.
+              <br />
+              Declaração e pagamento até <strong>30 de abril</strong> do ano seguinte via DARF 0190.
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      {/* ✅ NOVO: Alerta quando o ano for negativo */}
+      {stats.isNegativeYear && (
+        <Card className="bg-blue-900/20 border-blue-500/50">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">📘</span>
+            <div>
+              <p className="text-blue-400 font-bold mb-1">Ano Negativo - Sem Imposto</p>
+              <p className="text-zinc-300 text-sm">
+                Prejuízo de <strong>$ {Math.abs(stats.consolidatedPnL).toFixed(2)}</strong> acumulado no ano.
+                <br />
+                Você <strong>não paga imposto</strong> neste ano. 
+                O prejuízo poderá ser compensado em anos futuros com lucro.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Métricas Principais */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -102,28 +137,31 @@ export const ForexDashboard = ({ trades = [] }) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <div className="text-center">
-            <p className="text-zinc-400 text-sm mb-2">Lucro Bruto ({stats.currentQuarter})</p>
-            <p className={`text-3xl font-bold ${stats.totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              $ {stats.totalPnl.toFixed(2)}
+            <p className="text-zinc-400 text-sm mb-2">Lucro Consolidado {stats.currentYear}</p>
+            <p className={`text-3xl font-bold ${stats.consolidatedPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              $ {stats.consolidatedPnL.toFixed(2)}
             </p>
+            <p className="text-xs text-zinc-500 mt-1">Soma de todos os trades</p>
           </div>
         </Card>
 
         <Card>
           <div className="text-center">
-            <p className="text-zinc-400 text-sm mb-2">Imposto DARF 8523</p>
+            <p className="text-zinc-400 text-sm mb-2">Imposto DARF 0190</p>
             <p className="text-3xl font-bold text-red-400">
               - $ {stats.totalTax.toFixed(2)}
             </p>
+            <p className="text-xs text-zinc-500 mt-1">15% sobre lucro anual</p>
           </div>
         </Card>
 
         <Card>
           <div className="text-center">
             <p className="text-zinc-400 text-sm mb-2">Lucro Líquido</p>
-            <p className={`text-3xl font-bold ${(stats.totalPnl - stats.totalTax) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              $ {(stats.totalPnl - stats.totalTax).toFixed(2)}
+            <p className={`text-3xl font-bold ${(stats.consolidatedPnL - stats.totalTax) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              $ {(stats.consolidatedPnL - stats.totalTax).toFixed(2)}
             </p>
+            <p className="text-xs text-zinc-500 mt-1">Após impostos</p>
           </div>
         </Card>
       </div>
@@ -155,18 +193,18 @@ export const ForexDashboard = ({ trades = [] }) => {
         </Card>
       </div>
 
-      {/* Alerta Fiscal */}
-      <Card className="bg-blue-900/20 border-blue-500/50">
+      {/* Alerta Fiscal Atualizado */}
+      <Card className="bg-amber-900/20 border-amber-500/50">
         <div className="flex items-start gap-3">
-          <span className="text-2xl">ℹ️</span>
+          <span className="text-2xl">⚠️</span>
           <div>
-            <p className="text-blue-400 font-bold mb-1">Informação Fiscal - Forex</p>
+            <p className="text-amber-400 font-bold mb-1">Lembrete Fiscal</p>
             <p className="text-zinc-300 text-sm">
-              Forex tem tributação <strong>trimestral</strong> de <strong>15%</strong> sobre ganho de capital.
-              Pagamento via DARF 8523 até o último dia útil do mês seguinte ao fechamento do trimestre.
-            </p>
-            <p className="text-zinc-400 text-xs mt-2">
-              Trimestre atual: <strong className="text-white">{stats.currentQuarter}</strong>
+              Forex tem alíquota de <strong>15%</strong> sobre o resultado consolidado <strong>ANUAL</strong>.
+              <br />
+              Pagamento via DARF 0190 até <strong>30 de abril de {parseInt(stats.currentYear) + 1}</strong>.
+              <br />
+              <span className="text-amber-300">Se o ano fechar negativo, não há imposto a pagar.</span>
             </p>
           </div>
         </div>

@@ -1,91 +1,113 @@
-﻿import { useState, useEffect } from 'react'
-import { Card } from '../../components/ui'
-import { getCurrencySymbol } from '../../constants/markets'
+import { useState, useEffect } from 'react';
+import { Card } from '../../components/ui/Card';
+import { calculatePeriodTax } from '../../utils/taxes/taxCalculator';
 
-export const OptionsDashboard = ({ trades }) => {
+export const OptionsDashboard = ({ trades = [] }) => {
   const [stats, setStats] = useState({
     totalTrades: 0,
     winningTrades: 0,
     losingTrades: 0,
-    totalPnl: 0,
+    consolidatedPnL: 0,
     totalTax: 0,
     avgPnl: 0,
     winRate: 0,
     bestTrade: 0,
     worstTrade: 0,
-    totalPremiums: 0,
-    callsCount: 0,
-    putsCount: 0,
-    totalSales: 0,
+    isNegativeMonth: false,
+    salesVolume: 0,
     isExempt: false
-  })
+  });
 
   useEffect(() => {
-    const optionsTrades = trades.filter(t => t.market === 'b3options')
+    const optionsTrades = trades.filter(t => t.market === 'b3options');
     
     if (optionsTrades.length === 0) {
-      return
+      return;
     }
 
-    const winning = optionsTrades.filter(t => t.pnl > 0)
-    const losing = optionsTrades.filter(t => t.pnl < 0)
-    const totalPnl = optionsTrades.reduce((sum, t) => sum + parseFloat(t.pnl || 0), 0)
+    // ✅ NOVO: Calcular imposto consolidado mensal
+    const currentPeriod = new Date().toISOString().split('T')[0].slice(0, 7); // "2026-01"
+    const taxInfo = calculatePeriodTax(optionsTrades, 'b3options', currentPeriod);
+
+    const winning = optionsTrades.filter(t => t.pnl > 0);
+    const losing = optionsTrades.filter(t => t.pnl < 0);
     
-    // Calcular total de vendas (prêmios) para verificar isenção
-    const totalSales = optionsTrades.reduce((sum, t) => {
-      const exitValue = (parseFloat(t.exitPrice || 0) * parseFloat(t.quantity || 1))
-      return sum + exitValue
-    }, 0)
+    // ✅ Calcular volume de vendas (exitPrice × quantity)
+    const salesVolume = optionsTrades.reduce((sum, t) => {
+      const exitPrice = parseFloat(t.exitPrice || 0);
+      const quantity = parseFloat(t.quantity || 0);
+      return sum + (exitPrice * quantity);
+    }, 0);
+
+    // ✅ Verificar isenção (vendas < R$ 20.000)
+    const isExempt = salesVolume < 20000;
     
-    // Verificar se está isento (vendas < R$ 20.000)
-    const isExempt = totalSales < 20000
-    const taxRate = isExempt ? 0 : 0.15 // 15% se não isento
-    const totalTax = totalPnl > 0 ? totalPnl * taxRate : 0
-
-    // Contar calls e puts baseado no ativo
-    const callsCount = optionsTrades.filter(t => 
-      t.asset?.toUpperCase().includes('CALL') || t.asset?.match(/[A-Z]{4}\d{2}C/)
-    ).length
-    const putsCount = optionsTrades.filter(t => 
-      t.asset?.toUpperCase().includes('PUT') || t.asset?.match(/[A-Z]{4}\d{2}P/)
-    ).length
-
-    const totalPremiums = optionsTrades.reduce((sum, t) => {
-      return sum + (parseFloat(t.entryPrice || 0) * parseFloat(t.quantity || 1))
-    }, 0)
-
-    const pnls = optionsTrades.map(t => parseFloat(t.pnl || 0))
-    const bestTrade = Math.max(...pnls)
-    const worstTrade = Math.min(...pnls)
+    const pnls = optionsTrades.map(t => parseFloat(t.pnl || 0));
+    const bestTrade = Math.max(...pnls);
+    const worstTrade = Math.min(...pnls);
 
     setStats({
       totalTrades: optionsTrades.length,
       winningTrades: winning.length,
       losingTrades: losing.length,
-      totalPnl,
-      totalTax,
-      avgPnl: totalPnl / optionsTrades.length,
+      consolidatedPnL: taxInfo.consolidatedPnL || 0,
+      totalTax: isExempt ? 0 : (taxInfo.taxAmount || 0),
+      avgPnl: taxInfo.consolidatedPnL / optionsTrades.length,
       winRate: (winning.length / optionsTrades.length) * 100,
       bestTrade,
       worstTrade,
-      totalPremiums,
-      callsCount,
-      putsCount,
-      totalSales,
+      isNegativeMonth: taxInfo.consolidatedPnL < 0,
+      salesVolume,
       isExempt
-    })
-  }, [trades])
+    });
+  }, [trades]);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center gap-3">
         <span className="text-4xl">🎯</span>
         <div>
           <h1 className="text-3xl font-bold text-white">B3 Opções</h1>
-          <p className="text-zinc-400">Calls e Puts na Bolsa Brasileira</p>
+          <p className="text-zinc-400">Calls, Puts e estratégias</p>
         </div>
       </div>
+
+      {/* ✅ NOVO: Alerta de isenção */}
+      {stats.isExempt && stats.consolidatedPnL > 0 && (
+        <Card className="bg-green-900/20 border-green-500/50">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">🎉</span>
+            <div>
+              <p className="text-green-400 font-bold mb-1">Isento de Imposto!</p>
+              <p className="text-zinc-300 text-sm">
+                Volume de vendas: <strong>R$ {stats.salesVolume.toFixed(2)}</strong>
+                <br />
+                Como suas vendas ficaram <strong>abaixo de R$ 20.000</strong> no mês, você está <strong>ISENTO</strong> de pagar imposto!
+                <br />
+                <span className="text-green-300">Lucro líquido = Lucro bruto (sem dedução de IR)</span>
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* ✅ NOVO: Alerta quando o mês for negativo */}
+      {stats.isNegativeMonth && (
+        <Card className="bg-blue-900/20 border-blue-500/50">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">📘</span>
+            <div>
+              <p className="text-blue-400 font-bold mb-1">Mês Negativo - Sem Imposto</p>
+              <p className="text-zinc-300 text-sm">
+                Prejuízo de <strong>R$ {Math.abs(stats.consolidatedPnL).toFixed(2)}</strong> registrado.
+                <br />
+                Você <strong>não paga imposto</strong> este mês. 
+                O prejuízo poderá ser compensado em meses futuros com lucro.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Métricas Principais */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -107,8 +129,8 @@ export const OptionsDashboard = ({ trades }) => {
 
         <Card>
           <div className="text-center">
-            <p className="text-zinc-400 text-sm mb-1">Prêmio Médio</p>
-            <p className={`text-2xl font-bold ${stats.avgPnl > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            <p className="text-zinc-400 text-sm mb-1">Lucro Médio</p>
+            <p className={`text-2xl font-bold ${stats.avgPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               R$ {stats.avgPnl.toFixed(2)}
             </p>
           </div>
@@ -116,61 +138,39 @@ export const OptionsDashboard = ({ trades }) => {
 
         <Card>
           <div className="text-center">
-            <p className="text-zinc-400 text-sm mb-1">Status Fiscal</p>
-            <p className={`text-2xl font-bold ${stats.isExempt ? 'text-green-400' : 'text-amber-400'}`}>
-              {stats.isExempt ? '✓ Isento' : '15%'}
+            <p className="text-zinc-400 text-sm mb-1">Imposto (15%)</p>
+            <p className="text-2xl font-bold text-red-400">
+              R$ {stats.totalTax.toFixed(2)}
             </p>
+            {stats.isExempt && <p className="text-xs text-green-400 mt-1">Isento</p>}
           </div>
         </Card>
       </div>
 
-      {/* Distribuição Calls x Puts */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="bg-blue-900/20 border-blue-500/50">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-blue-400 text-sm mb-1">📞 Calls (Compra)</p>
-              <p className="text-3xl font-bold text-white">{stats.callsCount}</p>
-              <p className="text-zinc-400 text-xs mt-1">
-                {stats.totalTrades > 0 ? ((stats.callsCount / stats.totalTrades) * 100).toFixed(1) : 0}% do total
-              </p>
+      {/* Volume de Vendas (para isenção) */}
+      <Card className={stats.isExempt ? 'bg-green-900/10 border-green-500/30' : 'bg-amber-900/10 border-amber-500/30'}>
+        <div className="text-center">
+          <p className="text-zinc-400 text-sm mb-2">Volume de Vendas no Mês</p>
+          <p className="text-3xl font-bold text-white mb-2">
+            R$ {stats.salesVolume.toFixed(2)}
+          </p>
+          <div className="flex items-center justify-center gap-2">
+            <div className="flex-1 bg-zinc-700 rounded-full h-2 overflow-hidden">
+              <div 
+                className={`h-full ${stats.isExempt ? 'bg-green-500' : 'bg-amber-500'}`}
+                style={{ width: `${Math.min((stats.salesVolume / 20000) * 100, 100)}%` }}
+              />
             </div>
-            <div className="text-blue-400 text-5xl">📈</div>
+            <span className="text-xs text-zinc-400">
+              {((stats.salesVolume / 20000) * 100).toFixed(0)}% de R$ 20k
+            </span>
           </div>
-        </Card>
-
-        <Card className="bg-orange-900/20 border-orange-500/50">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-orange-400 text-sm mb-1">📉 Puts (Venda)</p>
-              <p className="text-3xl font-bold text-white">{stats.putsCount}</p>
-              <p className="text-zinc-400 text-xs mt-1">
-                {stats.totalTrades > 0 ? ((stats.putsCount / stats.totalTrades) * 100).toFixed(1) : 0}% do total
-              </p>
-            </div>
-            <div className="text-orange-400 text-5xl">📉</div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Análise de Isenção */}
-      <Card className={stats.isExempt ? 'bg-green-900/20 border-green-500/50' : 'bg-amber-900/20 border-amber-500/50'}>
-        <div className="flex items-start gap-3">
-          <span className="text-2xl">{stats.isExempt ? '✅' : '⚠️'}</span>
-          <div className="flex-1">
-            <p className={`font-bold mb-1 ${stats.isExempt ? 'text-green-400' : 'text-amber-400'}`}>
-              {stats.isExempt ? 'Isenção Fiscal Ativa' : 'Tributação Aplicável'}
-            </p>
-            <p className="text-zinc-300 text-sm">
-              Total de prêmios no mês: <strong>R$ {stats.totalSales.toFixed(2)}</strong>
-            </p>
-            <p className="text-zinc-400 text-xs mt-2">
-              {stats.isExempt 
-                ? `Você está isento de IR! Limite: R$ ${(20000 - stats.totalSales).toFixed(2)} restantes.`
-                : 'Vendas acima de R$ 20.000/mês - Imposto de 15% sobre o lucro.'
-              }
-            </p>
-          </div>
+          <p className="text-xs text-zinc-500 mt-2">
+            {stats.isExempt 
+              ? `Faltam R$ ${(20000 - stats.salesVolume).toFixed(2)} para perder isenção`
+              : `Você ultrapassou o limite de isenção em R$ ${(stats.salesVolume - 20000).toFixed(2)}`
+            }
+          </p>
         </div>
       </Card>
 
@@ -178,28 +178,33 @@ export const OptionsDashboard = ({ trades }) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <div className="text-center">
-            <p className="text-zinc-400 text-sm mb-2">Resultado Bruto</p>
-            <p className={`text-3xl font-bold ${stats.totalPnl > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              R$ {stats.totalPnl.toFixed(2)}
+            <p className="text-zinc-400 text-sm mb-2">Lucro Consolidado</p>
+            <p className={`text-3xl font-bold ${stats.consolidatedPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              R$ {stats.consolidatedPnL.toFixed(2)}
             </p>
+            <p className="text-xs text-zinc-500 mt-1">Soma de todos os trades</p>
           </div>
         </Card>
 
         <Card>
           <div className="text-center">
-            <p className="text-zinc-400 text-sm mb-2">Imposto (DARF 3317)</p>
+            <p className="text-zinc-400 text-sm mb-2">Imposto DARF 3317</p>
             <p className="text-3xl font-bold text-red-400">
-              {stats.isExempt ? 'R$ 0,00' : `- R$ ${stats.totalTax.toFixed(2)}`}
+              - R$ {stats.totalTax.toFixed(2)}
+            </p>
+            <p className="text-xs text-zinc-500 mt-1">
+              {stats.isExempt ? 'Isento (vendas < R$ 20k)' : '15% sobre lucro'}
             </p>
           </div>
         </Card>
 
         <Card>
           <div className="text-center">
-            <p className="text-zinc-400 text-sm mb-2">Resultado Líquido</p>
-            <p className={`text-3xl font-bold ${(stats.totalPnl - stats.totalTax) > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              R$ {(stats.totalPnl - stats.totalTax).toFixed(2)}
+            <p className="text-zinc-400 text-sm mb-2">Lucro Líquido</p>
+            <p className={`text-3xl font-bold ${(stats.consolidatedPnL - stats.totalTax) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              R$ {(stats.consolidatedPnL - stats.totalTax).toFixed(2)}
             </p>
+            <p className="text-xs text-zinc-500 mt-1">Após impostos</p>
           </div>
         </Card>
       </div>
@@ -209,58 +214,46 @@ export const OptionsDashboard = ({ trades }) => {
         <Card>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-zinc-400 text-sm mb-1">🏆 Melhor Operação</p>
+              <p className="text-zinc-400 text-sm mb-1">🏆 Melhor Trade</p>
               <p className="text-2xl font-bold text-emerald-400">
                 R$ {stats.bestTrade.toFixed(2)}
               </p>
             </div>
-            <div className="text-emerald-400 text-4xl">🎯</div>
+            <div className="text-emerald-400 text-4xl">↑</div>
           </div>
         </Card>
 
         <Card>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-zinc-400 text-sm mb-1">📉 Pior Operação</p>
+              <p className="text-zinc-400 text-sm mb-1">💔 Pior Trade</p>
               <p className="text-2xl font-bold text-red-400">
                 R$ {stats.worstTrade.toFixed(2)}
               </p>
             </div>
-            <div className="text-red-400 text-4xl">⚠️</div>
+            <div className="text-red-400 text-4xl">↓</div>
           </div>
         </Card>
       </div>
 
-      {/* Total de Prêmios */}
-      <Card className="bg-indigo-900/20 border-indigo-500/50">
-        <div className="flex items-start gap-3">
-          <span className="text-2xl">💰</span>
-          <div>
-            <p className="text-indigo-400 font-bold mb-1">Total em Prêmios Movimentados</p>
-            <p className="text-3xl font-bold text-white">R$ {stats.totalPremiums.toFixed(2)}</p>
-            <p className="text-zinc-400 text-xs mt-2">
-              Soma de todos os prêmios pagos/recebidos nas operações com opções.
-            </p>
-          </div>
-        </div>
-      </Card>
-
       {/* Alerta Fiscal */}
-      <Card className="bg-purple-900/20 border-purple-500/50">
+      <Card className="bg-amber-900/20 border-amber-500/50">
         <div className="flex items-start gap-3">
-          <span className="text-2xl">📋</span>
+          <span className="text-2xl">⚠️</span>
           <div>
-            <p className="text-purple-400 font-bold mb-1">Informação Fiscal - Opções</p>
+            <p className="text-amber-400 font-bold mb-1">Lembrete Fiscal</p>
             <p className="text-zinc-300 text-sm">
-              Operações com opções têm <strong>isenção de IR</strong> para vendas <strong>até R$ 20.000/mês</strong>.
-              Acima desse valor, a alíquota é de <strong>15%</strong> sobre o lucro líquido.
-            </p>
-            <p className="text-zinc-400 text-xs mt-2">
-              Pagamento via DARF 3317 até o último dia útil do mês seguinte. Exercício de opções tem regras específicas.
+              Opções B3 têm alíquota de <strong>15%</strong> sobre o lucro consolidado mensal.
+              <br />
+              <strong>ISENÇÃO:</strong> Se o volume de <strong>vendas</strong> no mês for inferior a <strong>R$ 20.000</strong>, você está isento.
+              <br />
+              Pagamento via DARF 3317 até o último dia útil do mês seguinte.
+              <br />
+              <span className="text-amber-300">Se o mês fechar negativo, não há imposto a pagar.</span>
             </p>
           </div>
         </div>
       </Card>
     </div>
-  )
-}
+  );
+};
