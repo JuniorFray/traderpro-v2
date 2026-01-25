@@ -1,3 +1,4 @@
+﻿import { TaxDashboard } from './features/taxes/TaxDashboard'
 import { IntegrationsPage } from "./features/integrations/IntegrationsPage"
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './features/auth/AuthContext'
@@ -53,6 +54,7 @@ export const CustomerRoutes = () => {
 <Route path="integrations" element={<IntegrationsPage />} />
         <Route path="markets" element={<MarketsPage />} />
         <Route path="support" element={<SupportPage />} />
+        <Route path="taxes" element={<TaxDashboard />} />
       </Route>
       
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -29,7 +29,7 @@ export const TAX_RULES = {
     type: 'annual', // ✅ CORRIGIDO: Anual desde 2024 (Lei 14.754/2023)
     exemptionLimit: 0,
     dueDay: 'april_30_next_year', // ✅ Vencimento: 30 de abril do ano seguinte
-    darfCode: '0190', // ✅ Código para apuração anual
+    darfCode: '8523', // ✅ Código para apuração anual
     description: 'IR 15% anual sobre ganho de capital (investimento exterior)'
   },
 

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Card } from '../../components/ui/Card';
 import { calculatePeriodTax } from '../../utils/taxes/taxCalculator';
+import { useAuth } from '../auth/AuthContext';
 
 export const DayTradeDashboard = ({ trades = [] }) => {
+  const { user } = useAuth();
   const [stats, setStats] = useState({
     totalTrades: 0,
     winningTrades: 0,
@@ -13,40 +15,50 @@ export const DayTradeDashboard = ({ trades = [] }) => {
     winRate: 0,
     bestTrade: 0,
     worstTrade: 0,
-    isNegativeMonth: false
+    isNegativeMonth: false,
+    previousLoss: 0,
+    compensatedAmount: 0,
+    newAccumulatedLoss: 0
   });
 
   useEffect(() => {
-    const dayTrades = trades.filter(t => t.market === 'b3daytrade');
-    
-    if (dayTrades.length === 0) {
-      return;
-    }
+    const loadStats = async () => {
+      const dayTrades = trades.filter(t => t.market === 'b3daytrade');
+      
+      if (dayTrades.length === 0) {
+        return;
+      }
 
-    // ✅ NOVO: Calcular imposto consolidado do período
-    const currentPeriod = new Date().toISOString().split('T')[0].slice(0, 7); // "2026-01"
-    const taxInfo = calculatePeriodTax(dayTrades, 'b3daytrade', currentPeriod);
+      // ✅ ATUALIZADO: Agora é async
+      const currentPeriod = new Date().toISOString().split('T')[0].slice(0, 7); // "2026-01"
+      const taxInfo = await calculatePeriodTax(dayTrades, 'b3daytrade', currentPeriod, user?.uid);
 
-    const winning = dayTrades.filter(t => t.pnl > 0);
-    const losing = dayTrades.filter(t => t.pnl < 0);
-    
-    const pnls = dayTrades.map(t => parseFloat(t.pnl || 0));
-    const bestTrade = Math.max(...pnls);
-    const worstTrade = Math.min(...pnls);
+      const winning = dayTrades.filter(t => t.pnl > 0);
+      const losing = dayTrades.filter(t => t.pnl < 0);
+      
+      const pnls = dayTrades.map(t => parseFloat(t.pnl || 0));
+      const bestTrade = Math.max(...pnls);
+      const worstTrade = Math.min(...pnls);
 
-    setStats({
-      totalTrades: dayTrades.length,
-      winningTrades: winning.length,
-      losingTrades: losing.length,
-      consolidatedPnL: taxInfo.consolidatedPnL || 0,
-      totalTax: taxInfo.taxAmount || 0,
-      avgPnl: taxInfo.consolidatedPnL / dayTrades.length,
-      winRate: (winning.length / dayTrades.length) * 100,
-      bestTrade,
-      worstTrade,
-      isNegativeMonth: taxInfo.consolidatedPnL < 0
-    });
-  }, [trades]);
+      setStats({
+        totalTrades: dayTrades.length,
+        winningTrades: winning.length,
+        losingTrades: losing.length,
+        consolidatedPnL: taxInfo.consolidatedPnL || 0,
+        totalTax: taxInfo.taxAmount || 0,
+        avgPnl: (taxInfo.consolidatedPnL || 0) / dayTrades.length,
+        winRate: (winning.length / dayTrades.length) * 100,
+        bestTrade,
+        worstTrade,
+        isNegativeMonth: taxInfo.consolidatedPnL < 0,
+        previousLoss: taxInfo.previousLoss || 0,
+        compensatedAmount: taxInfo.compensatedAmount || 0,
+        newAccumulatedLoss: taxInfo.newAccumulatedLoss || 0
+      });
+    };
+
+    loadStats();
+  }, [trades, user]);
 
   return (
     <div className="space-y-6">
@@ -58,6 +70,27 @@ export const DayTradeDashboard = ({ trades = [] }) => {
         </div>
       </div>
 
+      {/* ✅ NOVO: Alerta de compensação de prejuízo */}
+      {stats.compensatedAmount > 0 && (
+        <Card className="bg-purple-900/20 border-purple-500/50">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">💰</span>
+            <div>
+              <p className="text-purple-400 font-bold mb-1">Prejuízo Compensado!</p>
+              <p className="text-zinc-300 text-sm">
+                Prejuízo anterior de <strong>R$ {Math.abs(stats.previousLoss).toFixed(2)}</strong> foi usado para compensar o lucro deste mês.
+                <br />
+                <strong>Compensado:</strong> R$ {stats.compensatedAmount.toFixed(2)}
+                <br />
+                <strong>Base tributável:</strong> R$ {(stats.consolidatedPnL + stats.previousLoss).toFixed(2)}
+                <br />
+                <span className="text-purple-300">Você economizou R$ {(stats.compensatedAmount * 0.20).toFixed(2)} em impostos! 🎉</span>
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* ✅ NOVO: Alerta quando o mês for negativo */}
       {stats.isNegativeMonth && (
         <Card className="bg-blue-900/20 border-blue-500/50">
@@ -68,8 +101,15 @@ export const DayTradeDashboard = ({ trades = [] }) => {
               <p className="text-zinc-300 text-sm">
                 Prejuízo de <strong>R$ {Math.abs(stats.consolidatedPnL).toFixed(2)}</strong> registrado.
                 <br />
-                Você <strong>não paga imposto</strong> este mês. 
-                O prejuízo poderá ser compensado em meses futuros com lucro.
+                Você <strong>não paga imposto</strong> este mês.
+                <br />
+                {stats.previousLoss < 0 && (
+                  <>
+                    Prejuízo acumulado total: <strong>R$ {Math.abs(stats.newAccumulatedLoss).toFixed(2)}</strong>
+                    <br />
+                  </>
+                )}
+                <span className="text-blue-300">Poderá ser compensado em meses futuros com lucro.</span>
               </p>
             </div>
           </div>
@@ -113,11 +153,11 @@ export const DayTradeDashboard = ({ trades = [] }) => {
         </Card>
       </div>
 
-      {/* Lucro x Imposto */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Lucro x Imposto COM COMPENSAÇÃO */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <div className="text-center">
-            <p className="text-zinc-400 text-sm mb-2">Lucro Consolidado</p>
+            <p className="text-zinc-400 text-sm mb-2">Lucro Bruto</p>
             <p className={`text-3xl font-bold ${stats.consolidatedPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               R$ {stats.consolidatedPnL.toFixed(2)}
             </p>
@@ -125,19 +165,32 @@ export const DayTradeDashboard = ({ trades = [] }) => {
           </div>
         </Card>
 
+        {/* ✅ NOVO: Mostrar compensação */}
+        {stats.compensatedAmount > 0 && (
+          <Card>
+            <div className="text-center">
+              <p className="text-zinc-400 text-sm mb-2">Prejuízo Compensado</p>
+              <p className="text-3xl font-bold text-purple-400">
+                - R$ {stats.compensatedAmount.toFixed(2)}
+              </p>
+              <p className="text-xs text-zinc-500 mt-1">Abatido do mês anterior</p>
+            </div>
+          </Card>
+        )}
+
         <Card>
           <div className="text-center">
             <p className="text-zinc-400 text-sm mb-2">Imposto DARF 6015</p>
             <p className="text-3xl font-bold text-red-400">
               - R$ {stats.totalTax.toFixed(2)}
             </p>
-            <p className="text-xs text-zinc-500 mt-1">20% sobre lucro</p>
+            <p className="text-xs text-zinc-500 mt-1">20% sobre lucro {stats.compensatedAmount > 0 ? 'líquido' : 'bruto'}</p>
           </div>
         </Card>
 
         <Card>
           <div className="text-center">
-            <p className="text-zinc-400 text-sm mb-2">Lucro Líquido</p>
+            <p className="text-zinc-400 text-sm mb-2">Lucro Final</p>
             <p className={`text-3xl font-bold ${(stats.consolidatedPnL - stats.totalTax) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               R$ {(stats.consolidatedPnL - stats.totalTax).toFixed(2)}
             </p>
@@ -185,6 +238,8 @@ export const DayTradeDashboard = ({ trades = [] }) => {
               Pagamento via DARF 6015 até o último dia útil do mês seguinte.
               <br />
               <span className="text-amber-300">Se o mês fechar negativo, não há imposto a pagar.</span>
+              <br />
+              <strong>✅ Compensação automática:</strong> Prejuízos de meses anteriores são abatidos automaticamente.
             </p>
           </div>
         </div>

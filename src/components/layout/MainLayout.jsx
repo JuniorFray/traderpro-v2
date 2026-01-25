@@ -14,12 +14,14 @@ const menuItems = [
   { path: "analytics", icon: "📈", label: "Análises" },
   { path: "charts", icon: "📉", label: "Gráficos" },
   { path: "reports", icon: "📄", label: "Relatórios" },
-{ path: "support", icon: "🎧", label: "Suporte" },
+  { path: "taxes", icon: "💸", label: "Impostos" },
+  { path: "support", icon: "🎧", label: "Suporte" },
   { path: "settings", icon: "⚙️", label: "Configurações" },
   { path: "tools", icon: "🧮", label: "Ferramentas" },
-{ path: "integrations", icon: "🔗", label: "Integrações" },
-{ path: "capital", icon: "💰", label: "Capital" }
+  { path: "integrations", icon: "🔗", label: "Integrações" },
+  { path: "capital", icon: "💰", label: "Capital" }
 ]
+
 
 export const MainLayout = () => {
   const location = useLocation()
