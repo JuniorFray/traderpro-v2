@@ -1,13 +1,17 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useTrades } from "../../hooks/useTrades"
+import { useAuth } from "../auth/AuthContext"
 import { Card } from "../../components/ui/Card"
 import { TradeFilters } from "../../components/filters/TradeFilters"
 import { ExportButtons } from "../../components/exports/ExportButtons"
 import { getExchangeRate } from "../../services/currency/exchangeRates"
+import { calculatePeriodTax } from "../../utils/taxes/taxCalculator"
 import { MARKET_NAMES } from "../../constants/markets"
 
 export const Reports = () => {
   const { trades, loading } = useTrades()
+  const { user } = useAuth()
+  
   const [selectedCurrency, setSelectedCurrency] = useState('USD')
   const [exchangeRate, setExchangeRate] = useState(5.45)
   const [loadingRate, setLoadingRate] = useState(false)
@@ -19,6 +23,8 @@ export const Reports = () => {
     result: "all",
     market: "all"
   })
+  const [metrics, setMetrics] = useState(null)
+  const [calculating, setCalculating] = useState(false)
 
   // Buscar cotação
   useEffect(() => {
@@ -28,130 +34,185 @@ export const Reports = () => {
         const rate = await getExchangeRate('USD', 'BRL')
         setExchangeRate(rate)
       } catch (error) {
-        console.error('Erro ao buscar cotação:', error)
+        console.error('Erro ao buscar cotação', error)
       } finally {
         setLoadingRate(false)
       }
     }
-    
+
     fetchRate()
   }, [])
+
+  // ✅ Usar useMemo para evitar recálculo desnecessário
+  const filteredTrades = useMemo(() => {
+    return trades.filter(trade => {
+      if (filters.startDate && trade.date < filters.startDate) return false
+      if (filters.endDate && trade.date > filters.endDate) return false
+      if (filters.symbol && !(trade.asset || trade.symbol || "").toLowerCase().includes(filters.symbol.toLowerCase())) return false
+      if (filters.strategy && !(trade.strategy || "").toLowerCase().includes(filters.strategy.toLowerCase())) return false
+      if (filters.result === "win" && trade.pnl < 0) return false
+      if (filters.result === "loss" && trade.pnl > 0) return false
+      if (filters.market !== "all" && trade.market !== filters.market) return false
+      return true
+    })
+  }, [trades, filters])
+
+  // Calcular métricas
+  useEffect(() => {
+    const calculateMetrics = async () => {
+      if (filteredTrades.length === 0) {
+        setMetrics(null)
+        setCalculating(false)
+        return
+      }
+// ✅ ADICIONAR AQUI:
+    const totalSwapCalc = filteredTrades.reduce((sum, t) => sum + parseFloat(t.swap || 0), 0)
+    const totalCommCalc = filteredTrades.reduce((sum, t) => sum + parseFloat(t.commission || 0), 0)
+    console.log("📊 Total Trades:", filteredTrades.length)
+    console.log("💱 Total Swap:", totalSwapCalc)
+    console.log("💰 Total Commission:", totalCommCalc)
+    console.log("🔢 Deveria ser Swap: -53.30, Commission: -737.35")
+
+    setCalculating(true)
+      setCalculating(true)
+
+      let totalPnlUSD = 0, totalPnlBRL = 0
+      let totalCommissionUSD = 0, totalCommissionBRL = 0
+      let totalSwapUSD = 0, totalSwapBRL = 0
+      let wins = 0, losses = 0
+      let maxWinUSD = 0, maxWinBRL = 0
+      let maxLossUSD = 0, maxLossBRL = 0
+      let winsUSD = [], winsBRL = []
+      let lossesUSD = [], lossesBRL = []
+
+      filteredTrades.forEach(trade => {
+  const isUSD = trade.currency === 'USD'
+  const pnl = parseFloat(trade.pnl || 0)
+  const commission = parseFloat(trade.commission || 0)  // ✅ SEM Math.abs (já vem negativo)
+  const swap = parseFloat(trade.swap || 0)              // ✅ SEM Math.abs (já vem negativo)
+
+  if (isUSD) {
+    totalPnlUSD += pnl
+    totalCommissionUSD += commission
+    totalSwapUSD += swap
+
+    if (pnl > 0) {
+      wins++
+      winsUSD.push(pnl)
+      if (pnl > maxWinUSD) maxWinUSD = pnl
+    } else if (pnl < 0) {
+      losses++
+      lossesUSD.push(pnl)
+      if (pnl < maxLossUSD) maxLossUSD = pnl
+    }
+  } else {
+    totalPnlBRL += pnl
+    totalCommissionBRL += commission
+    totalSwapBRL += swap
+
+    if (pnl > 0) {
+      wins++
+      winsBRL.push(pnl)
+      if (pnl > maxWinBRL) maxWinBRL = pnl
+    } else if (pnl < 0) {
+      losses++
+      lossesBRL.push(pnl)
+      if (pnl < maxLossBRL) maxLossBRL = pnl
+    }
+  }
+})
+
+      // Calcular impostos por mercado
+      const currentPeriod = new Date().toISOString().split('T')[0].slice(0, 7)
+      let totalTaxUSD = 0, totalTaxBRL = 0
+
+      const tradesByMarket = filteredTrades.reduce((acc, trade) => {
+        const market = trade.market || 'forex'
+        if (!acc[market]) acc[market] = []
+        acc[market].push(trade)
+        return acc
+      }, {})
+
+      for (const [market, marketTrades] of Object.entries(tradesByMarket)) {
+        const taxInfo = await calculatePeriodTax(marketTrades, market, currentPeriod, user?.uid)
+        
+        let pnlUSD = 0, pnlBRL = 0
+        marketTrades.forEach(t => {
+          const pnl = parseFloat(t.pnl || 0)
+          if (t.currency === 'USD') pnlUSD += pnl
+          else pnlBRL += pnl
+        })
+
+        const totalPnL = taxInfo.consolidatedPnL || 0
+        if (totalPnL > 0 && taxInfo.taxAmount > 0) {
+          const usdRatio = pnlUSD / totalPnL
+          const brlRatio = pnlBRL / totalPnL
+
+          totalTaxUSD += (taxInfo.taxAmount || 0) * usdRatio
+          totalTaxBRL += (taxInfo.taxAmount || 0) * brlRatio
+        }
+      }
+
+      const avgWinUSD = winsUSD.length > 0 ? winsUSD.reduce((a, b) => a + b, 0) / winsUSD.length : 0
+      const avgWinBRL = winsBRL.length > 0 ? winsBRL.reduce((a, b) => a + b, 0) / winsBRL.length : 0
+      const avgLossUSD = lossesUSD.length > 0 ? lossesUSD.reduce((a, b) => a + b, 0) / lossesUSD.length : 0
+      const avgLossBRL = lossesBRL.length > 0 ? lossesBRL.reduce((a, b) => a + b, 0) / lossesBRL.length : 0
+
+      const winRate = filteredTrades.length > 0 ? (wins / filteredTrades.length) * 100 : 0
+
+      const totalGrossProfitUSD = winsUSD.reduce((a, b) => a + b, 0)
+      const totalGrossProfitBRL = winsBRL.reduce((a, b) => a + b, 0)
+      const totalGrossLossUSD = Math.abs(lossesUSD.reduce((a, b) => a + b, 0))
+      const totalGrossLossBRL = Math.abs(lossesBRL.reduce((a, b) => a + b, 0))
+
+      const totalGrossProfit = totalGrossProfitUSD + (totalGrossProfitBRL / exchangeRate)
+      const totalGrossLoss = totalGrossLossUSD + (totalGrossLossBRL / exchangeRate)
+      const profitFactor = totalGrossLoss > 0 ? totalGrossProfit / totalGrossLoss : 0
+
+      setMetrics({
+        totalPnlUSD,
+        totalPnlBRL,
+        totalCommissionUSD,
+        totalCommissionBRL,
+        totalSwapUSD,
+        totalSwapBRL,
+        totalTaxUSD,
+        totalTaxBRL,
+        wins,
+        losses,
+        winRate,
+        maxWinUSD,
+        maxWinBRL,
+        maxLossUSD,
+        maxLossBRL,
+        avgWinUSD,
+        avgWinBRL,
+        avgLossUSD,
+        avgLossBRL,
+        profitFactor
+      })
+
+      setCalculating(false)
+    }
+
+    if (!loading) {
+      calculateMetrics()
+    }
+  }, [filteredTrades, user, exchangeRate, loading])
 
   if (loading) {
     return <div className="text-center p-8 text-zinc-400">Carregando...</div>
   }
 
-  // Aplicar filtros
-  const filteredTrades = trades.filter((trade) => {
-    if (filters.startDate && trade.date < filters.startDate) return false
-    if (filters.endDate && trade.date > filters.endDate) return false
-    if (filters.symbol && !(trade.asset || trade.symbol || "").toLowerCase().includes(filters.symbol.toLowerCase())) return false
-    if (filters.strategy && !(trade.strategy || "").toLowerCase().includes(filters.strategy.toLowerCase())) return false
-    if (filters.result === "win" && trade.pnl <= 0) return false
-    if (filters.result === "loss" && trade.pnl >= 0) return false
-    if (filters.market !== "all" && trade.market !== filters.market) return false
-    return true
-  })
-
-  // ✅ Calcular métricas separando USD e BRL - COM parseFloat()
-  const calculateMetrics = () => {
-    let totalPnlUSD = 0, totalPnlBRL = 0
-    let totalCommissionUSD = 0, totalCommissionBRL = 0
-    let totalSwapUSD = 0, totalSwapBRL = 0
-    let totalTaxUSD = 0, totalTaxBRL = 0
-    let wins = 0, losses = 0
-    let maxWinUSD = 0, maxWinBRL = 0
-    let maxLossUSD = 0, maxLossBRL = 0
-    let winsUSD = [], winsBRL = []
-    let lossesUSD = [], lossesBRL = []
-
-    filteredTrades.forEach(trade => {
-      const isUSD = trade.currency === 'USD'
-      const pnl = parseFloat(trade.pnl) || 0
-      const commission = parseFloat(trade.commission) || 0
-      const swap = parseFloat(trade.swap) || 0
-      const tax = parseFloat(trade.taxes?.amount) || 0
-
-      if (isUSD) {
-        totalPnlUSD += pnl
-        totalCommissionUSD += commission
-        totalSwapUSD += swap
-        totalTaxUSD += tax
-
-        if (pnl > 0) {
-          wins++
-          winsUSD.push(pnl)
-          if (pnl > maxWinUSD) maxWinUSD = pnl
-        } else if (pnl < 0) {
-          losses++
-          lossesUSD.push(pnl)
-          if (pnl < maxLossUSD) maxLossUSD = pnl
-        }
-      } else {
-        totalPnlBRL += pnl
-        totalCommissionBRL += commission
-        totalSwapBRL += swap
-        totalTaxBRL += tax
-
-        if (pnl > 0) {
-          wins++
-          winsBRL.push(pnl)
-          if (pnl > maxWinBRL) maxWinBRL = pnl
-        } else if (pnl < 0) {
-          losses++
-          lossesBRL.push(pnl)
-          if (pnl < maxLossBRL) maxLossBRL = pnl
-        }
-      }
-    })
-
-    const avgWinUSD = winsUSD.length > 0 ? winsUSD.reduce((a, b) => a + b, 0) / winsUSD.length : 0
-    const avgWinBRL = winsBRL.length > 0 ? winsBRL.reduce((a, b) => a + b, 0) / winsBRL.length : 0
-    const avgLossUSD = lossesUSD.length > 0 ? lossesUSD.reduce((a, b) => a + b, 0) / lossesUSD.length : 0
-    const avgLossBRL = lossesBRL.length > 0 ? lossesBRL.reduce((a, b) => a + b, 0) / lossesBRL.length : 0
-
-    const winRate = filteredTrades.length > 0 ? (wins / filteredTrades.length) * 100 : 0
-
-    const totalGrossProfitUSD = winsUSD.reduce((a, b) => a + b, 0)
-    const totalGrossProfitBRL = winsBRL.reduce((a, b) => a + b, 0)
-    const totalGrossLossUSD = Math.abs(lossesUSD.reduce((a, b) => a + b, 0))
-    const totalGrossLossBRL = Math.abs(lossesBRL.reduce((a, b) => a + b, 0))
-
-    const totalGrossProfit = totalGrossProfitUSD + (totalGrossProfitBRL / exchangeRate)
-    const totalGrossLoss = totalGrossLossUSD + (totalGrossLossBRL / exchangeRate)
-    const profitFactor = totalGrossLoss > 0 ? totalGrossProfit / totalGrossLoss : 0
-
-    return {
-      totalPnlUSD,
-      totalPnlBRL,
-      totalCommissionUSD,
-      totalCommissionBRL,
-      totalSwapUSD,
-      totalSwapBRL,
-      totalTaxUSD,
-      totalTaxBRL,
-      wins,
-      losses,
-      winRate,
-      maxWinUSD,
-      maxWinBRL,
-      maxLossUSD,
-      maxLossBRL,
-      avgWinUSD,
-      avgWinBRL,
-      avgLossUSD,
-      avgLossBRL,
-      profitFactor
-    }
+  if (calculating || !metrics) {
+    return <div className="text-center p-8 text-zinc-400">Calculando métricas...</div>
   }
 
-  const metrics = calculateMetrics()
-
-  // ✅ Converter valores
+  // Funções de formatação
   const convertValue = (usdValue, brlValue) => {
-    const usd = parseFloat(usdValue) || 0
-    const brl = parseFloat(brlValue) || 0
-    
+    const usd = parseFloat(usdValue || 0)
+    const brl = parseFloat(brlValue || 0)
+
     if (selectedCurrency === 'USD') {
       return usd + (brl / exchangeRate)
     } else {
@@ -160,37 +221,37 @@ export const Reports = () => {
   }
 
   const formatCurrency = (value) => {
-    const numValue = parseFloat(value) || 0
+    const numValue = parseFloat(value || 0)
     const symbol = selectedCurrency === 'USD' ? '$' : 'R$'
     const locale = selectedCurrency === 'USD' ? 'en-US' : 'pt-BR'
-    return `${symbol} ${Math.abs(numValue).toLocaleString(locale, {
+    return symbol + ' ' + Math.abs(numValue).toLocaleString(locale, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
-    })}`
+    })
   }
 
   const formatEquivalent = (usdValue, brlValue) => {
-    const usd = parseFloat(usdValue) || 0
-    const brl = parseFloat(brlValue) || 0
-    
+    const usd = parseFloat(usdValue || 0)
+    const brl = parseFloat(brlValue || 0)
+
     if (selectedCurrency === 'USD') {
       const totalBRL = (usd * exchangeRate) + brl
-      return `≈ R$ ${totalBRL.toLocaleString('pt-BR', {
+      return '≈ R$ ' + totalBRL.toLocaleString('pt-BR', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
-      })}`
+      })
     } else {
       const totalUSD = usd + (brl / exchangeRate)
-      return `≈ $ ${totalUSD.toLocaleString('en-US', {
+      return '≈ $ ' + totalUSD.toLocaleString('en-US', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
-      })}`
+      })
     }
   }
 
   const formatPercentage = (value) => {
-    const numValue = parseFloat(value) || 0
-    return `${numValue.toFixed(1)}%`
+    const numValue = parseFloat(value || 0)
+    return numValue.toFixed(1) + '%'
   }
 
   const totalPnl = convertValue(metrics.totalPnlUSD, metrics.totalPnlBRL)
@@ -198,11 +259,20 @@ export const Reports = () => {
   const totalSwap = convertValue(metrics.totalSwapUSD, metrics.totalSwapBRL)
   const totalTax = convertValue(metrics.totalTaxUSD, metrics.totalTaxBRL)
   const totalCosts = totalCommission + totalSwap
-  const netProfit = totalPnl - totalCosts - totalTax
+  const netProfit = totalPnl + totalCosts - totalTax
+// ✅ COLOQUE AQUI:
+console.log("📊 MÉTRICAS FINAIS:", {
+  swapTotal: totalSwap,
+  commissionTotal: totalCommission,
+  netProfit: netProfit,
+  totalPnl: totalPnl,
+  totalCosts: totalCosts
+})
   const maxWin = convertValue(metrics.maxWinUSD, metrics.maxWinBRL)
   const maxLoss = convertValue(metrics.maxLossUSD, metrics.maxLossBRL)
 
-  // Breakdown por mercado - COM parseFloat()
+
+  // Breakdown por mercado
   const marketBreakdown = {}
   filteredTrades.forEach(trade => {
     const market = trade.market || 'forex'
@@ -211,29 +281,25 @@ export const Reports = () => {
         trades: [],
         totalPnLUSD: 0,
         totalPnLBRL: 0,
-        totalTaxUSD: 0,
-        totalTaxBRL: 0,
         totalCostsUSD: 0,
         totalCostsBRL: 0,
         wins: 0,
         losses: 0
       }
     }
+
     marketBreakdown[market].trades.push(trade)
-    
+
     const isUSD = trade.currency === 'USD'
-    const pnl = parseFloat(trade.pnl) || 0
-    const tax = parseFloat(trade.taxes?.amount) || 0
-    const commission = parseFloat(trade.commission) || 0
-    const swap = parseFloat(trade.swap) || 0
-    
+    const pnl = parseFloat(trade.pnl || 0)
+    const commission = parseFloat(trade.commission || 0)
+    const swap = parseFloat(trade.swap || 0)
+
     if (isUSD) {
       marketBreakdown[market].totalPnLUSD += pnl
-      marketBreakdown[market].totalTaxUSD += tax
       marketBreakdown[market].totalCostsUSD += (commission + swap)
     } else {
       marketBreakdown[market].totalPnLBRL += pnl
-      marketBreakdown[market].totalTaxBRL += tax
       marketBreakdown[market].totalCostsBRL += (commission + swap)
     }
 
@@ -250,7 +316,7 @@ export const Reports = () => {
           <p className="text-zinc-400">Exporte seus dados de trading em PDF, Excel ou CSV</p>
         </div>
 
-        {/* ✅ Seletor de Moeda */}
+        {/* Seletor de Moeda */}
         <div className="flex gap-1 bg-zinc-800 rounded-lg p-1 border border-zinc-700">
           <button
             onClick={() => setSelectedCurrency('BRL')}
@@ -300,7 +366,7 @@ export const Reports = () => {
           <div className="bg-zinc-800 p-4 rounded-lg">
             <p className="text-xs text-zinc-500 mb-1">Resultado Bruto</p>
             <p className={`text-2xl font-bold ${totalPnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-              {formatCurrency(totalPnl)}
+              {totalPnl >= 0 ? '' : '-'}{formatCurrency(Math.abs(totalPnl))}
             </p>
             <p className="text-xs text-zinc-400 mt-1">
               {formatEquivalent(metrics.totalPnlUSD, metrics.totalPnlBRL)}
@@ -310,12 +376,12 @@ export const Reports = () => {
           <div className="bg-blue-500/10 p-4 rounded-lg border border-blue-500/20">
             <p className="text-xs text-blue-400 mb-1">Resultado Líquido</p>
             <p className={`text-2xl font-bold ${netProfit >= 0 ? "text-blue-400" : "text-red-400"}`}>
-              {formatCurrency(netProfit)}
+              {netProfit >= 0 ? '' : '-'}{formatCurrency(Math.abs(netProfit))}
             </p>
             <p className="text-xs text-zinc-400 mt-1">
               {formatEquivalent(
-                metrics.totalPnlUSD - metrics.totalCommissionUSD - metrics.totalSwapUSD - metrics.totalTaxUSD,
-                metrics.totalPnlBRL - metrics.totalCommissionBRL - metrics.totalSwapBRL - metrics.totalTaxBRL
+                metrics.totalPnlUSD + metrics.totalCommissionUSD - metrics.totalSwapUSD - metrics.totalTaxUSD,
+                metrics.totalPnlBRL + metrics.totalCommissionBRL - metrics.totalSwapBRL - metrics.totalTaxBRL
               )}
             </p>
           </div>
@@ -391,7 +457,7 @@ export const Reports = () => {
             <div className="flex justify-between">
               <span className="text-zinc-400">Resultado Bruto:</span>
               <span className={totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                {formatCurrency(totalPnl)}
+                {totalPnl >= 0 ? '' : '-'}{formatCurrency(Math.abs(totalPnl))}
               </span>
             </div>
             <div className="flex justify-between">
@@ -409,7 +475,7 @@ export const Reports = () => {
             <div className="flex justify-between border-t border-zinc-700 pt-2 mt-2">
               <span className="text-white font-bold">(=) Resultado Líquido:</span>
               <span className={`font-bold ${netProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {formatCurrency(netProfit)}
+                {netProfit >= 0 ? '' : '-'}{formatCurrency(Math.abs(netProfit))}
               </span>
             </div>
           </div>
@@ -423,38 +489,23 @@ export const Reports = () => {
               {Object.entries(marketBreakdown).map(([market, data]) => {
                 const winRate = data.trades.length > 0 ? (data.wins / data.trades.length) * 100 : 0
                 const pnl = convertValue(data.totalPnLUSD, data.totalPnLBRL)
-                const tax = convertValue(data.totalTaxUSD, data.totalTaxBRL)
-                const costs = convertValue(data.totalCostsUSD, data.totalCostsBRL)
-                const netResult = pnl - costs - tax
 
                 return (
                   <div key={market} className="bg-zinc-800/50 rounded-lg p-4">
-                    <h5 className="font-bold text-white mb-2">
-                      {MARKET_NAMES[market] || market}
-                    </h5>
-                    <div className="space-y-1 text-xs">
+                    <h5 className="text-white font-bold mb-2">{MARKET_NAMES[market] || market}</h5>
+                    <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-zinc-400">Trades:</span>
                         <span className="text-white">{data.trades.length}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-zinc-400">Win Rate:</span>
-                        <span className="text-emerald-400">{winRate.toFixed(1)}%</span>
+                        <span className="text-white">{winRate.toFixed(1)}%</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-zinc-400">PnL Bruto:</span>
                         <span className={pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                          {formatCurrency(pnl)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-zinc-400">Impostos:</span>
-                        <span className="text-orange-400">{formatCurrency(tax)}</span>
-                      </div>
-                      <div className="flex justify-between border-t border-zinc-700 pt-1 mt-1">
-                        <span className="text-white font-medium">Líquido:</span>
-                        <span className={`font-bold ${netResult >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {formatCurrency(netResult)}
+                          {pnl >= 0 ? '' : '-'}{formatCurrency(Math.abs(pnl))}
                         </span>
                       </div>
                     </div>
@@ -465,65 +516,20 @@ export const Reports = () => {
           </div>
         )}
 
-        {/* Período */}
-        {filteredTrades.length > 0 && (
-          <div className="bg-zinc-900 p-4 rounded-lg mb-6">
-            <p className="text-sm text-zinc-400">
-              <span className="font-bold text-white">Período:</span>{" "}
-              {filteredTrades[filteredTrades.length - 1]?.date} até {filteredTrades[0]?.date}
-            </p>
-            <p className="text-sm text-zinc-400 mt-1">
-              <span className="font-bold text-white">Total de registros:</span> {filteredTrades.length} trades
-            </p>
-          </div>
-        )}
-
-        {/* Botões de Exportação */}
-        <div className="border-t border-zinc-800 pt-6">
-          <h4 className="text-md font-bold text-white mb-4">💾 Escolha o formato de exportação:</h4>
-
-          {filteredTrades.length === 0 ? (
-            <div className="text-center py-8 text-zinc-500">
-              Nenhum trade encontrado com os filtros aplicados
-            </div>
-          ) : (
-            <ExportButtons 
-  trades={trades} 
-  filteredTrades={filteredTrades}
-  selectedCurrency={selectedCurrency}
-  exchangeRate={exchangeRate}
-/>
-
-          )}
+        <div className="text-xs text-zinc-500 mt-4">
+          Período: {filteredTrades.length > 0 ? `${filteredTrades[0].date} até ${filteredTrades[filteredTrades.length - 1].date}` : 'N/A'}
+          <br />
+          Total de registros: {filteredTrades.length} trades
         </div>
       </Card>
 
-      {/* Informações sobre os formatos */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <h4 className="text-md font-bold text-white mb-2">📄 PDF</h4>
-          <p className="text-sm text-zinc-400">
-            Relatório visual profissional com resumo executivo, métricas, breakdown de custos/impostos e tabela completa de trades.
-            Ideal para apresentações e impressão.
-          </p>
-        </Card>
-
-        <Card>
-          <h4 className="text-md font-bold text-white mb-2">📊 Excel</h4>
-          <p className="text-sm text-zinc-400">
-            Planilha completa com abas: Resumo (métricas + impostos), Por Mercado e Trades (histórico detalhado).
-            Perfeito para análises personalizadas.
-          </p>
-        </Card>
-
-        <Card>
-          <h4 className="text-md font-bold text-white mb-2">📋 CSV</h4>
-          <p className="text-sm text-zinc-400">
-            Arquivo simples e leve com histórico completo incluindo impostos e custos.
-            Compatível com qualquer software de análise de dados.
-          </p>
-        </Card>
-      </div>
+      {/* Botões de Exportação */}
+      <ExportButtons 
+        trades={filteredTrades}
+        metrics={metrics}
+        selectedCurrency={selectedCurrency}
+        exchangeRate={exchangeRate}
+      />
     </div>
   )
 }

@@ -1,4 +1,4 @@
-﻿import { Button } from "../ui"
+import { Button } from "../ui"
 import { exportToPDF, exportToExcel, exportToCSV } from "../../utils/exportReports"
 import { calculateMetrics } from "../../utils/metrics"
 import { useAuth } from "../../features/auth/AuthContext"
@@ -6,8 +6,9 @@ import { useAuth } from "../../features/auth/AuthContext"
 export const ExportButtons = ({ 
   trades, 
   filteredTrades = null,
-  selectedCurrency = 'BRL', // ✅ NOVO
-  exchangeRate = 5.45 // ✅ NOVO
+  metrics = null, // ✅ NOVO - Receber metrics já calculados da página Reports
+  selectedCurrency = 'BRL',
+  exchangeRate = 5.45
 }) => {
   const { isPro } = useAuth()
   const tradesToExport = filteredTrades || trades
@@ -23,9 +24,16 @@ export const ExportButtons = ({
       return
     }
 
-    const metrics = calculateMetrics(tradesToExport)
-    // ✅ Passar moeda e cotação
-    exportToPDF(tradesToExport, metrics, getPeriodLabel(), selectedCurrency, exchangeRate)
+    // ✅ Usar metrics recebidos ou calcular se não tiver
+    const metricsForPDF = metrics || calculateMetrics(tradesToExport)
+    
+    // ✅ Adicionar totalTrades se não existir
+    const enrichedMetrics = {
+      ...metricsForPDF,
+      totalTrades: tradesToExport.length
+    }
+
+    exportToPDF(tradesToExport, enrichedMetrics, getPeriodLabel(), selectedCurrency, exchangeRate)
   }
 
   const handleExportExcel = () => {
@@ -34,9 +42,14 @@ export const ExportButtons = ({
       return
     }
 
-    const metrics = calculateMetrics(tradesToExport)
-    // ✅ Passar moeda e cotação
-    exportToExcel(tradesToExport, metrics, getPeriodLabel(), selectedCurrency, exchangeRate)
+    const metricsForExcel = metrics || calculateMetrics(tradesToExport)
+    
+    const enrichedMetrics = {
+      ...metricsForExcel,
+      totalTrades: tradesToExport.length
+    }
+
+    exportToExcel(tradesToExport, enrichedMetrics, getPeriodLabel(), selectedCurrency, exchangeRate)
   }
 
   const handleExportCSV = () => {
@@ -45,7 +58,6 @@ export const ExportButtons = ({
       return
     }
 
-    // ✅ Passar moeda e cotação
     exportToCSV(tradesToExport, selectedCurrency, exchangeRate)
   }
 

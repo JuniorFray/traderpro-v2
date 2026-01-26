@@ -1,4 +1,4 @@
-﻿import jsPDF from 'jspdf'
+import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
 import { MARKET_NAMES } from '../constants/markets'
@@ -8,12 +8,14 @@ const formatPercent = (value) => {
   return `${(value * 100).toFixed(2)}%`
 }
 
-// ✅ Funções auxiliares de conversão
 const convertValue = (usdValue, brlValue, selectedCurrency, exchangeRate) => {
+  const usd = parseFloat(usdValue || 0)
+  const brl = parseFloat(brlValue || 0)
+  
   if (selectedCurrency === 'USD') {
-    return usdValue + (brlValue / exchangeRate)
+    return usd + (brl / exchangeRate)
   } else {
-    return (usdValue * exchangeRate) + brlValue
+    return (usd * exchangeRate) + brl
   }
 }
 
@@ -32,7 +34,6 @@ const formatCurrency = (value, currency = 'BRL', keepSign = true) => {
   return `${symbol} ${formatted}`
 }
 
-
 const formatWithEquivalent = (usdValue, brlValue, selectedCurrency, exchangeRate) => {
   const mainValue = convertValue(usdValue, brlValue, selectedCurrency, exchangeRate)
   const mainFormatted = formatCurrency(mainValue, selectedCurrency)
@@ -46,300 +47,590 @@ const formatWithEquivalent = (usdValue, brlValue, selectedCurrency, exchangeRate
   }
 }
 
-
-// ✅ Calcular métricas separando USD e BRL
-const calculateMetricsWithCurrency = (trades, exchangeRate) => {
-  let totalPnlUSD = 0, totalPnlBRL = 0
-  let totalCommissionUSD = 0, totalCommissionBRL = 0
-  let totalSwapUSD = 0, totalSwapBRL = 0
-  let totalTaxUSD = 0, totalTaxBRL = 0
-  let wins = 0, losses = 0
-  let maxWinUSD = 0, maxWinBRL = 0
-  let maxLossUSD = 0, maxLossBRL = 0
-  let winsUSD = [], winsBRL = []
-  let lossesUSD = [], lossesBRL = []
-
-  trades.forEach(trade => {
-    const isUSD = trade.currency === 'USD'
-    const pnl = parseFloat(trade.pnl) || 0
-    const commission = parseFloat(trade.commission) || 0
-    const swap = parseFloat(trade.swap) || 0
-    const tax = parseFloat(trade.taxes?.amount) || 0
-
-    if (isUSD) {
-      totalPnlUSD += pnl
-      totalCommissionUSD += commission
-      totalSwapUSD += swap
-      totalTaxUSD += tax
-
-      if (pnl > 0) {
-        wins++
-        winsUSD.push(pnl)
-        if (pnl > maxWinUSD) maxWinUSD = pnl
-      } else if (pnl < 0) {
-        losses++
-        lossesUSD.push(pnl)
-        if (pnl < maxLossUSD) maxLossUSD = pnl
-      }
-    } else {
-      totalPnlBRL += pnl
-      totalCommissionBRL += commission
-      totalSwapBRL += swap
-      totalTaxBRL += tax
-
-      if (pnl > 0) {
-        wins++
-        winsBRL.push(pnl)
-        if (pnl > maxWinBRL) maxWinBRL = pnl
-      } else if (pnl < 0) {
-        losses++
-        lossesBRL.push(pnl)
-        if (pnl < maxLossBRL) maxLossBRL = pnl
-      }
-    }
-  })
-
-  const winRate = trades.length > 0 ? (wins / trades.length) * 100 : 0
-  
-  const totalGrossProfitUSD = winsUSD.reduce((a, b) => a + b, 0)
-  const totalGrossProfitBRL = winsBRL.reduce((a, b) => a + b, 0)
-  const totalGrossLossUSD = Math.abs(lossesUSD.reduce((a, b) => a + b, 0))
-  const totalGrossLossBRL = Math.abs(lossesBRL.reduce((a, b) => a + b, 0))
-
-  const totalGrossProfit = totalGrossProfitUSD + (totalGrossProfitBRL / exchangeRate)
-  const totalGrossLoss = totalGrossLossUSD + (totalGrossLossBRL / exchangeRate)
-  const profitFactor = totalGrossLoss > 0 ? totalGrossProfit / totalGrossLoss : 0
-
-  return {
-    totalPnlUSD, totalPnlBRL,
-    totalCommissionUSD, totalCommissionBRL,
-    totalSwapUSD, totalSwapBRL,
-    totalTaxUSD, totalTaxBRL,
-    wins, losses, winRate, profitFactor,
-    maxWinUSD, maxWinBRL,
-    maxLossUSD, maxLossBRL,
-    totalTrades: trades.length
-  }
-}
-
-export const exportToPDF = (trades, metricsOld, period = 'completo', selectedCurrency = 'USD', exchangeRate = 5.45) => {
+export const exportToPDF = (trades, metrics, period = 'completo', selectedCurrency = 'USD', exchangeRate = 5.45) => {
   const doc = new jsPDF()
   
-  // ✅ Recalcular métricas com separação de moedas
-  const metrics = calculateMetricsWithCurrency(trades, exchangeRate)
+  if (!metrics || metrics.totalPnlUSD === undefined) {
+    console.error('Métricas inválidas recebidas no exportToPDF')
+    return
+  }
 
   const totalPnl = convertValue(metrics.totalPnlUSD, metrics.totalPnlBRL, selectedCurrency, exchangeRate)
   const totalCommission = convertValue(metrics.totalCommissionUSD, metrics.totalCommissionBRL, selectedCurrency, exchangeRate)
   const totalSwap = convertValue(metrics.totalSwapUSD, metrics.totalSwapBRL, selectedCurrency, exchangeRate)
   const totalTax = convertValue(metrics.totalTaxUSD, metrics.totalTaxBRL, selectedCurrency, exchangeRate)
   const totalCosts = totalCommission + totalSwap
-  const netProfit = totalPnl - totalCosts - totalTax
+  const netProfit = totalPnl + totalCosts - totalTax
   const maxWin = convertValue(metrics.maxWinUSD, metrics.maxWinBRL, selectedCurrency, exchangeRate)
   const maxLoss = convertValue(metrics.maxLossUSD, metrics.maxLossBRL, selectedCurrency, exchangeRate)
+
+  // ANÁLISES ADICIONAIS
+  const tradesWithPnl = trades.map(t => ({
+    ...t,
+    pnlConverted: t.currency === selectedCurrency 
+      ? parseFloat(t.pnl || 0)
+      : selectedCurrency === 'USD' 
+        ? parseFloat(t.pnl || 0) / exchangeRate
+        : parseFloat(t.pnl || 0) * exchangeRate
+  }))
+
+  const top5Best = [...tradesWithPnl]
+    .sort((a, b) => b.pnlConverted - a.pnlConverted)
+    .slice(0, 5)
+
+  const top5Worst = [...tradesWithPnl]
+    .filter(t => t.pnlConverted < 0)
+    .sort((a, b) => a.pnlConverted - b.pnlConverted)
+    .slice(0, 5)
+
+  const byAsset = {}
+  tradesWithPnl.forEach(t => {
+    const asset = t.asset || 'Desconhecido'
+    if (!byAsset[asset]) {
+      byAsset[asset] = { trades: 0, pnl: 0, wins: 0, losses: 0 }
+    }
+    byAsset[asset].trades++
+    byAsset[asset].pnl += t.pnlConverted
+    if (t.pnlConverted > 0) byAsset[asset].wins++
+    else if (t.pnlConverted < 0) byAsset[asset].losses++
+  })
+
+  const assetPerformance = Object.entries(byAsset)
+    .map(([asset, data]) => ({
+      asset,
+      ...data,
+      winRate: data.trades > 0 ? (data.wins / data.trades) * 100 : 0
+    }))
+    .sort((a, b) => b.pnl - a.pnl)
+    .slice(0, 10)
+
+  const byWeekday = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] }
+  const weekdayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
+  
+  tradesWithPnl.forEach(t => {
+    const date = new Date(t.date + 'T00:00:00')
+    const day = date.getDay()
+    byWeekday[day].push(t.pnlConverted)
+  })
+
+  const weekdayStats = Object.entries(byWeekday).map(([day, pnls]) => ({
+    day: weekdayNames[day],
+    trades: pnls.length,
+    totalPnl: pnls.reduce((a, b) => a + b, 0),
+    avgPnl: pnls.length > 0 ? pnls.reduce((a, b) => a + b, 0) / pnls.length : 0,
+    wins: pnls.filter(p => p > 0).length,
+    winRate: pnls.length > 0 ? (pnls.filter(p => p > 0).length / pnls.length) * 100 : 0
+  }))
+
+  let accumulated = 0
+  const equityCurve = tradesWithPnl
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map(t => {
+      accumulated += t.pnlConverted
+      return { date: t.date, equity: accumulated }
+    })
 
   // ========================================
   // PÁGINA 1: CAPA
   // ========================================
-  doc.setFillColor(34, 197, 94)
-  doc.rect(0, 0, 210, 60, 'F')
+  doc.setFillColor(15, 23, 42)
+  doc.rect(0, 0, 210, 70, 'F')
 
-  doc.setTextColor(255, 255, 255)
-  doc.setFontSize(28)
+  doc.setTextColor(34, 197, 94)
+  doc.setFontSize(36)
+  doc.setFont('helvetica', 'bold')
   doc.text('TraderPro', 105, 30, { align: 'center' })
-  doc.setFontSize(16)
-  doc.text('Relatório de Trading - v3.0', 105, 42, { align: 'center' })
+  
+  doc.setTextColor(226, 232, 240)
+  doc.setFontSize(14)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Relatório Profissional de Trading - v3.0', 105, 42, { align: 'center' })
+  
+  doc.setFontSize(10)
+  doc.setTextColor(148, 163, 184)
+  doc.text('Análise completa de performance e métricas avançadas', 105, 50, { align: 'center' })
+
+  doc.setFillColor(34, 197, 94)
+  doc.roundedRect(40, 60, 130, 12, 2, 2, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'bold')
+  doc.text(`PERIODO: ${period}`, 105, 67, { align: 'center' })
 
   doc.setTextColor(0, 0, 0)
-  doc.setFontSize(12)
-  doc.text('Período: ' + period, 14, 75)
-  doc.text('Gerado em: ' + new Date().toLocaleString('pt-BR'), 14, 82)
-  doc.text('Total de Trades: ' + metrics.totalTrades, 14, 89)
-  doc.text(`Moeda: ${selectedCurrency} (1 USD = R$ ${exchangeRate.toFixed(4)})`, 14, 96)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(10)
+  doc.text('Gerado em: ' + new Date().toLocaleString('pt-BR', { 
+    dateStyle: 'short', 
+    timeStyle: 'short' 
+  }), 14, 85)
+  doc.text(`Total de Trades: ${metrics.totalTrades || trades.length}`, 14, 92)
+  doc.text(`Moeda: ${selectedCurrency}`, 14, 99)
+  doc.setFontSize(8)
+  doc.setTextColor(100, 100, 100)
+  doc.text(`Taxa de câmbio: 1 USD = R$ ${exchangeRate.toFixed(4)}`, 14, 105)
 
   const isProfit = netProfit >= 0
-  doc.setFontSize(14)
-  doc.text('Resultado Líquido', 14, 112)
-  doc.setTextColor(isProfit ? 34 : 220, isProfit ? 197 : 38, isProfit ? 94 : 38)
-  doc.setFontSize(28)
-  doc.text(formatCurrency(netProfit, selectedCurrency), 14, 125)
-  doc.setFontSize(10)
+  doc.setDrawColor(15, 23, 42)
+  doc.setLineWidth(0.5)
+  doc.setFillColor(isProfit ? 220 : 254, isProfit ? 252 : 226, isProfit ? 231 : 226)
+  doc.roundedRect(14, 115, 182, 35, 3, 3, 'FD')
+
+  doc.setFontSize(11)
+  doc.setTextColor(100, 100, 100)
+  doc.setFont('helvetica', 'bold')
+  doc.text('RESULTADO LIQUIDO NO PERIODO', 105, 125, { align: 'center' })
+  
+  doc.setTextColor(isProfit ? 22 : 185, isProfit ? 163 : 28, isProfit ? 74 : 28)
+  doc.setFontSize(32)
+  doc.setFont('helvetica', 'bold')
+  doc.text(formatCurrency(netProfit, selectedCurrency), 105, 140, { align: 'center' })
+  
+  doc.setFontSize(9)
   doc.setTextColor(120, 120, 120)
+  doc.setFont('helvetica', 'normal')
   const equivalent = selectedCurrency === 'USD' 
-  ? `~ R$ ${((netProfit * exchangeRate)).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
-  : `~ $ ${(netProfit / exchangeRate).toLocaleString('en-US', {minimumFractionDigits: 2})}`
+    ? `~ R$ ${(netProfit * exchangeRate).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+    : `~ $ ${(netProfit / exchangeRate).toLocaleString('en-US', {minimumFractionDigits: 2})}`
+  doc.text(equivalent, 105, 147, { align: 'center' })
 
-  doc.text(equivalent, 14, 132)
-  doc.setTextColor(0, 0, 0)
+  const drawModernCard = (x, y, label, value, colorType = 'neutral') => {
+    const colors = {
+      win: { bg: [220, 252, 231], border: [34, 197, 94], text: [22, 163, 74] },
+      loss: { bg: [254, 226, 226], border: [220, 38, 38], text: [185, 28, 28] },
+      neutral: { bg: [248, 250, 252], border: [203, 213, 225], text: [51, 65, 85] },
+      info: { bg: [219, 234, 254], border: [59, 130, 246], text: [37, 99, 235] }
+    }
+    
+    const color = colors[colorType]
+    
+    doc.setFillColor(...color.bg)
+    doc.setDrawColor(...color.border)
+    doc.setLineWidth(0.3)
+    doc.roundedRect(x, y, 88, 20, 2, 2, 'FD')
 
-  // Cards
-  const drawCard = (x, y, label, value, color = 0) => {
-    doc.setDrawColor(220, 220, 220)
-    doc.setFillColor(248, 248, 248)
-    doc.roundedRect(x, y, 90, 22, 3, 3, 'FD')
-
-    doc.setFontSize(9)
-    doc.setTextColor(120, 120, 120)
-    doc.text(label, x + 5, y + 9)
+    doc.setFontSize(8)
+    doc.setTextColor(100, 100, 100)
+    doc.setFont('helvetica', 'normal')
+    doc.text(label, x + 5, y + 7)
 
     doc.setFontSize(14)
-    if (color === 1) doc.setTextColor(34, 197, 94)
-    else if (color === 2) doc.setTextColor(220, 38, 38)
-    else doc.setTextColor(0, 0, 0)
-
-    doc.text(String(value), x + 5, y + 17)
-    doc.setTextColor(0, 0, 0)
+    doc.setTextColor(...color.text)
+    doc.setFont('helvetica', 'bold')
+    doc.text(String(value), x + 5, y + 15)
   }
 
-  let cardY = 145
-  drawCard(14, cardY, 'Win Rate', `${metrics.winRate.toFixed(1)}%`)
-  drawCard(110, cardY, 'Profit Factor', metrics.profitFactor.toFixed(2))
+  let cardY = 160
+  drawModernCard(14, cardY, 'Win Rate', `${(metrics.winRate || 0).toFixed(1)}%`, 'info')
+  drawModernCard(108, cardY, 'Profit Factor', (metrics.profitFactor || 0).toFixed(2), 'info')
 
-  cardY += 27
-  drawCard(14, cardY, 'Vitórias', metrics.wins, 1)
-  drawCard(110, cardY, 'Derrotas', metrics.losses, 2)
+  cardY += 25
+  drawModernCard(14, cardY, 'Vitorias', `${metrics.wins || 0}`, 'win')
+  drawModernCard(108, cardY, 'Derrotas', `${metrics.losses || 0}`, 'loss')
 
-  cardY += 27
-  drawCard(14, cardY, 'Maior Ganho', formatCurrency(maxWin, selectedCurrency), 1)
-  drawCard(110, cardY, 'Maior Perda', formatCurrency(Math.abs(maxLoss), selectedCurrency), 2)
+  cardY += 25
+  drawModernCard(14, cardY, 'Maior Ganho', formatCurrency(maxWin, selectedCurrency), 'win')
+  drawModernCard(108, cardY, 'Maior Perda', formatCurrency(Math.abs(maxLoss), selectedCurrency), 'loss')
 
-  cardY += 27
-  drawCard(14, cardY, 'Impostos', formatCurrency(totalTax, selectedCurrency), 2)
-  drawCard(110, cardY, 'Custos Op.', formatCurrency(totalCosts, selectedCurrency), 2)
+  cardY += 25
+  drawModernCard(14, cardY, 'Custos Totais', formatCurrency(Math.abs(totalCosts), selectedCurrency), 'neutral')
+  drawModernCard(108, cardY, 'Impostos', formatCurrency(Math.abs(totalTax), selectedCurrency), 'neutral')
 
   // ========================================
-  // PÁGINA 2: BREAKDOWN FINANCEIRO
+// PÁGINA 2: BREAKDOWN
+// ========================================
+doc.addPage()
+doc.setFillColor(15, 23, 42)
+doc.rect(0, 0, 210, 25, 'F')
+doc.setTextColor(255, 255, 255)
+doc.setFontSize(16)
+doc.setFont('helvetica', 'bold')
+doc.text('BREAKDOWN FINANCEIRO DETALHADO', 14, 15)
+
+autoTable(doc, {
+  startY: 35,
+  head: [['Descricao', 'Valor']],
+  body: [
+    ['Resultado Bruto', formatWithEquivalent(metrics.totalPnlUSD, metrics.totalPnlBRL, selectedCurrency, exchangeRate)],
+    ['(-) Corretagem', formatWithEquivalent(Math.abs(metrics.totalCommissionUSD), Math.abs(metrics.totalCommissionBRL), selectedCurrency, exchangeRate)],
+    ['(-) Swap/Juros', formatWithEquivalent(Math.abs(metrics.totalSwapUSD), Math.abs(metrics.totalSwapBRL), selectedCurrency, exchangeRate)],
+    ['(-) Impostos', formatWithEquivalent(Math.abs(metrics.totalTaxUSD), Math.abs(metrics.totalTaxBRL), selectedCurrency, exchangeRate)],
+    ['(=) Resultado Liquido', formatCurrency(netProfit, selectedCurrency)],
+  ],
+  theme: 'plain',
+  headStyles: { 
+    fillColor: [34, 197, 94], 
+    textColor: [255, 255, 255],
+    fontStyle: 'bold',
+    fontSize: 11
+  },
+  bodyStyles: {
+    fontSize: 10,
+    textColor: [51, 65, 85]
+  },
+  columnStyles: {
+    0: { cellWidth: 90, fontStyle: 'bold' },
+    1: { cellWidth: 90, halign: 'right', fontStyle: 'bold' }
+  },
+  didParseCell: function(data) {
+    if (data.row.index === 4) {
+      data.cell.styles.fillColor = netProfit >= 0 ? [220, 252, 231] : [254, 226, 226]
+      data.cell.styles.textColor = netProfit >= 0 ? [22, 163, 74] : [185, 28, 28]
+      data.cell.styles.fontSize = 12
+    }
+  }
+})
+
+// ========================================
+// GRÁFICO DE PIZZA CORRIGIDO
+// ========================================
+const distY = doc.lastAutoTable.finalY + 20
+doc.setFontSize(14)
+doc.setTextColor(15, 23, 42)
+doc.setFont('helvetica', 'bold')
+doc.text('DISTRIBUICAO DE RESULTADOS', 14, distY)
+
+const centerX = 50
+const centerY = distY + 35
+const radius = 25
+
+const total = (metrics.wins || 0) + (metrics.losses || 0)
+if (total > 0) {
+  const winPercentage = ((metrics.wins || 0) / total) * 100
+  const lossPercentage = 100 - winPercentage
+  
+  const winAngleDegrees = (winPercentage / 100) * 360
+  
+  doc.setFillColor(220, 38, 38)
+  doc.circle(centerX, centerY, radius, 'F')
+  
+  if (winPercentage > 0) {
+    doc.setFillColor(34, 197, 94)
+    
+    const points = []
+    const startAngle = -90
+    const endAngle = startAngle + winAngleDegrees
+    
+    points.push([centerX, centerY])
+    
+    for (let angle = startAngle; angle <= endAngle; angle += 2) {
+      const rad = (angle * Math.PI) / 180
+      const x = centerX + radius * Math.cos(rad)
+      const y = centerY + radius * Math.sin(rad)
+      points.push([x, y])
+    }
+    
+    points.push([centerX, centerY])
+    
+    if (points.length > 2) {
+      doc.triangle(
+        points[0][0], points[0][1],
+        points[1][0], points[1][1],
+        points[2][0], points[2][1],
+        'F'
+      )
+      
+      if (points.length > 3) {
+        for (let i = 0; i < points.length - 2; i++) {
+          const p1 = points[0]
+          const p2 = points[i + 1]
+          const p3 = points[i + 2]
+          
+          doc.setFillColor(34, 197, 94)
+          doc.triangle(p1[0], p1[1], p2[0], p2[1], p3[0], p3[1], 'F')
+        }
+      }
+    }
+  }
+
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  
+  doc.setFillColor(34, 197, 94)
+  doc.circle(90, centerY - 10, 3, 'F')
+  doc.setTextColor(22, 163, 74)
+  doc.text(`Vitorias: ${metrics.wins || 0} (${winPercentage.toFixed(1)}%)`, 100, centerY - 8)
+
+  doc.setFillColor(220, 38, 38)
+  doc.circle(90, centerY + 5, 3, 'F')
+  doc.setTextColor(185, 28, 28)
+  doc.text(`Derrotas: ${metrics.losses || 0} (${lossPercentage.toFixed(1)}%)`, 100, centerY + 7)
+}
+
+// ========================================
+// CURVA DE CAPITAL (COM ESPAÇAMENTO CORRETO)
+// ========================================
+const equityY = centerY + radius + 20  // ✅ CORREÇÃO: usa centerY + radius + margem
+doc.setFontSize(14)
+doc.setTextColor(15, 23, 42)
+doc.setFont('helvetica', 'bold')
+doc.text('CURVA DE CAPITAL', 14, equityY)
+
+const chartX = 14
+const chartY = equityY + 10
+const chartWidth = 180
+const chartHeight = 50
+
+doc.setFillColor(248, 250, 252)
+doc.rect(chartX, chartY, chartWidth, chartHeight, 'F')
+
+doc.setDrawColor(203, 213, 225)
+doc.setLineWidth(0.3)
+const zeroY = chartY + chartHeight / 2
+doc.line(chartX, zeroY, chartX + chartWidth, zeroY)
+
+const equityValues = equityCurve.map(e => e.equity)
+const maxEquity = Math.max(...equityValues, 0)
+const minEquity = Math.min(...equityValues, 0)
+const range = maxEquity - minEquity || 1
+
+if (equityCurve.length > 1) {
+  doc.setLineWidth(1)
+  
+  for (let i = 0; i < equityCurve.length - 1; i++) {
+    const x1 = chartX + (i / (equityCurve.length - 1)) * chartWidth
+    const y1 = chartY + chartHeight - ((equityCurve[i].equity - minEquity) / range) * chartHeight
+    
+    const x2 = chartX + ((i + 1) / (equityCurve.length - 1)) * chartWidth
+    const y2 = chartY + chartHeight - ((equityCurve[i + 1].equity - minEquity) / range) * chartHeight
+    
+    if (equityCurve[i + 1].equity >= 0) {
+      doc.setDrawColor(34, 197, 94)
+    } else {
+      doc.setDrawColor(220, 38, 38)
+    }
+    
+    doc.line(x1, y1, x2, y2)
+  }
+}
+
+doc.setFontSize(7)
+doc.setTextColor(100, 116, 139)
+doc.setFont('helvetica', 'normal')
+doc.text(formatCurrency(maxEquity, selectedCurrency), chartX - 2, chartY + 3, { align: 'right' })
+doc.text(formatCurrency(0, selectedCurrency), chartX - 2, zeroY + 2, { align: 'right' })
+doc.text(formatCurrency(minEquity, selectedCurrency), chartX - 2, chartY + chartHeight, { align: 'right' })
+
+doc.text('Inicio', chartX, chartY + chartHeight + 5)
+doc.text('Fim', chartX + chartWidth, chartY + chartHeight + 5, { align: 'right' })
+
+doc.setDrawColor(203, 213, 225)
+doc.setLineWidth(0.5)
+doc.rect(chartX, chartY, chartWidth, chartHeight)
+
+
+
+  // ========================================
+  // PÁGINA 3: ANÁLISES AVANÇADAS
   // ========================================
   doc.addPage()
-  doc.setFontSize(18)
-  doc.setTextColor(34, 197, 94)
-  doc.text('Breakdown Financeiro Detalhado', 14, 20)
-  doc.setTextColor(0, 0, 0)
+  doc.setFillColor(15, 23, 42)
+  doc.rect(0, 0, 210, 25, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(16)
+  doc.setFont('helvetica', 'bold')
+  doc.text('ANALISES AVANCADAS', 14, 15)
+
+  let currentY = 35
+
+  doc.setFontSize(12)
+  doc.setTextColor(22, 163, 74)
+  doc.setFont('helvetica', 'bold')
+  doc.text('TOP 5 MELHORES TRADES', 14, currentY)
 
   autoTable(doc, {
-    startY: 30,
-    head: [['Descrição', 'Valor']],
-    body: [
-      ['Resultado Bruto', formatWithEquivalent(metrics.totalPnlUSD, metrics.totalPnlBRL, selectedCurrency, exchangeRate)],
-      ['- Corretagem', formatWithEquivalent(metrics.totalCommissionUSD, metrics.totalCommissionBRL, selectedCurrency, exchangeRate)],
-      ['- Swap', formatWithEquivalent(metrics.totalSwapUSD, metrics.totalSwapBRL, selectedCurrency, exchangeRate)],
-      ['- Impostos', formatWithEquivalent(metrics.totalTaxUSD, metrics.totalTaxBRL, selectedCurrency, exchangeRate)],
-      ['= Resultado Líquido', formatCurrency(netProfit, selectedCurrency)],
-    ],
-    theme: 'striped',
-    headStyles: { fillColor: [34, 197, 94], fontStyle: 'bold' },
+    startY: currentY + 5,
+    head: [['Data', 'Ativo', `P&L (${selectedCurrency})`]],
+    body: top5Best.map(t => [
+      t.date,
+      t.asset,
+      formatCurrency(t.pnlConverted, selectedCurrency)
+    ]),
+    theme: 'plain',
+    headStyles: { 
+      fillColor: [220, 252, 231], 
+      textColor: [22, 163, 74],
+      fontStyle: 'bold',
+      fontSize: 9
+    },
+    bodyStyles: { fontSize: 9, textColor: [51, 65, 85] },
     columnStyles: {
-      0: { cellWidth: 85 },
-      1: { cellWidth: 85, halign: 'right', fontStyle: 'bold' }
+      0: { cellWidth: 35 },
+      1: { cellWidth: 40 },
+      2: { cellWidth: 45, halign: 'right', fontStyle: 'bold', textColor: [22, 163, 74] }
+    }
+  })
+
+  currentY = doc.lastAutoTable.finalY + 15
+
+  doc.setFontSize(12)
+  doc.setTextColor(185, 28, 28)
+  doc.setFont('helvetica', 'bold')
+  doc.text('TOP 5 PIORES TRADES', 14, currentY)
+
+  if (top5Worst.length > 0) {
+    autoTable(doc, {
+      startY: currentY + 5,
+      head: [['Data', 'Ativo', `P&L (${selectedCurrency})`]],
+      body: top5Worst.map(t => [
+        t.date,
+        t.asset,
+        formatCurrency(t.pnlConverted, selectedCurrency)
+      ]),
+      theme: 'plain',
+      headStyles: { 
+        fillColor: [254, 226, 226], 
+        textColor: [185, 28, 28],
+        fontStyle: 'bold',
+        fontSize: 9
+      },
+      bodyStyles: { fontSize: 9, textColor: [51, 65, 85] },
+      columnStyles: {
+        0: { cellWidth: 35 },
+        1: { cellWidth: 40 },
+        2: { cellWidth: 45, halign: 'right', fontStyle: 'bold', textColor: [185, 28, 28] }
+      }
+    })
+  }
+
+  // ========================================
+  // PÁGINA 4: PERFORMANCE
+  // ========================================
+  doc.addPage()
+  doc.setFillColor(15, 23, 42)
+  doc.rect(0, 0, 210, 25, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(16)
+  doc.setFont('helvetica', 'bold')
+  doc.text('PERFORMANCE DETALHADA', 14, 15)
+
+  currentY = 35
+
+  doc.setFontSize(12)
+  doc.setTextColor(15, 23, 42)
+  doc.text('TOP 10 ATIVOS', 14, currentY)
+
+  autoTable(doc, {
+    startY: currentY + 5,
+    head: [['Ativo', 'Trades', 'Win Rate', `P&L (${selectedCurrency})`]],
+    body: assetPerformance.map(a => [
+      a.asset,
+      a.trades.toString(),
+      `${a.winRate.toFixed(1)}%`,
+      formatCurrency(a.pnl, selectedCurrency)
+    ]),
+    theme: 'striped',
+    headStyles: { 
+      fillColor: [34, 197, 94],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 9
+    },
+    bodyStyles: { fontSize: 9 },
+    columnStyles: {
+      0: { cellWidth: 45, fontStyle: 'bold' },
+      1: { cellWidth: 25, halign: 'center' },
+      2: { cellWidth: 30, halign: 'center' },
+      3: { cellWidth: 40, halign: 'right', fontStyle: 'bold' }
     },
     didParseCell: function(data) {
-      if (data.row.index === 4) {
-        data.cell.styles.fillColor = netProfit >= 0 ? [220, 252, 231] : [254, 226, 226]
+      if (data.column.index === 3 && data.row.section === 'body') {
+        const pnl = assetPerformance[data.row.index].pnl
+        data.cell.styles.textColor = pnl >= 0 ? [22, 163, 74] : [185, 28, 28]
       }
     }
   })
 
-  // Distribuição Win/Loss
-  doc.setFontSize(16)
-  doc.setTextColor(34, 197, 94)
-  doc.text('Distribuição de Resultados', 14, doc.lastAutoTable.finalY + 15)
-  doc.setTextColor(0, 0, 0)
+  currentY = doc.lastAutoTable.finalY + 15
 
-  const centerX = 105
-  const centerY = doc.lastAutoTable.finalY + 50
-  const radius = 30
-
-  const total = metrics.wins + metrics.losses
-  if (total > 0) {
-    const winPercentage = (metrics.wins / total) * 100
-    const winAngle = (metrics.wins / total) * 360
-
-    doc.setFillColor(34, 197, 94)
-    doc.circle(centerX, centerY, radius, 'F')
-
-    if (metrics.losses > 0) {
-      doc.setFillColor(220, 38, 38)
-      const points = [[centerX, centerY]]
-      
-      for (let angle = winAngle; angle <= 360; angle += 5) {
-        const rad = (angle * Math.PI) / 180
-        const x = centerX + radius * Math.cos(rad)
-        const y = centerY + radius * Math.sin(rad)
-        points.push([x, y])
-      }
-      
-      points.push([centerX, centerY])
-      
-      doc.lines(
-        points.slice(1).map((point, i) => {
-          if (i === 0) return [point[0] - centerX, point[1] - centerY]
-          return [point[0] - points[i][0], point[1] - points[i][1]]
-        }),
-        centerX,
-        centerY,
-        [1, 1],
-        'F'
-      )
-    }
-
-    doc.setFontSize(12)
-    doc.setFillColor(34, 197, 94)
-    doc.circle(30, centerY + 40, 3, 'F')
-    doc.setTextColor(0, 0, 0)
-    doc.text(`Vitórias: ${metrics.wins} (${winPercentage.toFixed(1)}%)`, 40, centerY + 42)
-
-    doc.setFillColor(220, 38, 38)
-    doc.circle(30, centerY + 50, 3, 'F')
-    doc.text(`Derrotas: ${metrics.losses} (${(100-winPercentage).toFixed(1)}%)`, 40, centerY + 52)
-  }
-
-  // ========================================
-  // PÁGINA 3: HISTÓRICO DE TRADES
-  // ========================================
-  doc.addPage()
-  doc.setFontSize(18)
-  doc.setTextColor(34, 197, 94)
-  doc.text('Histórico Completo de Trades', 14, 20)
-  doc.setTextColor(0, 0, 0)
-
-  const tradeTableData = trades
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .map(t => {
-      const pnl = parseFloat(t.pnl) || 0
-      const commission = parseFloat(t.commission) || 0
-      const swap = parseFloat(t.swap) || 0
-      const tax = parseFloat(t.taxes?.amount) || 0
-      const currency = t.currency || 'BRL'
-      
-      // Converter para moeda selecionada se necessário
-      let displayPnl = pnl
-      if (selectedCurrency === 'USD' && currency === 'BRL') {
-        displayPnl = pnl / exchangeRate
-      } else if (selectedCurrency === 'BRL' && currency === 'USD') {
-        displayPnl = pnl * exchangeRate
-      }
-      
-      return [
-        t.date,
-        t.asset,
-        currency,
-        MARKET_NAMES[t.market] || t.market || '-',
-        formatCurrency(displayPnl, selectedCurrency, true)
-      ]
-    })
+  doc.setFontSize(12)
+  doc.setTextColor(15, 23, 42)
+  doc.text('PERFORMANCE POR DIA DA SEMANA', 14, currentY)
 
   autoTable(doc, {
-    startY: 30,
-    head: [['Data', 'Ativo', 'Moeda Orig.', 'Mercado', `P&L (${selectedCurrency})`]],
+    startY: currentY + 5,
+    head: [['Dia', 'Trades', 'Win Rate', `P&L Medio (${selectedCurrency})`]],
+    body: weekdayStats
+      .filter(w => w.trades > 0)
+      .map(w => [
+        w.day,
+        w.trades.toString(),
+        `${w.winRate.toFixed(1)}%`,
+        formatCurrency(w.avgPnl, selectedCurrency)
+      ]),
+    theme: 'striped',
+    headStyles: { 
+      fillColor: [59, 130, 246],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 9
+    },
+    bodyStyles: { fontSize: 9 },
+    columnStyles: {
+      0: { cellWidth: 35, fontStyle: 'bold' },
+      1: { cellWidth: 25, halign: 'center' },
+      2: { cellWidth: 30, halign: 'center' },
+      3: { cellWidth: 50, halign: 'right', fontStyle: 'bold' }
+    },
+    didParseCell: function(data) {
+      if (data.column.index === 3 && data.row.section === 'body') {
+        const avgPnl = weekdayStats.filter(w => w.trades > 0)[data.row.index].avgPnl
+        data.cell.styles.textColor = avgPnl >= 0 ? [22, 163, 74] : [185, 28, 28]
+      }
+    }
+  })
+
+  // ========================================
+  // PÁGINA 5+: HISTÓRICO
+  // ========================================
+  doc.addPage()
+  doc.setFillColor(15, 23, 42)
+  doc.rect(0, 0, 210, 25, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(16)
+  doc.setFont('helvetica', 'bold')
+  doc.text('HISTORICO COMPLETO DE TRADES', 14, 15)
+
+  const tradeTableData = equityCurve.map((t, idx) => {
+    const trade = tradesWithPnl[idx]
+    return [
+      trade.date,
+      trade.asset,
+      trade.currency,
+      MARKET_NAMES[trade.market] || trade.market || '-',
+      formatCurrency(trade.pnlConverted, selectedCurrency, true),
+      formatCurrency(t.equity, selectedCurrency, true)
+    ]
+  })
+
+  autoTable(doc, {
+    startY: 35,
+    head: [['Data', 'Ativo', 'Moeda', 'Mercado', `P&L (${selectedCurrency})`, 'Resultado Acum.']],
     body: tradeTableData,
     theme: 'striped',
-    headStyles: { fillColor: [34, 197, 94], fontStyle: 'bold', fontSize: 9 },
-    bodyStyles: { fontSize: 8 },
+    headStyles: { 
+      fillColor: [34, 197, 94], 
+      fontStyle: 'bold', 
+      fontSize: 8,
+      textColor: [255, 255, 255]
+    },
+    bodyStyles: { fontSize: 7 },
     columnStyles: {
-      0: { cellWidth: 25 },
-      1: { cellWidth: 30 },
-      2: { cellWidth: 22, halign: 'center' },
-      3: { cellWidth: 30 },
-      4: { cellWidth: 35, halign: 'right', fontStyle: 'bold' }
+      0: { cellWidth: 24 },
+      1: { cellWidth: 28 },
+      2: { cellWidth: 18, halign: 'center' },
+      3: { cellWidth: 25 },
+      4: { cellWidth: 32, halign: 'right', fontStyle: 'bold' },
+      5: { cellWidth: 33, halign: 'right', fontStyle: 'bold' }
+    },
+    didParseCell: function(data) {
+      if ((data.column.index === 4 || data.column.index === 5) && data.row.section === 'body') {
+        const idx = data.row.index
+        const pnl = data.column.index === 4 
+          ? tradesWithPnl[idx].pnlConverted 
+          : equityCurve[idx].equity
+        data.cell.styles.textColor = pnl >= 0 ? [22, 163, 74] : [185, 28, 28]
+      }
     }
   })
 
@@ -347,12 +638,15 @@ export const exportToPDF = (trades, metricsOld, period = 'completo', selectedCur
   const pageCount = doc.internal.getNumberOfPages()
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i)
-    doc.setFontSize(8)
-    doc.setTextColor(150, 150, 150)
+    doc.setFillColor(248, 250, 252)
+    doc.rect(0, 287, 210, 10, 'F')
+    doc.setFontSize(7)
+    doc.setTextColor(100, 116, 139)
+    doc.setFont('helvetica', 'normal')
     doc.text(
-      `Página ${i} de ${pageCount} • TraderPro © ${new Date().getFullYear()}`,
+      `Pagina ${i} de ${pageCount} • TraderPro © ${new Date().getFullYear()} • Relatorio gerado automaticamente`,
       105,
-      290,
+      292,
       { align: 'center' }
     )
   }
@@ -362,47 +656,45 @@ export const exportToPDF = (trades, metricsOld, period = 'completo', selectedCur
 }
 
 // EXPORTAR PARA EXCEL
-export const exportToExcel = (trades, metricsOld, period, selectedCurrency = 'USD', exchangeRate = 5.45) => {
+export const exportToExcel = (trades, metrics, period, selectedCurrency = 'USD', exchangeRate = 5.45) => {
   const wb = XLSX.utils.book_new()
-  const metrics = calculateMetricsWithCurrency(trades, exchangeRate)
 
   const totalPnl = convertValue(metrics.totalPnlUSD, metrics.totalPnlBRL, selectedCurrency, exchangeRate)
   const totalCommission = convertValue(metrics.totalCommissionUSD, metrics.totalCommissionBRL, selectedCurrency, exchangeRate)
   const totalSwap = convertValue(metrics.totalSwapUSD, metrics.totalSwapBRL, selectedCurrency, exchangeRate)
   const totalTax = convertValue(metrics.totalTaxUSD, metrics.totalTaxBRL, selectedCurrency, exchangeRate)
-  const netProfit = totalPnl - totalCommission - totalSwap - totalTax
+  const totalCosts = totalCommission + totalSwap
+  const netProfit = totalPnl + totalCosts - totalTax
 
-  // ABA 1: Resumo
   const summaryData = [
-    ['TraderPro - Relatório de Trading v3.0'],
+    ['TraderPro - Relatorio de Trading'],
     ['Gerado em:', new Date().toLocaleString('pt-BR')],
     [`Moeda: ${selectedCurrency}`, `1 USD = R$ ${exchangeRate.toFixed(4)}`],
     [],
     ['RESUMO GERAL'],
-    ['Total de Trades', metrics.totalTrades],
+    ['Total de Trades', metrics.totalTrades || trades.length],
     ['Resultado Bruto', totalPnl],
-    ['Corretagem', -totalCommission],
-    ['Swap', -totalSwap],
-    ['Impostos', -totalTax],
-    ['Resultado Líquido', netProfit],
+    ['Corretagem', totalCommission],
+    ['Swap', totalSwap],
+    ['Impostos', -Math.abs(totalTax)],
+    ['Resultado Liquido', netProfit],
     [],
-    ['MÉTRICAS'],
-    ['Win Rate', `${metrics.winRate.toFixed(2)}%`],
-    ['Profit Factor', metrics.profitFactor.toFixed(2)],
-    ['Vitórias', metrics.wins],
-    ['Derrotas', metrics.losses],
+    ['METRICAS'],
+    ['Win Rate', `${(metrics.winRate || 0).toFixed(2)}%`],
+    ['Profit Factor', (metrics.profitFactor || 0).toFixed(2)],
+    ['Vitorias', metrics.wins || 0],
+    ['Derrotas', metrics.losses || 0],
   ]
   const ws1 = XLSX.utils.aoa_to_sheet(summaryData)
   XLSX.utils.book_append_sheet(wb, ws1, 'Resumo')
 
-  // ABA 2: Trades
   const tradesData = [
-    ['Data', 'Ativo', 'Moeda Original', 'Mercado', `P&L (${selectedCurrency})`, 'P&L Original', 'Corretagem', 'Impostos']
+    ['Data', 'Ativo', 'Moeda Original', 'Mercado', `P&L (${selectedCurrency})`, 'P&L Original', 'Corretagem', 'Swap', 'Impostos']
   ]
 
   trades.sort((a, b) => a.date.localeCompare(b.date)).forEach(t => {
     const pnl = parseFloat(t.pnl) || 0
-    const currency = t.currency || 'BRL'
+    const currency = t.currency || 'USD'
     
     let displayPnl = pnl
     if (selectedCurrency === 'USD' && currency === 'BRL') {
@@ -419,6 +711,7 @@ export const exportToExcel = (trades, metricsOld, period, selectedCurrency = 'US
       displayPnl,
       pnl,
       t.commission || 0,
+      t.swap || 0,
       t.taxes?.amount || 0
     ])
   })
@@ -432,14 +725,14 @@ export const exportToExcel = (trades, metricsOld, period, selectedCurrency = 'US
 // EXPORTAR PARA CSV
 export const exportToCSV = (trades, selectedCurrency = 'USD', exchangeRate = 5.45) => {
   const headers = [
-    'Data', 'Ativo', 'Moeda Original', 'Mercado', `P&L (${selectedCurrency})`, 'P&L Original', 'Corretagem', 'Impostos'
+    'Data', 'Ativo', 'Moeda Original', 'Mercado', `P&L (${selectedCurrency})`, 'P&L Original', 'Corretagem', 'Swap', 'Impostos'
   ]
 
   const rows = trades
     .sort((a, b) => a.date.localeCompare(b.date))
     .map(t => {
       const pnl = parseFloat(t.pnl) || 0
-      const currency = t.currency || 'BRL'
+      const currency = t.currency || 'USD'
       
       let displayPnl = pnl
       if (selectedCurrency === 'USD' && currency === 'BRL') {
@@ -456,6 +749,7 @@ export const exportToCSV = (trades, selectedCurrency = 'USD', exchangeRate = 5.4
         displayPnl.toFixed(2),
         pnl.toFixed(2),
         (t.commission || 0).toFixed(2),
+        (t.swap || 0).toFixed(2),
         (t.taxes?.amount || 0).toFixed(2)
       ]
     })
@@ -470,6 +764,6 @@ export const exportToCSV = (trades, selectedCurrency = 'USD', exchangeRate = 5.4
   const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8' })
   const link = document.createElement('a')
   link.href = URL.createObjectURL(blob)
-  link.download = `traderpro-relatorio-${Date.now()}.csv`
+  link.link.download = `traderpro-relatorio-${Date.now()}.csv`
   link.click()
 }
