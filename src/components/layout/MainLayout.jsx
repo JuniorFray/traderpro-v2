@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom"
 import { useAuth } from "../../features/auth/AuthContext"
 import { NotificationCenter } from "../notifications/NotificationCenter"
@@ -22,7 +22,6 @@ const menuItems = [
   { path: "capital", icon: "💰", label: "Capital" }
 ]
 
-
 export const MainLayout = () => {
   const location = useLocation()
   const navigate = useNavigate()
@@ -35,7 +34,24 @@ export const MainLayout = () => {
   const [readStatus, setReadStatus] = useState({})
   const [unreadCount, setUnreadCount] = useState(0)
   const [popupNotifications, setPopupNotifications] = useState([])
-  const [shownPopupIds, setShownPopupIds] = useState(new Set())
+  const [dismissedPopupIds, setDismissedPopupIds] = useState(new Set())
+
+  // ✅ Carregar IDs de popups já fechados do localStorage
+useEffect(() => {
+  const dismissed = localStorage.getItem('dismissedNotifications')
+  console.log('📂 localStorage raw:', dismissed) // Debug
+  
+  if (dismissed) {
+    try {
+      const parsed = JSON.parse(dismissed)
+      console.log('📂 IDs já fechados carregados:', parsed) // Debug
+      setDismissedPopupIds(new Set(parsed))
+    } catch (error) {
+      console.error('Erro ao carregar notificações fechadas:', error)
+    }
+  }
+}, [])
+
 
   // ✅ Buscar notificações ao carregar
   useEffect(() => {
@@ -45,37 +61,43 @@ export const MainLayout = () => {
       const interval = setInterval(loadNotifications, 30000)
       return () => clearInterval(interval)
     }
-  }, [user, isPro])
+  }, [user, isPro, dismissedPopupIds])
 
   const loadNotifications = async () => {
-    try {
-      const notifs = await getUserNotifications(user.uid, isPro)
-      const status = await getUserNotificationStatus(user.uid)
-      
-      setNotifications(notifs)
-      setReadStatus(status)
-      
-      // Contar não lidas
-      const unread = notifs.filter(n => !status[n.id]?.read).length
-      setUnreadCount(unread)
+  try {
+    const notifs = await getUserNotifications(user.uid, isPro)
+    const status = await getUserNotificationStatus(user.uid)
+    
+    setNotifications(notifs)
+    setReadStatus(status)
+    
+    // Contar não lidas
+    const unread = notifs.filter(n => !status[n.id]?.read).length
+    setUnreadCount(unread)
 
-      // ✅ Mostrar popup apenas para notificações novas não lidas
-      const newNotifications = notifs
-        .filter(n => !status[n.id]?.read && !shownPopupIds.has(n.id))
-        .slice(0, 1) // Mostra apenas 1 por vez
+    console.log('🔍 Notificações não lidas:', notifs.filter(n => !status[n.id]?.read).map(n => n.id))
+    console.log('🔍 IDs já fechados (Set):', [...dismissedPopupIds])
 
-      if (newNotifications.length > 0) {
-        setPopupNotifications(newNotifications)
-        setShownPopupIds(prev => {
-          const newSet = new Set(prev)
-          newNotifications.forEach(n => newSet.add(n.id))
-          return newSet
-        })
-      }
-    } catch (error) {
-      console.error('Erro ao carregar notificações:', error)
+    // ✅ Mostrar popup apenas para notificações não lidas e não fechadas pelo usuário
+    const newNotifications = notifs
+      .filter(n => {
+        const notRead = !status[n.id]?.read
+        const notDismissed = !dismissedPopupIds.has(n.id)
+        console.log(`🔍 ID ${n.id}: notRead=${notRead}, notDismissed=${notDismissed}`)
+        return notRead && notDismissed
+      })
+      .slice(0, 1) // Mostra apenas 1 por vez
+
+    console.log('✅ Notificações para mostrar popup:', newNotifications.map(n => n.id))
+
+    if (newNotifications.length > 0) {
+      setPopupNotifications(newNotifications)
     }
+  } catch (error) {
+    console.error('Erro ao carregar notificações:', error)
   }
+}
+
 
   const handleMarkAsRead = async (notificationId) => {
     try {
@@ -89,10 +111,33 @@ export const MainLayout = () => {
       
       // Atualizar contador
       setUnreadCount(prev => Math.max(0, prev - 1))
+      
+      // ✅ Remover dos popups quando marcada como lida
+      setPopupNotifications(prev => prev.filter(n => n.id !== notificationId))
     } catch (error) {
       console.error('Erro ao marcar como lida:', error)
     }
   }
+
+  // ✅ CORRIGIDO: Fechar popup sem marcar como lido
+const handleDismissPopup = (notificationId) => {
+  console.log('🔴 Fechando popup (X):', notificationId) // Debug
+  
+  // Adicionar aos fechados
+  const newDismissed = new Set(dismissedPopupIds)
+  newDismissed.add(notificationId)
+  setDismissedPopupIds(newDismissed)
+  
+  // Salvar no localStorage
+  const dismissedArray = [...newDismissed]
+  localStorage.setItem('dismissedNotifications', JSON.stringify(dismissedArray))
+  
+  console.log('💾 Salvo no localStorage:', dismissedArray) // Debug
+  
+  // Remover do array de popups
+  setPopupNotifications(prev => prev.filter(n => n.id !== notificationId))
+}
+
 
   const handleLogout = async () => {
     if (window.confirm("Deseja sair?")) {
@@ -267,9 +312,7 @@ export const MainLayout = () => {
         <NotificationPopup
           key={notif.id}
           notification={notif}
-          onClose={() => {
-            setPopupNotifications(prev => prev.filter(n => n.id !== notif.id))
-          }}
+          onClose={() => handleDismissPopup(notif.id)}
           onMarkAsRead={handleMarkAsRead}
         />
       ))}

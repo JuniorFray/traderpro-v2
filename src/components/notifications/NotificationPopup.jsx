@@ -1,15 +1,13 @@
-﻿import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 
 export const NotificationPopup = ({ notification, onClose, onMarkAsRead }) => {
-  const navigate = useNavigate()
   const [isVisible, setIsVisible] = useState(true)
 
   useEffect(() => {
-    // Auto-fechar após 8 segundos
+    // Auto-fechar após 15 segundos
     const timer = setTimeout(() => {
       handleClose()
-    }, 8000)
+    }, 15000)
 
     return () => clearTimeout(timer)
   }, [])
@@ -17,99 +15,67 @@ export const NotificationPopup = ({ notification, onClose, onMarkAsRead }) => {
   const handleClose = () => {
     setIsVisible(false)
     setTimeout(() => {
-      onClose()
+      onClose(notification.id)
     }, 300)
   }
 
-  const handleAction = () => {
-    if (notification.actionButton?.url) {
-      navigate(notification.actionButton.url)
-    }
+  const handleMarkAsRead = () => {
     onMarkAsRead(notification.id)
     handleClose()
   }
 
-  const getStyleClasses = (style) => {
-    const styles = {
-      info: 'bg-blue-500/20 border-blue-500',
-      success: 'bg-green-500/20 border-green-500',
-      warning: 'bg-yellow-500/20 border-yellow-500',
-      error: 'bg-red-500/20 border-red-500'
-    }
-    return styles[style] || styles.info
+  if (!isVisible) return null
+
+  const typeStyles = {
+    info: 'bg-blue-900/90 border-blue-500',
+    success: 'bg-emerald-900/90 border-emerald-500',
+    warning: 'bg-amber-900/90 border-amber-500',
+    error: 'bg-red-900/90 border-red-500',
+    promo: 'bg-purple-900/90 border-purple-500'
   }
 
-  const getIcon = (category) => {
-    const icons = {
-      news: '🎉',
-      warning: '⚠️',
-      promotion: '🎁',
-      tip: '💡',
-      system: '🔧'
-    }
-    return icons[category] || '🔔'
+  const typeIcons = {
+    info: 'ℹ️',
+    success: '✅',
+    warning: '⚠️',
+    error: '❌',
+    promo: '🎉'
   }
+
+  // ✅ CORRIGIDO: usar notification.style ao invés de notification.type
+  const style = notification.style || 'info'
 
   return (
     <div
-      className={`fixed top-20 right-4 w-80 max-w-[calc(100vw-2rem)] z-[9999] transition-all duration-300 ${
-        isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
-      }`}
+      className={`fixed bottom-6 right-6 max-w-md p-4 rounded-lg border-2 shadow-2xl z-50 transition-all ${
+        isVisible ? 'animate-slide-in opacity-100' : 'opacity-0 translate-y-4'
+      } ${typeStyles[style]}`}
     >
-      <div
-        className={`backdrop-blur-xl rounded-xl border-2 shadow-2xl p-4 ${getStyleClasses(
-          notification.style
-        )}`}
-      >
-        {/* Header com ícone e botão fechar */}
-        <div className="flex items-start gap-3 mb-3">
-          <div className="text-3xl">{getIcon(notification.category)}</div>
+      <div className="flex items-start gap-3">
+        <span className="text-3xl">{typeIcons[style]}</span>
+        
+        <div className="flex-1">
+          <p className="text-white font-bold mb-1">{notification.title}</p>
+          <p className="text-zinc-200 text-sm mb-3">{notification.message}</p>
           
-          <div className="flex-1">
-            <h4 className="font-bold text-white text-lg mb-1">
-              {notification.title}
-            </h4>
-            <p className="text-sm text-zinc-200 leading-relaxed">
-              {notification.message}
-            </p>
-          </div>
-
+          {/* ✅ Botão Marcar como Lida */}
           <button
-            onClick={handleClose}
-            className="text-zinc-400 hover:text-white transition-colors text-xl"
+            onClick={handleMarkAsRead}
+            className="text-xs bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded transition font-medium"
           >
-            ✕
+            ✓ Marcar como Lida
           </button>
         </div>
 
-        {/* Botão de ação */}
-        {notification.actionButton?.text && (
-          <button
-            onClick={handleAction}
-            className="w-full mt-3 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-          >
-            {notification.actionButton.text} →
-          </button>
-        )}
-
-        {/* Barra de progresso */}
-        <div className="mt-3 h-1 bg-white/10 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-white/50 animate-shrink"
-            style={{
-              animation: 'shrink 8s linear forwards'
-            }}
-          />
-        </div>
+        {/* Botão X apenas fecha o popup */}
+        <button
+          onClick={handleClose}
+          className="text-white/70 hover:text-white text-xl leading-none transition"
+          title="Fechar (não marca como lida)"
+        >
+          ✕
+        </button>
       </div>
-
-      <style>{`
-        @keyframes shrink {
-          from { width: 100%; }
-          to { width: 0%; }
-        }
-      `}</style>
     </div>
   )
 }
-
