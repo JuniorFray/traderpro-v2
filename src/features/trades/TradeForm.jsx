@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { MARKETS, CURRENCIES } from '../../constants/markets';
@@ -20,6 +20,28 @@ export const TradeForm = ({ onSubmit, initialData = null, onCancel }) => {
     strategy: initialData?.strategy || '',
     notes: initialData?.notes || ''
   });
+
+  // ✅ CORREÇÃO: Atualizar formulário quando initialData mudar
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        asset: initialData.asset || initialData.symbol || '',
+        date: initialData.date || new Date().toISOString().split('T')[0],
+        market: initialData.market || 'b3daytrade',
+        currency: initialData.currency || 'BRL',
+        quantity: initialData.quantity || '',
+        entryPrice: initialData.entryPrice || '',
+        exitPrice: initialData.exitPrice || '',
+        entryTime: initialData.entryTime || '',
+        exitTime: initialData.exitTime || '',
+        pnl: initialData.pnl || '',
+        commission: initialData.commission || initialData.fees || '',
+        swap: initialData.swap || '',
+        strategy: initialData.strategy || '',
+        notes: initialData.notes || ''
+      });
+    }
+  }, [initialData]);
 
   // Auto-selecionar moeda baseado no mercado
   useEffect(() => {

@@ -1,4 +1,4 @@
-﻿import { useTrades } from "../../hooks/useTrades"
+import { useTrades } from "../../hooks/useTrades"
 import { Card } from "../../components/ui/Card"
 import { Button } from "../../components/ui/Button"
 import { formatCurrency } from "../../utils/metrics"
@@ -12,7 +12,7 @@ export const Calendar = () => {
   const [editingTrade, setEditingTrade] = useState(null)
 
   if (loading) {
-    return <div className="text-center p-8 text-zinc-400">Carregação...</div>
+    return <div className="text-center p-8 text-zinc-400">Carregando...</div>
   }
 
   const tradesByDate = trades.reduce((acc, trade) => {
@@ -24,7 +24,7 @@ export const Calendar = () => {
 
   const getDayResult = (date) => {
     const dayTrades = tradesByDate[date] || []
-    return dayTrades.reduce((sum, t) => sum + (t.pnl || 0), 0)
+    return dayTrades.reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0)
   }
 
   const year = currentMonth.getFullYear()
@@ -42,7 +42,7 @@ export const Calendar = () => {
     days.push(day)
   }
 
-  const monthNames = ["Janeiro", "Fevereiro", "Maro", "Abril", "Maio", "Junho",
+  const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 
   const changeMonth = (offset) => {
@@ -127,7 +127,7 @@ export const Calendar = () => {
                 onClick={() => handleDayClick(dateStr, dayTrades)}
                 className={`aspect-square p-1 lg:p-2 rounded-lg border transition-colors ${
                   dayTrades.length > 0
-                    ? `cursor-pointer ${dayResult >= 0
+                    ? `cursor-pointer ${dayResult > 0
                       ? "bg-win/10 border-win/30 hover:bg-win/20"
                       : "bg-loss/10 border-loss/30 hover:bg-loss/20"}`
                     : "bg-zinc-900 border-zinc-800"
@@ -136,7 +136,7 @@ export const Calendar = () => {
                 <div className="text-[10px] lg:text-sm font-semibold text-white mb-0.5 lg:mb-1">{day}</div>
                 {dayTrades.length > 0 && (
                   <div className="text-[8px] lg:text-xs">
-                    <div className={`font-bold ${dayResult >= 0 ? "text-win" : "text-loss"}`}>
+                    <div className={`font-bold ${dayResult > 0 ? "text-win" : "text-loss"}`}>
                       {formatCurrency(dayResult)}
                     </div>
                     <div className="text-zinc-500">{dayTrades.length} trade(s)</div>
@@ -150,9 +150,16 @@ export const Calendar = () => {
 
       {/* Modal de Detalhes do Dia */}
       {selectedDate && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedDate(null)}>
-          <div className="bg-zinc-900 rounded-xl p-4 lg:p-6 max-w-2xl w-full max-h-[80vh] overflow-y-ação" onClick={(e) => e.stopPropagaçãon()}>
-            <div className="flex items-center justify-between mb-4 lg:mb-6">
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
+          onClick={() => setSelectedDate(null)}
+        >
+          <div 
+            className="bg-zinc-900 rounded-xl w-full max-w-2xl flex flex-col max-h-[90vh]" 
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header fixo */}
+            <div className="flex items-center justify-between p-4 lg:p-6 border-b border-zinc-800">
               <div>
                 <h3 className="text-lg lg:text-xl font-bold text-white">
                   {new Date(selectedDate + "T12:00:00").toLocaleDateString("pt-BR", {
@@ -161,46 +168,53 @@ export const Calendar = () => {
                     year: "numeric"
                   })}
                 </h3>
-                <p className={`text-base lg:text-lg font-bold ${selectedDayResult >= 0 ? "text-win" : "text-loss"}`}>
+                <p className={`text-base lg:text-lg font-bold ${selectedDayResult > 0 ? "text-win" : "text-loss"}`}>
                   Resultado: {formatCurrency(selectedDayResult)}
                 </p>
               </div>
               <button
                 onClick={() => setSelectedDate(null)}
-                className="text-zinc-400 hover:text-white text-2xl"
+                className="text-zinc-400 hover:text-white text-2xl transition-colors"
               >
-                
+                ✕
               </button>
             </div>
 
-            <div className="space-y-3 lg:space-y-4">
+            {/* Lista de trades com scroll */}
+            <div className="overflow-y-auto p-4 lg:p-6 space-y-3 lg:space-y-4 flex-1">
               {selectedDayTrades.map((trade) => (
                 <Card key={trade.id}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="font-bold text-white truncate">{trade.asset || trade.symbol || "N/A"}</span>
-                        <span className={`text-sm font-bold whitespace-nowrap ${trade.pnl >= 0 ? "text-win" : "text-loss"}`}>
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <span className="font-bold text-white truncate">
+                          {trade.asset || trade.symbol || "N/A"}
+                        </span>
+                        <span className={`text-sm font-bold whitespace-nowrap ${parseFloat(trade.pnl) > 0 ? "text-win" : "text-loss"}`}>
                           {formatCurrency(trade.pnl, trade.currency, trade.market)}
                         </span>
                       </div>
                       {trade.strategy && (
-                        <div className="text-xs lg:text-sm text-zinc-400">Estratgia: {trade.strategy}</div>
+                        <div className="text-xs lg:text-sm text-zinc-400 mb-1">
+                          Estratégia: {trade.strategy}
+                        </div>
                       )}
                       {trade.notes && (
-                        <div className="text-xs lg:text-sm text-zinc-500 mt-1">{trade.notes}</div>
+                        <div className="text-xs lg:text-sm text-zinc-500 mt-1 line-clamp-2">
+                          {trade.notes}
+                        </div>
                       )}
                     </div>
-                    <div className="flex flex-col lg:flex-row gap-2">
+                    <div className="flex flex-col gap-2 shrink-0">
                       <button
                         onClick={() => handleEdit(trade)}
-                        className="px-2 lg:px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs lg:text-sm whitespace-nowrap"
+                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs lg:text-sm whitespace-nowrap transition-colors"
                       >
                         ✏️ Editar
                       </button>
                       <button
                         onClick={() => handleDelete(trade.id)}
-                        className="px-2 lg:px-3 py-1 bg-loss hover:bg-red-700 text-white rounded text-xs lg:text-sm whitespace-nowrap"
+                        className="px-3 py-1 bg-loss hover:bg-red-700 text-white rounded text-xs lg:text-sm whitespace-nowrap transition-colors"
                       >
                         🗑️ Deletar
                       </button>
@@ -213,29 +227,39 @@ export const Calendar = () => {
         </div>
       )}
 
-      {/* Modal de Edio */}
+      {/* Modal de Edição */}
       {editingTrade && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setEditingTrade(null)}>
-          <div className="bg-zinc-900 rounded-xl p-4 lg:p-6 max-w-2xl w-full max-h-[80vh] overflow-y-ação" onClick={(e) => e.stopPropagaçãon()}>
-            <div className="flex items-center justify-between mb-4 lg:mb-6">
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
+          onClick={() => setEditingTrade(null)}
+        >
+          <div 
+            className="bg-zinc-900 rounded-xl w-full max-w-2xl flex flex-col max-h-[85vh]" 
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header fixo */}
+            <div className="flex items-center justify-between p-4 lg:p-6 border-b border-zinc-800 flex-shrink-0">
               <h3 className="text-lg lg:text-xl font-bold text-white">Editar Trade</h3>
               <button
                 onClick={() => setEditingTrade(null)}
-                className="text-zinc-400 hover:text-white text-2xl"
+                className="text-zinc-400 hover:text-white text-2xl transition-colors"
               >
-                
+                ✕
               </button>
             </div>
-            <TradeForm
-              key={editingTrade.id}
-              onSubmit={handleUpdateTrade}
-              initialData={editingTrade}
-              submitLabel="Atualizar Trade"
-            />
+            
+            {/* Área com rolagem para o formulário */}
+            <div className="overflow-y-auto p-4 lg:p-6 flex-1">
+              <TradeForm
+                key={editingTrade.id}
+                onSubmit={handleUpdateTrade}
+                initialData={editingTrade}
+                onCancel={() => setEditingTrade(null)}
+              />
+            </div>
           </div>
         </div>
       )}
     </div>
   )
 }
-
