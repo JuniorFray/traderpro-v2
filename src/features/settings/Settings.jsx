@@ -1,8 +1,7 @@
-﻿import { useAuth } from "../../features/auth/AuthContext"
+import { useAuth } from "../../features/auth/AuthContext"
 import { Card } from "../../components/ui/Card"
 import { Button } from "../../components/ui/Button"
 import { useState } from "react"
-import ApiKeyManager from "../../components/ApiKeyManager"
 
 export const Settings = () => {
   const { user, signOut } = useAuth()
@@ -21,29 +20,24 @@ export const Settings = () => {
         <p className="text-zinc-400">Gerencie sua conta e preferências</p>
       </div>
 
-      {/* API Key para MT5 - NOVO! */}
-      <Card>
-        <ApiKeyManager />
-      </Card>
-
       {/* Informações da conta */}
       <Card>
-        <h3 className="text-lg font-bold text-white mb-4">ℹ Informações da conta</h3>
+        <h3 className="text-lg font-bold text-white mb-4">📧 Informações da conta</h3>
         <div className="space-y-3">
           <div>
             <label className="text-sm text-zinc-400">Email</label>
-            <div className="text-white font-medium">{user?.email || "não disponível"}</div>
+            <div className="text-white font-medium">{user?.email || "Não disponível"}</div>
           </div>
           <div>
             <label className="text-sm text-zinc-400">ID do Usuário</label>
-            <div className="text-white font-mono text-sm">{user?.uid || "não disponível"}</div>
+            <div className="text-white font-mono text-sm">{user?.uid || "Não disponível"}</div>
           </div>
         </div>
       </Card>
 
       {/* Ações da conta */}
       <Card>
-        <h3 className="text-lg font-bold text-white mb-4">🔒 Segurança</h3>
+        <h3 className="text-lg font-bold text-white mb-4">🔐 Segurança</h3>
         <div className="space-y-4">
           <Button
             onClick={handleLogout}
@@ -54,14 +48,14 @@ export const Settings = () => {
 
           <div className="border-t border-zinc-800 pt-4">
             <p className="text-zinc-400 text-sm mb-3">
-              ⚠ Zona de perigo: Esta ação não pode ser desfeita
+              ⚠️ Zona de perigo: Esta ação não pode ser desfeita
             </p>
             {!showDeleteConfirm ? (
               <button
                 onClick={() => setShowDeleteConfirm(true)}
                 className="w-full px-4 py-2 bg-red-900/30 hover:bg-red-900/50 text-red-400 border border-red-800 rounded-lg transition-colors"
               >
-                🗑 Excluir Conta Permanentemente
+                🗑️ Excluir Conta Permanentemente
               </button>
             ) : (
               <div className="space-y-2">
@@ -90,11 +84,11 @@ export const Settings = () => {
 
       {/* Informações do Sistema */}
       <Card>
-        <h3 className="text-lg font-bold text-white mb-4">💻 Sobre o Sistema</h3>
+        <h3 className="text-lg font-bold text-white mb-4">ℹ️ Sobre o Sistema</h3>
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-zinc-400">Versão</span>
-            <span className="text-white font-mono">2.0.0</span>
+            <span className="text-white font-mono">3.0.1</span>
           </div>
           <div className="flex justify-between">
             <span className="text-zinc-400">Desenvolvido por</span>
