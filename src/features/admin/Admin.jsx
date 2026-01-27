@@ -40,7 +40,7 @@ export const Admin = () => {
   const loadUsers = async () => {
     try {
       setLoading(true)
-      const usersRef = collection(db, 'artifacts/trade-journal-public/users')
+      const usersRef = collection(db, 'artifacts/trade-journal-public/adminUsers')
       const snapshot = await getDocs(usersRef)
 
       const usersList = snapshot.docs.map(doc => ({

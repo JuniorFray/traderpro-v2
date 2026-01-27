@@ -9,11 +9,17 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+
+ // ✅ ADICIONAR ESTA SEÇÃO:
+  server: {
+    port: 5174,
+    open: '/admin/login'  // Abre direto no Admin!
+  },
   build: {
     outDir: 'dist-admin',
     emptyOutDir: true,
     rollupOptions: {
-      input: './index-admin.html'
+      input: './index-admin.html'  // ✅ Correto!
     }
   },
   define: {
