@@ -15,7 +15,7 @@ export const Admin = () => {
   const [filter, setFilter] = useState('all')
   const [activeTab, setActiveTab] = useState('users')
   
-  // ✅ NOVOS Estados para controle EA
+  // ✅ Estados para controle EA
   const [globalEAEnabled, setGlobalEAEnabled] = useState(true)
   const [loadingGlobal, setLoadingGlobal] = useState(false)
 
@@ -33,7 +33,7 @@ export const Admin = () => {
   useEffect(() => {
     if (user) {
       loadUsers()
-      loadGlobalEAControl() // ✅ NOVO
+      loadGlobalEAControl()
     }
   }, [user])
 
@@ -56,19 +56,38 @@ export const Admin = () => {
     }
   }
 
-  // ✅ NOVO: Carregar controle global EA
+  // ✅ CORRIGIDO: Carregar controle global EA
   const loadGlobalEAControl = async () => {
     try {
-      const controlDoc = await getDoc(doc(db, 'artifacts/trade-journal-public/settings', 'eaGlobalControl'))
+      setLoadingGlobal(true)
+      // ✅ CAMINHO CORRETO conforme Firestore Rules
+      const controlDoc = await getDoc(doc(db, 'artifacts/trade-journal-public/globalEAControl', 'config'))
+      
       if (controlDoc.exists()) {
-        setGlobalEAEnabled(controlDoc.data().globalEnabled ?? true)
+        const data = controlDoc.data()
+        setGlobalEAEnabled(data.globalEnabled ?? true)
+        console.log('✅ EA Control carregado:', data)
+      } else {
+        // ✅ Fallback: criar documento se não existir
+        console.log('⚠️ Documento EA não existe, criando...')
+        await setDoc(doc(db, 'artifacts/trade-journal-public/globalEAControl', 'config'), {
+          globalEnabled: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          updatedBy: 'system-init'
+        })
+        setGlobalEAEnabled(true)
       }
     } catch (error) {
-      console.error('Erro ao carregar controle global EA:', error)
+      console.error('❌ Erro ao carregar controle global EA:', error)
+      // Não bloqueia a interface se der erro
+      setGlobalEAEnabled(true)
+    } finally {
+      setLoadingGlobal(false)
     }
   }
 
-  // ✅ NOVO: Toggle EA global
+  // ✅ CORRIGIDO: Toggle EA global
   const toggleGlobalEA = async () => {
     const action = globalEAEnabled ? 'DESATIVAR' : 'ATIVAR'
     if (!confirm(`⚠️ ${action} EA para TODOS os usuários?\n\nIsso ${globalEAEnabled ? 'bloqueará' : 'desbloqueará'} o envio de trades do MT5.`)) return
@@ -76,22 +95,24 @@ export const Admin = () => {
     setLoadingGlobal(true)
     try {
       const newStatus = !globalEAEnabled
-      await setDoc(doc(db, 'artifacts/trade-journal-public/settings', 'eaGlobalControl'), {
+      // ✅ CAMINHO CORRETO
+      await setDoc(doc(db, 'artifacts/trade-journal-public/globalEAControl', 'config'), {
         globalEnabled: newStatus,
         updatedAt: new Date().toISOString(),
-        updatedBy: user.email
-      })
+        updatedBy: user?.email || 'admin'
+      }, { merge: true })
       
       setGlobalEAEnabled(newStatus)
       alert(`✅ EA ${newStatus ? 'ATIVADO' : 'DESATIVADO'} globalmente!`)
     } catch (error) {
+      console.error('❌ Erro ao alternar EA:', error)
       alert('❌ Erro: ' + error.message)
     } finally {
       setLoadingGlobal(false)
     }
   }
 
-  // ✅ NOVO: Toggle EA individual
+  // ✅ Toggle EA individual
   const toggleUserEA = async (userId, currentStatus) => {
     const newStatus = currentStatus === undefined ? false : !currentStatus
     
@@ -108,6 +129,7 @@ export const Admin = () => {
       
       alert(`✅ EA ${newStatus ? 'ativado' : 'desativado'} para este usuário!`)
     } catch (error) {
+      console.error('❌ Erro ao alternar EA do usuário:', error)
       alert('❌ Erro: ' + error.message)
     }
   }
@@ -124,15 +146,16 @@ export const Admin = () => {
       await setDoc(userRef, {
         email,
         isPro: false,
-        eaEnabled: true, // ✅ NOVO: EA habilitado por padrão
+        eaEnabled: true, // ✅ EA habilitado por padrão
         createdAt: new Date().toISOString(),
         lastAccessAt: new Date().toISOString()
       }, { merge: true })
 
       await loadUsers()
-      alert('Usuário adicionado!')
+      alert('✅ Usuário adicionado!')
     } catch (error) {
-      alert('Erro: ' + error.message)
+      console.error('❌ Erro ao adicionar usuário:', error)
+      alert('❌ Erro: ' + error.message)
     }
   }
 
@@ -148,22 +171,23 @@ export const Admin = () => {
         u.id === userId ? { ...u, isPro: !currentStatus } : u
       ))
 
-      alert('Status PRO atualizado!')
+      alert('✅ Status PRO atualizado!')
     } catch (error) {
-      console.error('Erro ao atualizar PRO:', error)
-      alert('Erro: ' + error.message)
+      console.error('❌ Erro ao atualizar PRO:', error)
+      alert('❌ Erro: ' + error.message)
     }
   }
 
   const deleteUser = async (userId) => {
-    if (!confirm('Excluir usuário? Esta ação não pode ser desfeita!')) return
+    if (!confirm('⚠️ Excluir usuário? Esta ação não pode ser desfeita!')) return
 
     try {
       await deleteDoc(doc(db, 'artifacts/trade-journal-public/users', userId))
       setUsers(prev => prev.filter(u => u.id !== userId))
-      alert('Usuário removido!')
+      alert('✅ Usuário removido!')
     } catch (error) {
-      alert('Erro: ' + error.message)
+      console.error('❌ Erro ao excluir usuário:', error)
+      alert('❌ Erro: ' + error.message)
     }
   }
 
@@ -216,7 +240,7 @@ export const Admin = () => {
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text)
-    alert('UID copiado!')
+    alert('📋 UID copiado!')
   }
 
   if (!user) {
@@ -244,7 +268,7 @@ export const Admin = () => {
                   onClick={loadUsers}
                   className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg backdrop-blur-sm border border-white/20 text-sm font-medium"
                 >
-                  🔄️ Atualizar
+                  🔄 Atualizar
                 </button>
                 <button
                   onClick={addUser}
@@ -258,13 +282,13 @@ export const Admin = () => {
               onClick={() => navigate('/')}
               className="px-4 py-2 bg-blue-600/80 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
             >
-              Sistema
+              🏠 Sistema
             </button>
             <button
               onClick={handleLogout}
               className="px-4 py-2 bg-red-600/80 hover:bg-red-700 text-white rounded-lg text-sm font-medium"
             >
-              Sair
+              🚪 Sair
             </button>
           </div>
         </div>
@@ -306,7 +330,7 @@ export const Admin = () => {
         {/* Conteúdo baseado na aba ativa */}
         {activeTab === 'users' ? (
           <>
-            {/* ✅ NOVO: Card Controle Global EA */}
+            {/* ✅ Card Controle Global EA */}
             <div className="bg-gradient-to-r from-orange-500/20 to-red-500/20 backdrop-blur-lg p-4 md:p-6 rounded-xl border-2 border-orange-500/50">
               <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
@@ -396,7 +420,6 @@ export const Admin = () => {
                       <th className="px-4 py-3 text-center text-xs font-medium text-purple-200 uppercase tracking-wider">
                         Plano
                       </th>
-                      {/* ✅ NOVA Coluna EA */}
                       <th className="px-4 py-3 text-center text-xs font-medium text-purple-200 uppercase tracking-wider">
                         EA Status
                       </th>
@@ -409,7 +432,7 @@ export const Admin = () => {
                     {loading ? (
                       <tr>
                         <td colSpan="6" className="px-4 py-8 text-center text-purple-200">
-                          Carregando...
+                          ⏳ Carregando...
                         </td>
                       </tr>
                     ) : filteredUsers.length === 0 ? (
@@ -456,7 +479,6 @@ export const Admin = () => {
                                 </span>
                               )}
                             </td>
-                            {/* ✅ NOVA Coluna EA Status */}
                             <td className="px-4 py-3 text-center">
                               <button
                                 onClick={() => toggleUserEA(u.id, userEAStatus)}
@@ -485,7 +507,7 @@ export const Admin = () => {
                                   onClick={() => deleteUser(u.id)}
                                   className="px-3 py-1 bg-red-600/80 hover:bg-red-700 text-white rounded-lg text-xs font-medium transition-colors"
                                 >
-                                  Excluir
+                                  🗑️ Excluir
                                 </button>
                               </div>
                             </td>
