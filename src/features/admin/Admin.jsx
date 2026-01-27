@@ -1,5 +1,5 @@
-﻿import { useState, useEffect } from 'react'
-import { doc, setDoc, deleteDoc, collection, getDocs } from 'firebase/firestore'
+import { useState, useEffect } from 'react'
+import { doc, setDoc, deleteDoc, collection, getDocs, getDoc } from 'firebase/firestore'
 import { db, auth } from '../../services/firebase'
 import { Card } from '../../components/ui/Card'
 import { useNavigate } from 'react-router-dom'
@@ -14,6 +14,10 @@ export const Admin = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filter, setFilter] = useState('all')
   const [activeTab, setActiveTab] = useState('users')
+  
+  // ✅ NOVOS Estados para controle EA
+  const [globalEAEnabled, setGlobalEAEnabled] = useState(true)
+  const [loadingGlobal, setLoadingGlobal] = useState(false)
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
@@ -29,6 +33,7 @@ export const Admin = () => {
   useEffect(() => {
     if (user) {
       loadUsers()
+      loadGlobalEAControl() // ✅ NOVO
     }
   }, [user])
 
@@ -51,6 +56,62 @@ export const Admin = () => {
     }
   }
 
+  // ✅ NOVO: Carregar controle global EA
+  const loadGlobalEAControl = async () => {
+    try {
+      const controlDoc = await getDoc(doc(db, 'artifacts/trade-journal-public/settings', 'eaGlobalControl'))
+      if (controlDoc.exists()) {
+        setGlobalEAEnabled(controlDoc.data().globalEnabled ?? true)
+      }
+    } catch (error) {
+      console.error('Erro ao carregar controle global EA:', error)
+    }
+  }
+
+  // ✅ NOVO: Toggle EA global
+  const toggleGlobalEA = async () => {
+    const action = globalEAEnabled ? 'DESATIVAR' : 'ATIVAR'
+    if (!confirm(`⚠️ ${action} EA para TODOS os usuários?\n\nIsso ${globalEAEnabled ? 'bloqueará' : 'desbloqueará'} o envio de trades do MT5.`)) return
+    
+    setLoadingGlobal(true)
+    try {
+      const newStatus = !globalEAEnabled
+      await setDoc(doc(db, 'artifacts/trade-journal-public/settings', 'eaGlobalControl'), {
+        globalEnabled: newStatus,
+        updatedAt: new Date().toISOString(),
+        updatedBy: user.email
+      })
+      
+      setGlobalEAEnabled(newStatus)
+      alert(`✅ EA ${newStatus ? 'ATIVADO' : 'DESATIVADO'} globalmente!`)
+    } catch (error) {
+      alert('❌ Erro: ' + error.message)
+    } finally {
+      setLoadingGlobal(false)
+    }
+  }
+
+  // ✅ NOVO: Toggle EA individual
+  const toggleUserEA = async (userId, currentStatus) => {
+    const newStatus = currentStatus === undefined ? false : !currentStatus
+    
+    try {
+      const userRef = doc(db, 'artifacts/trade-journal-public/users', userId)
+      await setDoc(userRef, {
+        eaEnabled: newStatus,
+        eaUpdatedAt: new Date().toISOString()
+      }, { merge: true })
+      
+      setUsers(prev => prev.map(u => 
+        u.id === userId ? { ...u, eaEnabled: newStatus } : u
+      ))
+      
+      alert(`✅ EA ${newStatus ? 'ativado' : 'desativado'} para este usuário!`)
+    } catch (error) {
+      alert('❌ Erro: ' + error.message)
+    }
+  }
+
   const addUser = async () => {
     const email = prompt('Email do usuário:')
     if (!email) return
@@ -63,8 +124,9 @@ export const Admin = () => {
       await setDoc(userRef, {
         email,
         isPro: false,
+        eaEnabled: true, // ✅ NOVO: EA habilitado por padrão
         createdAt: new Date().toISOString(),
-        lastAccessAt: new Date().toISOString() // ← NOVO
+        lastAccessAt: new Date().toISOString()
       }, { merge: true })
 
       await loadUsers()
@@ -113,7 +175,6 @@ export const Admin = () => {
     }
   }
 
-  // ✅ NOVO: Função para formatar data/hora
   const formatLastAccess = (timestamp) => {
     if (!timestamp) return 'Nunca'
     
@@ -130,7 +191,6 @@ export const Admin = () => {
       if (diffHours < 24) return `${diffHours}h atrás`
       if (diffDays < 7) return `${diffDays}d atrás`
       
-      // Formato completo para mais de 7 dias
       return date.toLocaleDateString('pt-BR', { 
         day: '2-digit', 
         month: '2-digit',
@@ -246,6 +306,34 @@ export const Admin = () => {
         {/* Conteúdo baseado na aba ativa */}
         {activeTab === 'users' ? (
           <>
+            {/* ✅ NOVO: Card Controle Global EA */}
+            <div className="bg-gradient-to-r from-orange-500/20 to-red-500/20 backdrop-blur-lg p-4 md:p-6 rounded-xl border-2 border-orange-500/50">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="text-4xl">🤖</div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Controle Global do EA</h3>
+                    <p className="text-sm text-purple-200">
+                      {globalEAEnabled 
+                        ? '✅ Expert Advisors estão ATIVOS para todos os usuários' 
+                        : '⛔ Expert Advisors estão BLOQUEADOS globalmente'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={toggleGlobalEA}
+                  disabled={loadingGlobal}
+                  className={`px-6 py-3 rounded-lg font-bold text-white transition-all ${
+                    globalEAEnabled
+                      ? 'bg-red-600 hover:bg-red-700'
+                      : 'bg-green-600 hover:bg-green-700'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {loadingGlobal ? '⏳ Processando...' : globalEAEnabled ? '🔴 DESATIVAR TODOS' : '🟢 ATIVAR TODOS'}
+                </button>
+              </div>
+            </div>
+
             {/* Stats Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
               <div className="bg-white/10 backdrop-blur-lg p-4 md:p-6 rounded-xl border border-white/20">
@@ -308,6 +396,10 @@ export const Admin = () => {
                       <th className="px-4 py-3 text-center text-xs font-medium text-purple-200 uppercase tracking-wider">
                         Plano
                       </th>
+                      {/* ✅ NOVA Coluna EA */}
+                      <th className="px-4 py-3 text-center text-xs font-medium text-purple-200 uppercase tracking-wider">
+                        EA Status
+                      </th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-purple-200 uppercase tracking-wider">
                         Ações
                       </th>
@@ -316,74 +408,90 @@ export const Admin = () => {
                   <tbody className="divide-y divide-white/5">
                     {loading ? (
                       <tr>
-                        <td colSpan="5" className="px-4 py-8 text-center text-purple-200">
+                        <td colSpan="6" className="px-4 py-8 text-center text-purple-200">
                           Carregando...
                         </td>
                       </tr>
                     ) : filteredUsers.length === 0 ? (
                       <tr>
-                        <td colSpan="5" className="px-4 py-8 text-center text-purple-200">
+                        <td colSpan="6" className="px-4 py-8 text-center text-purple-200">
                           Nenhum usuário encontrado
                         </td>
                       </tr>
                     ) : (
-                      filteredUsers.map(u => (
-                        <tr key={u.id} className="hover:bg-white/5 transition-colors">
-                          <td className="px-4 py-3 text-sm text-white">
-                            {u.email}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-purple-300 font-mono">
-                                {u.id.substring(0, 8)}...
+                      filteredUsers.map(u => {
+                        const userEAStatus = u.eaEnabled !== undefined ? u.eaEnabled : true
+                        return (
+                          <tr key={u.id} className="hover:bg-white/5 transition-colors">
+                            <td className="px-4 py-3 text-sm text-white">
+                              {u.email}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-purple-300 font-mono">
+                                  {u.id.substring(0, 8)}...
+                                </span>
+                                <button
+                                  onClick={() => copyToClipboard(u.id)}
+                                  className="text-purple-400 hover:text-purple-300 text-xs"
+                                  title="Copiar UID completo"
+                                >
+                                  📝
+                                </button>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className="text-xs text-purple-300">
+                                {formatLastAccess(u.lastAccessAt)}
                               </span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {u.isPro ? (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-300">
+                                  👑 PRO
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-500/20 text-gray-300">
+                                  FREE
+                                </span>
+                              )}
+                            </td>
+                            {/* ✅ NOVA Coluna EA Status */}
+                            <td className="px-4 py-3 text-center">
                               <button
-                                onClick={() => copyToClipboard(u.id)}
-                                className="text-purple-400 hover:text-purple-300 text-xs"
-                                title="Copiar UID completo"
-                              >
-                                📝
-                              </button>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="text-xs text-purple-300">
-                              {formatLastAccess(u.lastAccessAt)}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            {u.isPro ? (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-300">
-                                👑 PRO
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-500/20 text-gray-300">
-                                FREE
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex justify-center gap-2">
-                              <button
-                                onClick={() => togglePro(u.id, u.isPro)}
-                                className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
-                                  u.isPro
-                                    ? 'bg-gray-600/80 hover:bg-gray-700 text-white'
-                                    : 'bg-yellow-600/80 hover:bg-yellow-700 text-white'
+                                onClick={() => toggleUserEA(u.id, userEAStatus)}
+                                className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                                  userEAStatus
+                                    ? 'bg-green-500/20 text-green-300 border border-green-500/30'
+                                    : 'bg-red-500/20 text-red-300 border border-red-500/30'
                                 }`}
                               >
-                                {u.isPro ? 'Remover PRO' : 'Ativar PRO'}
+                                {userEAStatus ? '🟢 ATIVO' : '🔴 BLOQUEADO'}
                               </button>
-                              <button
-                                onClick={() => deleteUser(u.id)}
-                                className="px-3 py-1 bg-red-600/80 hover:bg-red-700 text-white rounded-lg text-xs font-medium transition-colors"
-                              >
-                                Excluir
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex justify-center gap-2">
+                                <button
+                                  onClick={() => togglePro(u.id, u.isPro)}
+                                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                                    u.isPro
+                                      ? 'bg-gray-600/80 hover:bg-gray-700 text-white'
+                                      : 'bg-yellow-600/80 hover:bg-yellow-700 text-white'
+                                  }`}
+                                >
+                                  {u.isPro ? 'Remover PRO' : 'Ativar PRO'}
+                                </button>
+                                <button
+                                  onClick={() => deleteUser(u.id)}
+                                  className="px-3 py-1 bg-red-600/80 hover:bg-red-700 text-white rounded-lg text-xs font-medium transition-colors"
+                                >
+                                  Excluir
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })
                     )}
                   </tbody>
                 </table>

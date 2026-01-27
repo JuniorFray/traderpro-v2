@@ -187,6 +187,30 @@ export const IntegrationsPage = () => {
         </div>
       </Card>
 
+{/* Card Download do EA */}
+<Card>
+  <h3 className="text-lg font-bold text-white mb-4">📥 Download do Expert Advisor</h3>
+  <div className="space-y-4">
+    <p className="text-sm text-zinc-400">
+      Baixe o arquivo TraderProSync para conectar seu MT5 ao TraderPro.
+    </p>
+    
+    <Button
+      onClick={() => window.open('https://drive.google.com/uc?export=download&id=1FWRPtnlnCfs1IYSWVm5R5gY3YHAu3cNx', '_blank')}
+      className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+    >
+      <span>⬇️</span>
+      Baixar TraderProSync
+    </Button>
+
+    <div className="p-3 bg-blue-900/10 border border-blue-500/30 rounded-lg">
+      <p className="text-xs text-blue-300">
+        <strong>⚠️ Importante:</strong> Após baixar, mova o arquivo para a pasta <code className="bg-zinc-800 px-2 py-1 rounded">MQL5/Experts</code> do seu MT5 ou de 2 cliques para abrir direto.
+      </p>
+    </div>
+  </div>
+</Card>
+
       {/* ✅ Card Status */}
       <Card className="bg-zinc-900 border-zinc-800">
         <h3 className="text-lg font-bold text-white mb-4">📊 Status da Integração</h3>

@@ -73,6 +73,103 @@ function detectCurrency(market) {
 }
 
 /**
+ * ✅ NOVA FUNÇÃO: Verificar se EA está habilitado
+ * GET /checkEAStatus?userId=xxx
+ */
+exports.checkEAStatus = onRequest(
+  {
+    cors: true,
+    maxInstances: 10,
+  },
+  async (req, res) => {
+    // Aceitar GET e POST
+    if (req.method !== "GET" && req.method !== "POST") {
+      return res.status(405).json({ error: "Método não permitido" });
+    }
+
+    try {
+      // Aceitar userId via query param (GET) ou body (POST)
+      const userId = req.method === "GET" ? req.query.userId : req.body?.userId;
+
+      if (!userId) {
+        logger.warn("❌ userId não fornecido");
+        return res.status(400).json({ 
+          enabled: false, 
+          error: "userId é obrigatório" 
+        });
+      }
+
+      logger.info("🔍 Verificando status EA para userId:", userId);
+
+      const db = admin.firestore();
+
+      // 1️⃣ VERIFICAR CONTROLE GLOBAL
+      const globalDoc = await db
+        .doc("artifacts/trade-journal-public/settings/eaGlobalControl")
+        .get();
+      
+      const globalEnabled = globalDoc.exists() 
+        ? (globalDoc.data().globalEnabled ?? true) 
+        : true;
+
+      if (!globalEnabled) {
+        logger.warn("⛔ EA BLOQUEADO GLOBALMENTE");
+        return res.status(403).json({ 
+          enabled: false, 
+          reason: "EA desativado globalmente pelo administrador",
+          global: false
+        });
+      }
+
+      logger.info("✅ Controle global: ATIVO");
+
+      // 2️⃣ VERIFICAR USUÁRIO ESPECÍFICO
+      const userDoc = await db
+        .doc(`artifacts/trade-journal-public/users/${userId}`)
+        .get();
+      
+      if (!userDoc.exists()) {
+        logger.warn("❌ Usuário não encontrado:", userId);
+        return res.status(404).json({ 
+          enabled: false, 
+          error: "Usuário não encontrado" 
+        });
+      }
+
+      const userData = userDoc.data();
+      const userEnabled = userData.eaEnabled !== undefined ? userData.eaEnabled : true;
+
+      if (!userEnabled) {
+        logger.warn("⛔ EA BLOQUEADO para usuário:", userId);
+        return res.status(403).json({ 
+          enabled: false, 
+          reason: "EA desativado para este usuário",
+          global: true,
+          user: false
+        });
+      }
+
+      // 3️⃣ TUDO OK ✅
+      logger.info("✅ EA AUTORIZADO para:", userId);
+      return res.status(200).json({ 
+        enabled: true,
+        message: "EA autorizado",
+        global: true,
+        user: true
+      });
+
+    } catch (error) {
+      logger.error("❌ Erro ao verificar EA:", error);
+      return res.status(500).json({ 
+        enabled: false, 
+        error: "Erro no servidor",
+        details: error.message
+      });
+    }
+  }
+);
+
+/**
  * Endpoint para sincronizar trades do MT5
  * POST /syncMT5
  * Body: { apiKey, trades: [...] }
@@ -125,6 +222,38 @@ exports.syncMT5 = onRequest(
 
       const userId = usersSnapshot.docs[0].id;
       logger.info("✅ Usuário encontrado:", userId);
+
+      // ✅✅✅ NOVO: VERIFICAR SE EA ESTÁ HABILITADO ✅✅✅
+      const globalDoc = await db
+        .doc("artifacts/trade-journal-public/settings/eaGlobalControl")
+        .get();
+      
+      const globalEnabled = globalDoc.exists() 
+        ? (globalDoc.data().globalEnabled ?? true) 
+        : true;
+
+      if (!globalEnabled) {
+        logger.warn("⛔ EA BLOQUEADO GLOBALMENTE - rejeitando sincronização");
+        return res.status(403).json({ 
+          error: "EA desativado globalmente pelo administrador"
+        });
+      }
+
+      const userDoc = await db
+        .doc(`artifacts/trade-journal-public/users/${userId}`)
+        .get();
+      
+      const userData = userDoc.data();
+      const userEnabled = userData.eaEnabled !== undefined ? userData.eaEnabled : true;
+
+      if (!userEnabled) {
+        logger.warn("⛔ EA BLOQUEADO para usuário:", userId);
+        return res.status(403).json({ 
+          error: "EA desativado para este usuário"
+        });
+      }
+
+      logger.info("✅ EA autorizado, processando trades...");
 
       // ✅ PROCESSAR TRADES
       const batch = db.batch();
