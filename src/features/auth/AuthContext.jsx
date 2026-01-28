@@ -55,20 +55,21 @@ export const AuthProvider = ({ children }) => {
             const userDoc = await getDoc(userRef)
 
             if (!userDoc.exists()) {
-              // ✅ ATUALIZADO: Usuário novo - criar documento COM lastAccessAt
+              // ✅ Usuário novo - criar documento completo
               const newUserData = {
                 email: firebaseUser.email || null,
-                isPro: false,
-                createdAt: new Date().toISOString(),
-                lastAccessAt: new Date().toISOString(), // ← NOVO: primeiro acesso
                 displayName: firebaseUser.displayName || null,
-                photoURL: firebaseUser.photoURL || null
+                photoURL: firebaseUser.photoURL || null,
+                isPro: false,
+                eaEnabled: true,
+                createdAt: new Date().toISOString(),
+                lastAccessAt: new Date().toISOString()
               }
 
-              await setDoc(userRef, newUserData, { merge: true })
+              await setDoc(userRef, newUserData)
               setIsPro(false)
             } else {
-              // ✅ ATUALIZADO: Usuário existente - atualizar último acesso
+              // ✅ Usuário existente - atualizar último acesso
               const data = userDoc.data()
               setIsPro(data.isPro || false)
               
@@ -95,11 +96,10 @@ export const AuthProvider = ({ children }) => {
     return unsubscribe
   }, [])
 
-  // ✅ CORREÇÃO: Aceita parâmetro para forçar seleção de conta
+  // ✅ Login com Google (forçar seleção de conta)
   const signInWithGoogle = async (options = {}) => {
     const provider = new GoogleAuthProvider()
     
-    // Se forceSelectAccount for true, força mostrar seleção de contas
     if (options.forceSelectAccount) {
       provider.setCustomParameters({
         prompt: 'select_account'
@@ -111,15 +111,21 @@ export const AuthProvider = ({ children }) => {
 
   const signInWithEmail = (email, password) => signInWithEmailAndPassword(auth, email, password)
   
+  // ✅ CORRIGIDO: Registro com email - criar documento completo
   const signUpWithEmail = async (email, password) => {
     const credential = await createUserWithEmailAndPassword(auth, email, password)
-    // ✅ ATUALIZADO: Criar doc inicial COM lastAccessAt
+    
+    // Criar documento no Firestore com todos os campos necessários
     await setDoc(doc(db, 'artifacts/trade-journal-public/users', credential.user.uid), {
-      email, 
-      isPro: false, 
+      email: credential.user.email,
+      displayName: credential.user.displayName || null,
+      photoURL: credential.user.photoURL || null,
+      isPro: false,
+      eaEnabled: true,
       createdAt: new Date().toISOString(),
-      lastAccessAt: new Date().toISOString() // ← NOVO
+      lastAccessAt: new Date().toISOString()
     })
+    
     return credential
   }
   
