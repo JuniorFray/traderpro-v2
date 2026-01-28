@@ -1,9 +1,7 @@
 import { useState } from 'react'
-import { useAuth } from '../auth/AuthContext'
 import { respondTicket, updateTicketStatus } from '../../services/tickets'
 
-export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate }) => {
-  const { user } = useAuth()
+export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate, user }) => {
   const [loading, setLoading] = useState(false)
   const [response, setResponse] = useState(ticket.adminResponse || '')
   const [newStatus, setNewStatus] = useState(ticket.status)
@@ -57,13 +55,13 @@ export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate }) => {
       resolvido: 'bg-green-500/20 text-green-400 border-green-500/30',
       fechado: 'bg-gray-500/20 text-gray-400 border-gray-500/30'
     }
-    
+
     const labels = {
       aberto: '🔵 Aberto',
       resolvido: '✅ Resolvido',
       fechado: '⚫ Fechado'
     }
-    
+
     return (
       <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${styles[status]}`}>
         {labels[status]}
@@ -77,13 +75,13 @@ export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate }) => {
       media: 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30',
       baixa: 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
     }
-    
+
     const labels = {
       alta: '🔴 Alta',
       media: '🟡 Média',
       baixa: '⚪ Baixa'
     }
-    
+
     return (
       <span className={`px-3 py-1 rounded-full text-xs font-semibold ${styles[priority]}`}>
         {labels[priority]}
@@ -167,12 +165,11 @@ export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate }) => {
                 <span className="text-white">{ticket.createdAt?.toLocaleString('pt-BR')}</span>
               </div>
               {ticket.respondedAt && (
-  <div className="flex items-center justify-between">
-    <span className="text-sm text-zinc-400">Respondido em:</span>
-    <span className="text-sm text-white">{ticket.respondedAt?.toLocaleString('pt-BR')}</span>
-  </div>
-)}
-
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-zinc-400">Respondido em:</span>
+                  <span className="text-sm text-white">{ticket.respondedAt?.toLocaleString('pt-BR')}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -206,7 +203,7 @@ export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate }) => {
           {/* Campo de Resposta (se ainda não respondeu) */}
           {!ticket.adminResponse && (
             <div>
-              <h3 className="text-sm font-semibold text-primary mb-2">✍️ Escrever Resposta</h3>
+              <h3 className="text-sm font-semibold text-primary mb-2">✏️ Escrever Resposta</h3>
               <textarea
                 value={response}
                 onChange={(e) => setResponse(e.target.value)}

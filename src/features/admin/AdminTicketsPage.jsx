@@ -247,12 +247,11 @@ export const AdminTicketsPage = ({ user }) => {
                         <span>•</span>
                         <span>{getCategoryLabel(ticket.category)}</span>
                         {ticket.adminResponse && (
-  <>
-    <span>•</span>
-    <span className="text-green-400">✅ Respondido</span>
-  </>
-)}
-
+                          <>
+                            <span>•</span>
+                            <span className="text-green-400">✅ Respondido</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -269,10 +268,11 @@ export const AdminTicketsPage = ({ user }) => {
         </div>
       )}
 
-      {/* Modal de Detalhes */}
+      {/* Modal de Detalhes - ✅ PASSANDO USER */}
       {selectedTicket && (
         <AdminTicketDetailModal
           ticket={selectedTicket}
+          user={user}
           onClose={() => setSelectedTicket(null)}
           onUpdate={loadData}
         />
