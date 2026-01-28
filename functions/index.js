@@ -108,7 +108,7 @@ exports.checkEAStatus = onRequest(
         .doc("artifacts/trade-journal-public/settings/eaGlobalControl")
         .get();
       
-      const globalEnabled = globalDoc.exists() 
+      const globalEnabled = globalDoc.exists 
         ? (globalDoc.data().globalEnabled ?? true) 
         : true;
 
@@ -128,7 +128,7 @@ exports.checkEAStatus = onRequest(
         .doc(`artifacts/trade-journal-public/users/${userId}`)
         .get();
       
-      if (!userDoc.exists()) {
+      if (!userDoc.exists) {
         logger.warn("❌ Usuário não encontrado:", userId);
         return res.status(404).json({ 
           enabled: false, 
@@ -228,7 +228,7 @@ exports.syncMT5 = onRequest(
         .doc("artifacts/trade-journal-public/settings/eaGlobalControl")
         .get();
       
-      const globalEnabled = globalDoc.exists() 
+      const globalEnabled = globalDoc.exists 
         ? (globalDoc.data().globalEnabled ?? true) 
         : true;
 
@@ -383,6 +383,69 @@ exports.syncMT5 = onRequest(
         error: "Erro ao processar sincronização",
         details: error.message,
       });
+    }
+  }
+);
+
+// ✅ Sincronizar usuários do Authentication para Firestore
+exports.syncAuthUsers = onRequest(
+  { cors: true },
+  async (req, res) => {
+    try {
+      const listUsersResult = await admin.auth().listUsers(1000);
+      
+      let syncedCount = 0;
+      let skippedCount = 0;
+      
+      for (const user of listUsersResult.users) {
+        const userId = user.uid;
+        const email = user.email || 'sem-email@unknown.com';
+        
+        // Verificar se já existe
+        const userDocRef = admin.firestore()
+          .doc(`artifacts/trade-journal-public/users/${userId}`);
+        const userDoc = await userDocRef.get();
+        
+        if (userDoc.exists) {
+          skippedCount++;
+          continue;
+        }
+        
+        // Criar em users
+        await userDocRef.set({
+          email: email,
+          displayName: user.displayName || null,
+          isPro: false,
+          eaEnabled: true,
+          createdAt: user.metadata.creationTime,
+          lastLogin: user.metadata.lastSignInTime,
+          syncedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        
+        // Criar em adminUsers
+        await admin.firestore()
+          .doc(`artifacts/trade-journal-public/adminUsers/${userId}`)
+          .set({
+            email: email,
+            displayName: user.displayName || null,
+            isPro: false,
+            isAdmin: false,
+            importedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+        
+        syncedCount++;
+      }
+      
+      res.json({
+        success: true,
+        total: listUsersResult.users.length,
+        synced: syncedCount,
+        skipped: skippedCount
+      });
+      
+    } catch (error) {
+      console.error('Erro:', error);
+      res.status(500).json({ error: error.message });
     }
   }
 );

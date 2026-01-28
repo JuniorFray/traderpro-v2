@@ -31,22 +31,31 @@ export const Admin = () => {
   }, [navigate])
 
   useEffect(() => {
-    if (user) {
-      loadUsers()
-      loadGlobalEAControl()
-    }
-  }, [user])
+  console.log('🚀 useEffect disparado!')
+  console.log('👤 user:', user)
+  console.log('❓ user existe?', !!user)
+  
+  if (user) {
+    loadUsers()
+    loadGlobalEAControl()
+  } else {
+    
+  }
+}, [user])
+
 
   const loadUsers = async () => {
     try {
       setLoading(true)
-      const usersRef = collection(db, 'artifacts/trade-journal-public/adminUsers')
+
+      const usersRef = collection(db, 'artifacts/trade-journal-public/users')
       const snapshot = await getDocs(usersRef)
 
       const usersList = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }))
+
 
       setUsers(usersList)
     } catch (error) {
@@ -58,6 +67,7 @@ export const Admin = () => {
 
   // ✅ CORRIGIDO: Carregar controle global EA
   const loadGlobalEAControl = async () => {
+
     try {
       setLoadingGlobal(true)
       // ✅ CAMINHO CORRETO conforme Firestore Rules
@@ -66,10 +76,10 @@ export const Admin = () => {
       if (controlDoc.exists()) {
         const data = controlDoc.data()
         setGlobalEAEnabled(data.globalEnabled ?? true)
-        console.log('✅ EA Control carregado:', data)
+        
       } else {
         // ✅ Fallback: criar documento se não existir
-        console.log('⚠️ Documento EA não existe, criando...')
+        
         await setDoc(doc(db, 'artifacts/trade-journal-public/globalEAControl', 'config'), {
           globalEnabled: true,
           createdAt: new Date().toISOString(),
@@ -523,7 +533,7 @@ export const Admin = () => {
         ) : activeTab === 'notifications' ? (
           <NotificationManager />
         ) : (
-          <AdminTicketsPage />
+          <AdminTicketsPage user={user} />
         )}
       </div>
     </div>

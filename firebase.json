@@ -1,4 +1,4 @@
-{
+﻿{
   "hosting": [
     {
       "target": "main",
@@ -17,7 +17,7 @@
     },
     {
       "target": "admin",
-      "public": "dist",
+      "public": "dist-admin",
       "ignore": [
         "firebase.json",
         "**/.*",
@@ -26,7 +26,7 @@
       "rewrites": [
         {
           "source": "**",
-          "destination": "/index.html"
+          "destination": "/index-admin.html"
         }
       ]
     }

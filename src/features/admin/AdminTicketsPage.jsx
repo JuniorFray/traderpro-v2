@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useAuth } from '../auth/AuthContext'
 import { getAllTickets, getTicketStats } from '../../services/tickets'
 import { AdminTicketDetailModal } from './AdminTicketDetailModal'
 
-export const AdminTicketsPage = () => {
-  const { user } = useAuth()
+export const AdminTicketsPage = ({ user }) => {
   const [tickets, setTickets] = useState([])
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)

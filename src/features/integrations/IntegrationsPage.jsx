@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "../auth/AuthContext"
 import { db } from "../../services/firebase"
-import { doc, setDoc, getDoc } from "firebase/firestore"
+import { doc, updateDoc, getDoc } from "firebase/firestore"
 import { Card } from "../../components/ui/Card"
 import { Button } from "../../components/ui/Button"
 
@@ -20,10 +20,11 @@ export const IntegrationsPage = () => {
     if (!user) return
 
     try {
-      const tokenDoc = await getDoc(doc(db, "artifacts/trade-journal-public/apiTokens", user.uid))
+      // ✅ BUSCAR NO LUGAR CORRETO: users/{userId}
+      const userDoc = await getDoc(doc(db, "artifacts/trade-journal-public/users", user.uid))
 
-      if (tokenDoc.exists()) {
-        setApiToken(tokenDoc.data().token)
+      if (userDoc.exists() && userDoc.data().apiKey) {
+        setApiToken(userDoc.data().apiKey)
       }
     } catch (error) {
       console.error("Erro ao carregar token", error)
@@ -39,15 +40,14 @@ export const IntegrationsPage = () => {
 
     setLoading(true)
     try {
-      // Gera token aleatório seguro
+      // Gera token aleatório seguro (formato simplificado)
       const token = `tp_${user.uid.slice(0, 8)}_${crypto.randomUUID()}`
 
-      // Salva no Firestore
-      await setDoc(doc(db, "artifacts/trade-journal-public/apiTokens", user.uid), {
-        token,
-        createdAt: new Date().toISOString(),
-        lastUsed: null,
-        active: true
+      // ✅ SALVAR NO LUGAR CORRETO: users/{userId}/apiKey
+      await updateDoc(doc(db, "artifacts/trade-journal-public/users", user.uid), {
+        apiKey: token,
+        apiKeyCreatedAt: new Date().toISOString(),
+        apiKeyLastUsed: null
       })
 
       setApiToken(token)
@@ -162,7 +162,7 @@ export const IntegrationsPage = () => {
       {/* 📖 Card Instruções */}
       <Card className="bg-zinc-900 border-zinc-800">
         <h3 className="text-lg font-bold text-white mb-4">📖 Como usar</h3>
-        
+
         <div className="space-y-3 text-sm text-zinc-300">
           <div className="flex gap-3">
             <span className="text-primary font-bold">1.</span>
@@ -194,7 +194,7 @@ export const IntegrationsPage = () => {
     <p className="text-sm text-zinc-400">
       Baixe o arquivo TraderProSync para conectar seu MT5 ao TraderPro.
     </p>
-    
+
     <Button
       onClick={() => window.open('https://drive.google.com/uc?export=download&id=1FWRPtnlnCfs1IYSWVm5R5gY3YHAu3cNx', '_blank')}
       className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
