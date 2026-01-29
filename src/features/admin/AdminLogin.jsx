@@ -1,35 +1,33 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { 
-  signInWithRedirect,
+import {
+  signInWithPopup,
   GoogleAuthProvider,
   onAuthStateChanged
 } from 'firebase/auth'
 import { auth } from '../../services/firebase'
 
 export const AdminLogin = () => {
-  const [loading, setLoading] = useState(true) // ← Inicia como true
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const navigate = useNavigate()
 
-  // ✅ SOLUÇÃO: Detectar login automaticamente
   useEffect(() => {
     console.log('🔍 AdminLogin: Iniciando verificação de autenticação...')
-    
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       console.log('👤 onAuthStateChanged disparado. User:', user?.email || 'null')
-      
+
       if (user) {
         console.log('✅ Usuário autenticado:', user.email)
-        console.log('🆔 UID:', user.uid)
-        
+
         // Verificar se é admin
         if (user.email === 'juniorfray944@gmail.com') {
-          console.log('✅ Admin verificado! Redirecionando para /admin...')
+          console.log('✅ Admin verificado! Redirecionando...')
           localStorage.setItem('adminContext', 'true')
           navigate('/admin', { replace: true })
         } else {
-          console.log('❌ NÃO é admin. Email:', user.email)
+          console.log('❌ NÃO é admin:', user.email)
           setError('❌ Você não tem permissão de administrador')
           await auth.signOut()
           setLoading(false)
@@ -39,8 +37,7 @@ export const AdminLogin = () => {
         setLoading(false)
       }
     })
-    
-    // Cleanup
+
     return () => unsubscribe()
   }, [navigate])
 
@@ -48,18 +45,26 @@ export const AdminLogin = () => {
     try {
       setLoading(true)
       setError('')
-      
-      console.log('🚀 Iniciando login com Google via redirect...')
-      
+
+      console.log('🚀 Abrindo popup do Google...')
+
       const provider = new GoogleAuthProvider()
-      await signInWithRedirect(auth, provider)
-      
-      // O usuário será redirecionado para o Google
-      // Quando voltar, onAuthStateChanged detectará automaticamente
-      console.log('🔄 Redirecionando para Google...')
+      const result = await signInWithPopup(auth, provider)
+
+      console.log('✅ Login bem-sucedido:', result.user.email)
+      // onAuthStateChanged vai detectar e redirecionar automaticamente
+
     } catch (err) {
       console.error('💥 Erro no login:', err)
-      setError(`Erro ao iniciar login: ${err.message}`)
+      
+      if (err.code === 'auth/popup-blocked') {
+        setError('❌ Popup bloqueado! Permita popups neste site.')
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        setError('❌ Login cancelado.')
+      } else {
+        setError(`Erro: ${err.message}`)
+      }
+      
       setLoading(false)
     }
   }
@@ -118,4 +123,3 @@ export const AdminLogin = () => {
     </div>
   )
 }
-
