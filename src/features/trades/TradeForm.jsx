@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Input } from '../../components/ui/Input';
+import { TradeImageUpload } from './TradeImageUpload'
 import { Button } from '../../components/ui/Button';
 import { MARKETS, CURRENCIES } from '../../constants/markets';
 
@@ -21,6 +22,10 @@ export const TradeForm = ({ onSubmit, initialData = null, onCancel }) => {
     notes: initialData?.notes || ''
   });
 
+  // ✅ Estados para upload de imagens
+  const [images, setImages] = useState(initialData?.images || []);
+  const [tempTradeId] = useState(() => initialData?.id || `temp_${Date.now()}`);
+
   // ✅ CORREÇÃO: Atualizar formulário quando initialData mudar
   useEffect(() => {
     if (initialData) {
@@ -40,6 +45,7 @@ export const TradeForm = ({ onSubmit, initialData = null, onCancel }) => {
         strategy: initialData.strategy || '',
         notes: initialData.notes || ''
       });
+      setImages(initialData.images || []);
     }
   }, [initialData]);
 
@@ -66,7 +72,11 @@ export const TradeForm = ({ onSubmit, initialData = null, onCancel }) => {
       formData.currency = selectedMarket.currency;
     }
     
-    onSubmit(formData);
+    // ✅ Incluir imagens no submit
+    onSubmit({
+      ...formData,
+      images
+    });
   };
 
   // Obter moeda esperada do mercado
@@ -267,6 +277,13 @@ export const TradeForm = ({ onSubmit, initialData = null, onCancel }) => {
           placeholder="Anotações sobre o trade..."
         />
       </div>
+
+      {/* ✅ Upload de Imagens */}
+      <TradeImageUpload
+        tradeId={tempTradeId}
+        initialImages={images}
+        onImagesChange={setImages}
+      />
 
       {/* Botões */}
       <div className="flex gap-3 pt-4">

@@ -1,12 +1,14 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Imagens de trades (cada usuário só vê as suas)
-    match /users/{userId}/trades/{tradeId}/{allPaths=**} {
-      allow read, write: if request.auth != null 
-                         && request.auth.uid == userId
-                         && request.resource.contentType.matches('image/.*')
-                         && request.resource.size < 5 * 1024 * 1024; // 5MB
+    // Permitir upload/leitura para usuários autenticados
+    match /users/{userId}/trades/{tradeId}/images/{imageName} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null 
+                   && request.auth.uid == userId
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+      allow delete: if request.auth != null && request.auth.uid == userId;
     }
     
     // Admin tem acesso total

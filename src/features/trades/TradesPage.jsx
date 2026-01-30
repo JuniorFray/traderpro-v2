@@ -1,4 +1,4 @@
-﻿import { useState } from "react"
+import { useState } from "react"
 import { useTrades } from "../../hooks/useTrades"
 import { Card } from "../../components/ui/Card"
 import { Button } from "../../components/ui/Button"
@@ -14,6 +14,8 @@ export const TradesPage = () => {
   const [editingTrade, setEditingTrade] = useState(null)
   const [showImportModal, setShowImportModal] = useState(false)
   const [showClearModal, setShowClearModal] = useState(false)
+  const [selectedImage, setSelectedImage] = useState(null)
+  const [selectedImageFullscreen, setSelectedImageFullscreen] = useState(null) // ✅ ADICIONADO
   const [filters, setFilters] = useState({
     startDate: "",
     endDate: "",
@@ -81,6 +83,12 @@ export const TradesPage = () => {
   const handleCancel = () => {
     setShowForm(false)
     setEditingTrade(null)
+  }
+
+  const handleViewImages = (trade) => {
+    if (trade.images && trade.images.length > 0) {
+      setSelectedImage({ images: trade.images, asset: trade.asset })
+    }
   }
 
   if (loading) {
@@ -194,6 +202,16 @@ export const TradesPage = () => {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => handleViewImages(trade)}
+                      disabled={!trade.images || trade.images.length === 0}
+                      className="flex-1 sm:flex-none"
+                    >
+                      🖼️ Imagens {trade.images && trade.images.length > 0 ? `(${trade.images.length})` : '(0)'}
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => handleEdit(trade)}
                       className="flex-1 sm:flex-none"
                     >
@@ -229,6 +247,71 @@ export const TradesPage = () => {
           onConfirm={clearAllTrades}
           tradesCount={trades.length}
         />
+      )}
+
+      {/* ✅ MODAL DE VISUALIZAÇÃO DE IMAGENS - GALERIA */}
+      {selectedImage && (
+        <div 
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+          onClick={() => setSelectedImage(null)}
+        >
+          <div className="relative max-w-7xl w-full max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white text-xl font-bold">
+                📸 Imagens - {selectedImage.asset} ({selectedImage.images.length})
+              </h3>
+              <button
+                onClick={() => setSelectedImage(null)}
+                className="text-white text-3xl bg-black/50 hover:bg-black/70 w-12 h-12 rounded-full flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto">
+              {selectedImage.images.map((url, index) => (
+                <button
+                  key={index}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setSelectedImageFullscreen(url)
+                  }}
+                  className="relative group cursor-pointer"
+                >
+                  <img
+                    src={url}
+                    alt={`Screenshot ${index + 1}`}
+                    className="w-full rounded-lg border-2 border-zinc-700 hover:border-primary transition-colors"
+                  />
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+                    <span className="text-white text-lg font-bold">🔍 Ampliar</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ MODAL DE IMAGEM EM TELA CHEIA */}
+      {selectedImageFullscreen && (
+        <div 
+          className="fixed inset-0 bg-black/95 z-[60] flex items-center justify-center p-4"
+          onClick={() => setSelectedImageFullscreen(null)}
+        >
+          <button
+            onClick={() => setSelectedImageFullscreen(null)}
+            className="absolute top-4 right-4 text-white text-3xl bg-black/50 hover:bg-black/70 w-12 h-12 rounded-full flex items-center justify-center z-10"
+          >
+            ✕
+          </button>
+          <img
+            src={selectedImageFullscreen}
+            alt="Imagem em tela cheia"
+            className="max-w-full max-h-full object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
       )}
     </div>
   )
