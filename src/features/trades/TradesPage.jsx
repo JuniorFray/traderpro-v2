@@ -1,5 +1,8 @@
+// src/features/trades/TradesPage.jsx
+
 import { useState } from "react"
 import { useTrades } from "../../hooks/useTrades"
+import { useAuth } from "../auth/AuthContext"
 import { Card } from "../../components/ui/Card"
 import { Button } from "../../components/ui/Button"
 import { TradeForm } from "./TradeForm"
@@ -7,15 +10,17 @@ import { TradeFilters } from "../../components/filters/TradeFilters"
 import { formatCurrency } from "../../utils/metrics"
 import { ImportMT5Modal } from "./ImportMT5Modal"
 import { ClearAccountModal } from "./ClearAccountModal"
+import { recalculateSpecificPeriods } from "../../services/taxRecalculator"
 
 export const TradesPage = () => {
+  const { user } = useAuth()
   const { trades, loading, createTrade, updateTrade, deleteTrade, clearAllTrades, importTrades } = useTrades()
   const [showForm, setShowForm] = useState(false)
   const [editingTrade, setEditingTrade] = useState(null)
   const [showImportModal, setShowImportModal] = useState(false)
   const [showClearModal, setShowClearModal] = useState(false)
   const [selectedImage, setSelectedImage] = useState(null)
-  const [selectedImageFullscreen, setSelectedImageFullscreen] = useState(null) // ✅ ADICIONADO
+  const [selectedImageFullscreen, setSelectedImageFullscreen] = useState(null)
   const [filters, setFilters] = useState({
     startDate: "",
     endDate: "",
@@ -49,18 +54,77 @@ export const TradesPage = () => {
     totalPnL: totalPnLBRL
   }
 
+  // 🎯 FUNÇÃO MODIFICADA: Com recálculo automático do histórico fiscal
   const handleSubmit = async (tradeData) => {
     try {
       if (editingTrade) {
-        await updateTrade(editingTrade.id, tradeData)
+        // 📊 Capturar dados antigos ANTES de atualizar
+        const oldTrade = editingTrade;
+        const oldDate = new Date(oldTrade.date);
+        const oldPeriod = `${oldDate.getFullYear()}-${String(oldDate.getMonth() + 1).padStart(2, '0')}`;
+        const oldMarket = oldTrade.market;
+
+        // Atualizar o trade
+        await updateTrade(editingTrade.id, tradeData);
+
+        // 📊 Verificar se houve mudança de mercado ou período
+        const newDate = new Date(tradeData.date);
+        const newPeriod = `${newDate.getFullYear()}-${String(newDate.getMonth() + 1).padStart(2, '0')}`;
+        const newMarket = tradeData.market;
+
+        // 🎯 RECALCULAR HISTÓRICO FISCAL AUTOMATICAMENTE
+        if (oldMarket !== newMarket || oldPeriod !== newPeriod) {
+          console.log('🔄 Mercado/período alterado, recalculando histórico fiscal automaticamente...');
+          
+          // Coletar períodos e mercados afetados
+          const periodsToRecalc = oldPeriod !== newPeriod 
+            ? [oldPeriod, newPeriod] 
+            : [oldPeriod];
+          
+          const marketsToRecalc = oldMarket !== newMarket 
+            ? [oldMarket, newMarket] 
+            : [oldMarket];
+
+          // Recalcular em background (sem bloquear UI)
+          recalculateSpecificPeriods(user.uid, periodsToRecalc, marketsToRecalc)
+            .then(result => {
+              if (result.success) {
+                console.log('✅ Histórico fiscal recalculado automaticamente');
+              } else {
+                console.error('❌ Erro ao recalcular histórico fiscal:', result.message);
+              }
+            })
+            .catch(error => {
+              console.error('❌ Erro ao recalcular histórico fiscal:', error);
+            });
+        }
       } else {
-        await createTrade(tradeData)
+        // Criar novo trade
+        await createTrade(tradeData);
+
+        // 🎯 RECALCULAR período atual após criar trade
+        const newDate = new Date(tradeData.date);
+        const newPeriod = `${newDate.getFullYear()}-${String(newDate.getMonth() + 1).padStart(2, '0')}`;
+        const newMarket = tradeData.market;
+
+        console.log('🔄 Novo trade criado, recalculando período atual...');
+        
+        recalculateSpecificPeriods(user.uid, [newPeriod], [newMarket])
+          .then(result => {
+            if (result.success) {
+              console.log('✅ Histórico fiscal atualizado');
+            }
+          })
+          .catch(error => {
+            console.error('❌ Erro ao atualizar histórico fiscal:', error);
+          });
       }
-      setShowForm(false)
-      setEditingTrade(null)
+
+      setShowForm(false);
+      setEditingTrade(null);
     } catch (error) {
-      console.error("Erro ao salvar trade:", error)
-      alert("Erro ao salvar trade")
+      console.error("Erro ao salvar trade:", error);
+      alert("Erro ao salvar trade: " + error.message);
     }
   }
 
@@ -72,10 +136,29 @@ export const TradesPage = () => {
   const handleDelete = async (tradeId) => {
     if (window.confirm("Deseja realmente excluir este trade?")) {
       try {
-        await deleteTrade(tradeId)
+        // 🎯 Capturar dados ANTES de deletar (para recalcular depois)
+        const tradeToDelete = trades.find(t => t.id === tradeId);
+        const tradeDate = new Date(tradeToDelete.date);
+        const tradePeriod = `${tradeDate.getFullYear()}-${String(tradeDate.getMonth() + 1).padStart(2, '0')}`;
+        const tradeMarket = tradeToDelete.market;
+
+        await deleteTrade(tradeId);
+
+        // 🎯 Recalcular período após deletar
+        console.log('🔄 Trade deletado, recalculando período...');
+        recalculateSpecificPeriods(user.uid, [tradePeriod], [tradeMarket])
+          .then(result => {
+            if (result.success) {
+              console.log('✅ Histórico fiscal atualizado após exclusão');
+            }
+          })
+          .catch(error => {
+            console.error('❌ Erro ao atualizar histórico fiscal:', error);
+          });
+
       } catch (error) {
-        console.error("Erro ao deletar trade:", error)
-        alert("Erro ao deletar trade")
+        console.error("Erro ao deletar trade:", error);
+        alert("Erro ao deletar trade: " + error.message);
       }
     }
   }

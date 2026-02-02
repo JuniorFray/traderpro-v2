@@ -15,10 +15,29 @@ import {
 } from 'firebase/firestore';
 
 /**
+ * 🎯 Normalizar nome do mercado para garantir consistência
+ */
+const normalizeMarket = (market) => {
+  const marketMap = {
+    'b3_day_trade': 'b3daytrade',
+    'b3daytrade': 'b3daytrade',
+    'b3_swing': 'b3swing',
+    'b3swing': 'b3swing',
+    'forex': 'forex',
+    'b3_options': 'b3options',
+    'b3options': 'b3options'
+  };
+  
+  return marketMap[market?.toLowerCase()] || market;
+};
+
+/**
  * Buscar prejuízo acumulado de um mercado até determinado período
  */
 export const getAccumulatedLoss = async (userId, market, period) => {
   try {
+    const normalizedMarket = normalizeMarket(market);
+    
     const taxHistoryRef = collection(
       db, 
       'artifacts/trade-journal-public/users', 
@@ -29,7 +48,7 @@ export const getAccumulatedLoss = async (userId, market, period) => {
     // Buscar histórico do mesmo mercado antes do período atual
     const q = query(
       taxHistoryRef,
-      where('market', '==', market),
+      where('market', '==', normalizedMarket),
       where('period', '<', period),
       orderBy('period', 'desc')
     );
@@ -60,7 +79,9 @@ export const getAccumulatedLoss = async (userId, market, period) => {
  */
 export const saveTaxHistory = async (userId, taxData) => {
   try {
-    const periodId = `${taxData.period}-${taxData.market}`;
+    const normalizedMarket = normalizeMarket(taxData.market);
+    const periodId = `${taxData.period}_${normalizedMarket}`; // ✅ UNDERSCORE
+    
     const taxHistoryRef = doc(
       db,
       'artifacts/trade-journal-public/users',
@@ -71,6 +92,7 @@ export const saveTaxHistory = async (userId, taxData) => {
 
     await setDoc(taxHistoryRef, {
       ...taxData,
+      market: normalizedMarket, // Garante que o market salvo também está normalizado
       userId,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
@@ -99,7 +121,8 @@ export const getUserTaxHistory = async (userId, options = {}) => {
 
     // Filtrar por mercado se especificado
     if (options.market) {
-      q = query(taxHistoryRef, where('market', '==', options.market), orderBy('period', 'desc'));
+      const normalizedMarket = normalizeMarket(options.market);
+      q = query(taxHistoryRef, where('market', '==', normalizedMarket), orderBy('period', 'desc'));
     }
 
     const snapshot = await getDocs(q);
@@ -122,9 +145,11 @@ export const getUserTaxHistory = async (userId, options = {}) => {
 export const recordCompensation = async (userId, compensationData) => {
   try {
     const { fromPeriod, toPeriod, market, amount } = compensationData;
-
-    // Atualizar o período onde o prejuízo foi usado
-    const fromPeriodId = `${fromPeriod}-${market}`;
+    
+    const normalizedMarket = normalizeMarket(market);
+    
+    // ✅ CORRIGIDO: Usar underscore e market normalizado
+    const fromPeriodId = `${fromPeriod}_${normalizedMarket}`;
     const fromRef = doc(
       db,
       'artifacts/trade-journal-public/users',
@@ -164,7 +189,8 @@ export const recordCompensation = async (userId, compensationData) => {
  */
 export const getTotalUncompensatedLoss = async (userId, market) => {
   try {
-    const { success, data } = await getUserTaxHistory(userId, { market });
+    const normalizedMarket = normalizeMarket(market);
+    const { success, data } = await getUserTaxHistory(userId, { market: normalizedMarket });
 
     if (!success) return 0;
 
