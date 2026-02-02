@@ -1,16 +1,17 @@
-﻿import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx';
 
 const FIELD_ALIASES = {
-  asset: ['ativo', 'asset', 'simbolo', 'symbol', 'ticket', 'instrument'],
-  date: ['data', 'date', 'time', 'datetime', 'abertura', 'horario'],
+  asset: ['ativo', 'asset', 'simbolo', 'symbol', 'instrument', 'par', 'pair'],
+  date: ['data', 'date', 'time', 'datetime', 'horario', 'hora_de_fecho', 'closing_time'],
+  type: ['type', 'tipo', 'direction', 'direcao', 'direção_de_abertura', 'opening_direction', 'lado'],
   market: ['mercado', 'market', 'type', 'categoria'],
   currency: ['moeda', 'currency'],
-  quantity: ['quantidade', 'quantity', 'volume', 'lotes', 'lots', 'size'],
-  entryPrice: ['preco_entrada', 'entry_price', 'entrada', 'entry', 'open_price', 'preco'],
-  exitPrice: ['preco_saida', 'exit_price', 'saida', 'exit', 'close_price'],
-  entryTime: ['hora_entrada', 'entry_time'],
-  exitTime: ['hora_saida', 'exit_time'],
-  pnl: ['resultado', 'pnl', 'profit', 'lucro', 'gain'],
+  quantity: ['quantidade', 'quantity', 'volume', 'lotes', 'lots', 'size', 'quantidade_de_fecho', 'closing_quantity'],
+  entryPrice: ['precoentrada', 'entryprice', 'entrada', 'entry', 'openprice', 'preco', 'preço_de_entrada', 'opening_price'],
+  exitPrice: ['precosaida', 'exitprice', 'saida', 'exit', 'closeprice', 'preço_de_fecho', 'closing_price'],
+  entryTime: ['horaentrada', 'entrytime'],
+  exitTime: ['horasaida', 'exittime'],
+  pnl: ['resultado', 'pnl', 'profit', 'lucro', 'gain', 'liquidos', 'líquidos', 'net_profit', 'gross_profit'],
   commission: ['corretagem', 'commission', 'taxas', 'fees', 'custos', 'comissao'],
   swap: ['swap', 'rollover', 'overnight'],
   strategy: ['estrategia', 'strategy', 'setup'],
@@ -20,52 +21,36 @@ const FIELD_ALIASES = {
 function detectMarket(asset) {
   if (!asset) return 'forex';
   
-  // Limpar sufixos
   const clean = asset.toUpperCase()
     .replace(/\.H$/i, '')
     .replace(/\.h$/i, '')
     .trim();
   
-  console.log('🔍 [Cloud Function] Detectando mercado para:', clean);
-  
-  // ✅ PRIORIDADE 1: CRYPTO = FOREX (ANTES DE TUDO!)
   if (clean.match(/^BTC|^ETH|^LTC|^XRP|^DOGE|^ADA|^SOL|^DOT|^MATIC|^AVAX|^LINK/)) {
-    console.log('✅ CRYPTO detectado:', clean, '→ FOREX');
     return 'forex';
   }
   
-  // ✅ PRIORIDADE 2: B3 Futuros (WIN, WDO, etc)
   if (clean.match(/^WIN|^WDO|^IND|^DOL/) || clean.includes('FUT')) {
-    console.log('✅ FUTURO B3 detectado:', clean, '→ B3DAYTRADE');
     return 'b3daytrade';
   }
   
-  // ✅ PRIORIDADE 3: B3 Ações (4 letras + número)
   if (clean.match(/^[A-Z]{4}\d/)) {
-    console.log('✅ AÇÃO B3 detectada:', clean, '→ B3SWING');
     return 'b3swing';
   }
   
-  // ✅ PRIORIDADE 4: Metais preciosos
   if (clean.match(/^XAU|^XAG|^GOLD|^SILVER/)) {
-    console.log('✅ METAL detectado:', clean, '→ FOREX');
     return 'forex';
   }
   
-  // ✅ PRIORIDADE 5: Pares forex clássicos (EURUSD, GBPJPY, etc)
   if (clean.match(/^(EUR|USD|GBP|JPY|AUD|CAD|CHF|NZD)[A-Z]{3}$/)) {
-    console.log('✅ PAR FOREX detectado:', clean, '→ FOREX');
     return 'forex';
   }
   
-  // ✅ PRIORIDADE 6: Forex genérico (6-8 letras)
   if (clean.match(/^[A-Z]{6,8}$/)) {
-    console.log('✅ FOREX GENÉRICO detectado:', clean, '→ FOREX');
     return 'forex';
   }
   
-  console.log('⚠️ Nenhum match, retornando FOREX padrão');
-  return 'forex'; // Padrão
+  return 'forex';
 }
 
 function detectCurrency(market) {
@@ -94,15 +79,42 @@ function calculateTax(market, pnl) {
 function parseNumber(value) {
   if (value === null || value === undefined || value === '') return null;
   if (typeof value === 'number') return value;
-  const cleaned = String(value).trim().replace(/\s+/g, '').replace(/R\$/g, '');
-  const hasComma = cleaned.includes(',');
-  const hasDot = cleaned.includes('.');
-  let normalized = cleaned;
-  if (hasDot && hasComma) {
-    normalized = cleaned.lastIndexOf('.') > cleaned.lastIndexOf(',') ? cleaned.replace(/,/g, '') : cleaned.replace(/\./g, '').replace(',', '.');
-  } else if (hasComma) {
-    normalized = cleaned.replace(',', '.');
+  
+  const str = String(value).trim();
+  
+  let cleaned = str
+    .replace(/\s/g, '')
+    .replace(/[R$€£¥]/g, '')
+    .replace(/lotes?/gi, '')
+    .replace(/usd|brl|eur|gbp/gi, '');
+  
+  const dotCount = (cleaned.match(/\./g) || []).length;
+  const commaCount = (cleaned.match(/,/g) || []).length;
+  
+  let normalized;
+  
+  if (commaCount > 0 && dotCount === 0) {
+    normalized = cleaned.replace(/\./g, '').replace(',', '.');
   }
+  else if (dotCount > 0 && commaCount === 0) {
+    normalized = cleaned.replace(/,/g, '');
+  }
+  else if (dotCount > 0 && commaCount > 0) {
+    const lastDot = cleaned.lastIndexOf('.');
+    const lastComma = cleaned.lastIndexOf(',');
+    
+    if (lastDot > lastComma) {
+      normalized = cleaned.replace(/,/g, '').replace(/\./g, '');
+      const parts = str.match(/\.(\d+)$/);
+      if (parts) normalized = normalized.slice(0, -parts[1].length) + '.' + parts[1];
+    } else {
+      normalized = cleaned.replace(/,/g, '');
+    }
+  }
+  else {
+    normalized = cleaned;
+  }
+  
   const num = parseFloat(normalized);
   return isNaN(num) ? null : num;
 }
@@ -110,21 +122,39 @@ function parseNumber(value) {
 function parseDate(value) {
   if (!value) return null;
   if (value instanceof Date) return value.toISOString().split('T')[0];
+  
   const str = String(value).trim();
   
-  // Formato MT5: "2025.04.21 02:45:07"
-  if (str.match(/^\d{4}\.\d{2}\.\d{2}/)) {
+  if (str.match(/\d{4}\.\d{2}\.\d{2}/)) {
     const parts = str.split(' ')[0].split('.');
     return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
   }
   
-  // ISO: "2025-04-21"
-  if (str.match(/^\d{4}-\d{2}-\d{2}/)) return str.split('T')[0];
+  if (str.match(/\d{4}-\d{2}-\d{2}/)) {
+    return str.split('T')[0];
+  }
   
-  // BR: "21/04/2025"
-  if (str.match(/^\d{2}\/\d{2}\/\d{4}/)) {
+  if (str.match(/\d{2}\/\d{2}\/\d{4}/)) {
     const parts = str.split('/');
     return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+  }
+  
+  if (str.match(/\d{1,2}\s+[A-Za-z]{3}\s+\d{4}/)) {
+    const monthMap = {
+      'jan': '01', 'fev': '02', 'mar': '03', 'abr': '04',
+      'mai': '05', 'jun': '06', 'jul': '07', 'ago': '08',
+      'set': '09', 'out': '10', 'nov': '11', 'dez': '12',
+      'feb': '02', 'apr': '04', 'may': '05', 'aug': '08',
+      'sep': '09', 'oct': '10', 'dec': '12'
+    };
+    
+    const parts = str.split(' ');
+    const day = parts[0].padStart(2, '0');
+    const monthAbbr = parts[1].toLowerCase();
+    const year = parts[2];
+    const month = monthMap[monthAbbr] || '01';
+    
+    return `${year}-${month}-${day}`;
   }
   
   return null;
@@ -141,39 +171,42 @@ export function parseUniversalTrade(row, headers) {
   );
   
   const getValue = (field, columnIndex) => {
-    // Se columnIndex for fornecido, use diretamente
     if (columnIndex !== undefined && row[columnIndex]) {
       return row[columnIndex];
     }
     
     const aliases = FIELD_ALIASES[field] || [];
+    
     for (const alias of aliases) {
       const cleanAlias = alias.toLowerCase().replace(/\s+/g, '_');
       const index = normalized.findIndex(h => h.includes(cleanAlias));
-      if (index !== -1 && row[index]) return row[index];
+      
+      if (index !== -1 && row[index]) {
+        return row[index];
+      }
     }
+    
     return null;
   };
   
-  // MT5 tem 2 colunas "Horário": entrada (índice 0) e saída (índice 8)
+  const asset = getValue('asset');
+  
   const entryDateCol = normalized[0] && normalized[0].includes('horario') ? 0 : undefined;
   const exitDateCol = normalized[8] && normalized[8].includes('horario') ? 8 : undefined;
   
-  const asset = getValue('asset');
   const entryDate = entryDateCol !== undefined ? parseDate(row[entryDateCol]) : parseDate(getValue('date'));
   const pnl = parseNumber(getValue('pnl'));
   
-  if (!asset || !entryDate || pnl === null) return null;
+  if (!asset || !entryDate || pnl === null) {
+    return null;
+  }
   
-  // ✅ FORÇA O MARKET ENVIADO PELO EA (se vier)
   let market = getValue('market') ? getValue('market').toLowerCase() : null;
   
-  // ✅ CONVERTE "crypto" → "forex"
   if (market === 'crypto') {
     market = 'forex';
   }
   
-  // Se não vier market, detecta pelo asset
   if (!market) {
     market = detectMarket(asset);
   }
@@ -199,23 +232,152 @@ export function parseUniversalTrade(row, headers) {
   };
 }
 
+/**
+ * ✅ FUNÇÃO CORRIGIDA PARA LER ARQUIVOS MT5 (XLSX) E CTRADER (CSV)
+ * Detecta automaticamente o tipo de arquivo pela assinatura binária
+ */
 async function readFileData(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
+    
     reader.onload = (e) => {
       try {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
+        let data = new Uint8Array(e.target.result);
+        
+        // ✅ REMOVER BOM UTF-8 se presente (0xEF 0xBB 0xBF)
+        if (data.length >= 3 && data[0] === 0xEF && data[1] === 0xBB && data[2] === 0xBF) {
+          console.log('🔧 BOM UTF-8 detectado e removido');
+          data = data.slice(3);
+        }
+        
+        // ✅ DETECTAR TIPO DE ARQUIVO
+        // XLSX começa com "PK" (0x50 0x4B) = arquivo ZIP comprimido
+        const isXLSX = data.length >= 2 && data[0] === 0x50 && data[1] === 0x4B;
+        
+        let workbook;
+        
+        if (isXLSX) {
+          // ✅ XLSX BINÁRIO (MT5) - ler direto do ArrayBuffer
+          console.log('📊 Arquivo XLSX detectado (MT5)');
+          workbook = XLSX.read(data, { 
+            type: 'array',
+            raw: false,
+            codepage: 65001, // UTF-8
+            cellDates: true,
+            dateNF: 'yyyy.mm.dd'
+          });
+        } else {
+          // ✅ CSV/TEXTO (cTrader) - decodificar e ler como string
+          console.log('📄 Arquivo CSV/Texto detectado (cTrader)');
+          const decoder = new TextDecoder('utf-8');
+          const textContent = decoder.decode(data);
+          
+          workbook = XLSX.read(textContent, { 
+            type: 'string',
+            raw: false,
+            codepage: 65001,
+            FS: ',', // Field separator = vírgula
+            dateNF: 'dd/mm/yyyy'
+          });
+        }
+        
+        // Ler a primeira planilha
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
+        
+        // Converter para JSON
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { 
+          header: 1, // Retorna arrays ao invés de objetos
+          defval: '', // Valor padrão para células vazias
+          raw: false, // Não retornar valores raw (converte datas, números, etc)
+          blankrows: false // Ignorar linhas completamente em branco
+        });
+        
+        console.log(`✅ Arquivo lido com sucesso: ${jsonData.length} linhas`);
         resolve(jsonData);
+        
       } catch (error) {
-        reject(new Error('Erro ao ler arquivo'));
+        console.error('❌ Erro ao ler arquivo:', error);
+        reject(new Error('Erro ao ler arquivo: ' + error.message));
       }
     };
+    
     reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
+    
+    // ✅ SEMPRE usar readAsArrayBuffer para detectar corretamente o tipo
     reader.readAsArrayBuffer(file);
   });
+}
+
+/**
+ * ✅ FUNÇÃO CORRIGIDA PARA DETECTAR HEADERS
+ * Agora detecta corretamente headers MT5 que aparecem APÓS linhas de metadados
+ */
+function findHeaderRow(data) {
+  if (!data || data.length < 2) return -1;
+  
+  for (let i = 0; i < Math.min(data.length, 30); i++) {
+    const row = data[i];
+    const firstCell = String(row[0] || '').toLowerCase();
+    
+    // Ignorar linhas vazias ou com apenas 1 célula preenchida
+    const nonEmptyCells = row.filter(c => c && String(c).trim() !== '').length;
+    if (nonEmptyCells <= 1) {
+      continue;
+    }
+    
+    // Normalizar texto da linha para busca
+    const rowText = row.join('|').toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    
+    // ✅ NOVA DETECÇÃO: Linha que contém múltiplos campos conhecidos
+    const headerKeywords = [
+      'horario', 'time', 'hora',
+      'position', 'ticket', 'order',
+      'ativo', 'symbol', 'simbolo', 'asset',
+      'tipo', 'type', 'direction',
+      'volume', 'quantidade', 'quantity',
+      'profit', 'resultado', 'pnl', 'lucro'
+    ];
+    
+    const keywordMatches = headerKeywords.filter(keyword => 
+      rowText.includes(keyword)
+    ).length;
+    
+    // Se encontrou 3+ keywords de header, é muito provável que seja o header
+    if (keywordMatches >= 3) {
+      console.log(`✅ Header detectado na linha ${i + 1} (${keywordMatches} keywords)`);
+      return i;
+    }
+    
+    // ✅ FALLBACK: Detectar seção "Posições" seguida de header na próxima linha
+    if (firstCell.includes('posicoes') || firstCell.includes('posições') || firstCell.includes('position')) {
+      // Verificar se a próxima linha tem headers
+      if (i + 1 < data.length) {
+        const nextRow = data[i + 1];
+        const nextRowText = nextRow.join('|').toLowerCase();
+        
+        if (nextRowText.includes('horario') || nextRowText.includes('time') || 
+            nextRowText.includes('ativo') || nextRowText.includes('symbol')) {
+          console.log(`✅ Header detectado na linha ${i + 2} (após seção "Posições")`);
+          return i + 1;
+        }
+      }
+    }
+  }
+  
+  // ✅ ÚLTIMO FALLBACK: MT5 com dados diretos (sem headers explícitos)
+  const firstRow = data[0];
+  if (firstRow && firstRow.length >= 5) {
+    const firstCell = String(firstRow[0] || '');
+    // MT5 começa com data: "2025.07.29 00:06:23"
+    if (firstCell.match(/^\d{4}\.\d{2}\.\d{2}/)) {
+      console.log('⚠️ MT5 sem headers explícitos detectado - usando headers padrão');
+      return -1; // Sinaliza que precisa inserir headers
+    }
+  }
+  
+  return -1; // Não encontrou headers
 }
 
 export async function parseTradesFile(fileOrData, existingTrades = []) {
@@ -226,42 +388,67 @@ export async function parseTradesFile(fileOrData, existingTrades = []) {
   
   if (!data || data.length < 2) throw new Error('Arquivo vazio');
   
-  // Procurar linha com "Posições"
-  let startIndex = 0;
-  for (let i = 0; i < Math.min(data.length, 20); i++) {
-    const cell = String(data[i][0] || '').toLowerCase();
-    if (cell.includes('posicoes') || cell.includes('posições') || cell.includes('position')) {
-      startIndex = i + 1; // Headers na próxima linha
-      break;
+  // ✅ USAR NOVA FUNÇÃO DE DETECÇÃO
+  let startIndex = findHeaderRow(data);
+  
+  // ✅ FALLBACK: MT5 sem headers (apenas dados)
+  if (startIndex === -1) {
+    const firstRow = data[0];
+    if (firstRow && firstRow.length >= 5) {
+      const firstCell = String(firstRow[0] || '');
+      // MT5 começa com data: "2025.07.29 00:06:23" ou similar
+      if (firstCell.match(/^\d{4}\.\d{2}\.\d{2}/) || firstCell.match(/^\d{2}\/\d{2}\/\d{4}/)) {
+        console.log('🔧 Inserindo headers padrão MT5');
+        // Headers MT5 padrão (posições/ordens)
+        const mt5Headers = [
+          'Horário', 'Position', 'Ativo', 'Tipo', 'Volume', 
+          'Preço', 'S/L', 'T/P', 'Horário', 'Estado', 
+          'Comentário', 'Comissão', 'Swap', 'Resultado'
+        ];
+        data.unshift(mt5Headers);
+        startIndex = 0;
+      }
     }
   }
   
+  if (startIndex === -1) {
+    console.error('❌ Headers não encontrados. Primeiras 10 linhas:', data.slice(0, 10));
+    throw new Error('Formato de arquivo não reconhecido - headers não encontrados');
+  }
+  
   if (startIndex >= data.length - 1) {
-    throw new Error('Formato de arquivo não reconhecido');
+    throw new Error('Arquivo sem dados de trades');
   }
   
   const headers = data[startIndex];
+  console.log('📋 Headers encontrados:', headers);
   
-  // Debug
-  console.log('🔍 Headers encontrados:', headers);
-  console.log('🔍 Primeira linha de dados:', data[startIndex + 1]);
-  
+  // ✅ PROCESSAR LINHAS DE DADOS
   for (let i = startIndex + 1; i < data.length; i++) {
     const row = data[i];
+    
+    // Ignorar linhas completamente vazias
     if (!row || row.every(c => !c)) continue;
     
-    // Parar em "Ordens" ou "Ofertas"
+    // ✅ PARAR em seções como "Ordens", "Orders", "Ofertas", "Total"
     const cell = String(row[0] || '').toLowerCase();
-    if (cell.includes('ordens') || cell.includes('orders') || cell.includes('ofertas')) break;
+    if (cell.includes('ordens') || cell.includes('orders') || 
+        cell.includes('ofertas') || cell.includes('total') ||
+        cell.includes('resumo') || cell.includes('summary')) {
+      console.log(`🛑 Fim da seção de trades na linha ${i + 1}: "${row[0]}"`);
+      break;
+    }
     
     try {
       const trade = parseUniversalTrade(row, headers);
       if (trade) {
+        // Verificar duplicatas
         const isDup = existingTrades.some(e => 
           e.asset === trade.asset && 
           e.date === trade.date && 
           Math.abs(e.pnl - trade.pnl) < 0.01
         );
+        
         if (isDup) {
           duplicates.push(trade);
         } else {
@@ -270,12 +457,18 @@ export async function parseTradesFile(fileOrData, existingTrades = []) {
       }
     } catch (error) {
       errors.push({ line: i + 1, error: error.message });
+      console.warn(`⚠️ Erro ao processar linha ${i + 1}:`, error.message);
     }
   }
   
-  console.log(`✅ ${trades.length} trades válidos | ⚠️ ${duplicates.length} duplicados | ❌ ${errors.length} erros`);
+  console.log(`✅ Processamento concluído: ${trades.length} trades, ${duplicates.length} duplicatas, ${errors.length} erros`);
   
-  return { trades, errors, duplicates, total: data.length - startIndex - 1 };
+  return { 
+    trades, 
+    errors, 
+    duplicates, 
+    total: data.length - startIndex - 1 
+  };
 }
 
 export function validateTrades(trades, existingTrades = []) {
