@@ -32,8 +32,9 @@ const normalizeMarket = (market) => {
 };
 
 /**
- * Buscar prejuízo acumulado de um mercado até determinado período
+ * 🎯 CORRIGIDO: Buscar prejuízo acumulado de um mercado até determinado período
  */
+// src/services/taxHistory.js
 export const getAccumulatedLoss = async (userId, market, period) => {
   try {
     const normalizedMarket = normalizeMarket(market);
@@ -45,31 +46,56 @@ export const getAccumulatedLoss = async (userId, market, period) => {
       'taxHistory'
     );
 
-    // Buscar histórico do mesmo mercado antes do período atual
     const q = query(
       taxHistoryRef,
-      where('market', '==', normalizedMarket),
-      where('period', '<', period),
-      orderBy('period', 'desc')
+      where('market', '==', normalizedMarket)
     );
 
     const snapshot = await getDocs(q);
 
     if (snapshot.empty) {
-      return 0; // Sem prejuízo acumulado
+      console.log(`🔍 Nenhum histórico anterior encontrado para ${normalizedMarket}`);
+      return 0;
     }
 
-    // Pegar o mais recente
-    const lastRecord = snapshot.docs[0].data();
+    // ✅ CORRIGIDO: Filtrar e ORDENAR CORRETAMENTE
+    const previousRecords = snapshot.docs
+      .map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+      .filter(record => record.period < period)  // Somente períodos anteriores
+      .sort((a, b) => b.period.localeCompare(a.period));  // ✅ ORDEM DECRESCENTE (mais recente primeiro)
+
+    if (previousRecords.length === 0) {
+      console.log(`📊 ${normalizedMarket} - Primeiro período, sem prejuízo anterior`);
+      return 0;
+    }
+
+    console.log(`🔍 Períodos anteriores encontrados para ${normalizedMarket}:`, 
+      previousRecords.map(r => r.period));
+
+    // Pegar o mais recente (primeiro da lista após ordenação)
+    const lastRecord = previousRecords[0];
     
-    // Se tem prejuízo acumulado negativo, retornar
-    if (lastRecord.accumulatedLoss < 0) {
-      return lastRecord.accumulatedLoss;
+    console.log(`📊 ${normalizedMarket} - Último registro:`, {
+      period: lastRecord.period,
+      accumulatedLoss: lastRecord.accumulatedLoss,
+      consolidatedPnL: lastRecord.consolidatedPnL
+    });
+
+    const accumulatedLoss = lastRecord.accumulatedLoss || 0;
+
+    if (accumulatedLoss < 0) {
+      console.log(`💰 ${normalizedMarket} - Prejuízo acumulado: ${accumulatedLoss}`);
+      return accumulatedLoss;
+    } else {
+      console.log(`✅ ${normalizedMarket} - Sem prejuízo acumulado (zerado no período anterior)`);
+      return 0;
     }
 
-    return 0;
   } catch (error) {
-    console.error('Erro ao buscar prejuízo acumulado:', error);
+    console.error('❌ Erro ao buscar prejuízo acumulado:', error);
     return 0;
   }
 };
@@ -80,7 +106,7 @@ export const getAccumulatedLoss = async (userId, market, period) => {
 export const saveTaxHistory = async (userId, taxData) => {
   try {
     const normalizedMarket = normalizeMarket(taxData.market);
-    const periodId = `${taxData.period}_${normalizedMarket}`; // ✅ UNDERSCORE
+    const periodId = `${taxData.period}_${normalizedMarket}`;
     
     const taxHistoryRef = doc(
       db,
@@ -90,9 +116,17 @@ export const saveTaxHistory = async (userId, taxData) => {
       periodId
     );
 
+    console.log(`💾 Salvando histórico fiscal: ${periodId}`, {
+      consolidatedPnL: taxData.consolidatedPnL,
+      previousLoss: taxData.previousLoss,
+      compensatedAmount: taxData.compensatedAmount,
+      accumulatedLoss: taxData.accumulatedLoss,
+      taxableAmount: taxData.taxableAmount
+    });
+
     await setDoc(taxHistoryRef, {
       ...taxData,
-      market: normalizedMarket, // Garante que o market salvo também está normalizado
+      market: normalizedMarket,
       userId,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
@@ -100,7 +134,7 @@ export const saveTaxHistory = async (userId, taxData) => {
 
     return { success: true };
   } catch (error) {
-    console.error('Erro ao salvar histórico fiscal:', error);
+    console.error('❌ Erro ao salvar histórico fiscal:', error);
     return { success: false, error: error.message };
   }
 };
@@ -117,20 +151,24 @@ export const getUserTaxHistory = async (userId, options = {}) => {
       'taxHistory'
     );
 
-    let q = query(taxHistoryRef, orderBy('period', 'desc'));
+    let q;
 
     // Filtrar por mercado se especificado
     if (options.market) {
       const normalizedMarket = normalizeMarket(options.market);
-      q = query(taxHistoryRef, where('market', '==', normalizedMarket), orderBy('period', 'desc'));
+      q = query(taxHistoryRef, where('market', '==', normalizedMarket));
+    } else {
+      q = query(taxHistoryRef);
     }
 
     const snapshot = await getDocs(q);
 
-    const history = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    const history = snapshot.docs
+      .map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+      .sort((a, b) => b.period.localeCompare(a.period)); // Ordenar por período decrescente
 
     return { success: true, data: history };
   } catch (error) {
@@ -147,9 +185,8 @@ export const recordCompensation = async (userId, compensationData) => {
     const { fromPeriod, toPeriod, market, amount } = compensationData;
     
     const normalizedMarket = normalizeMarket(market);
-    
-    // ✅ CORRIGIDO: Usar underscore e market normalizado
     const fromPeriodId = `${fromPeriod}_${normalizedMarket}`;
+    
     const fromRef = doc(
       db,
       'artifacts/trade-journal-public/users',
@@ -170,6 +207,8 @@ export const recordCompensation = async (userId, compensationData) => {
         date: new Date().toISOString()
       });
 
+      console.log(`📝 Registrando compensação: ${amount} de ${fromPeriod} para ${toPeriod}`);
+
       await setDoc(fromRef, {
         ...data,
         compensatedFrom,
@@ -179,7 +218,7 @@ export const recordCompensation = async (userId, compensationData) => {
 
     return { success: true };
   } catch (error) {
-    console.error('Erro ao registrar compensação:', error);
+    console.error('❌ Erro ao registrar compensação:', error);
     return { success: false, error: error.message };
   }
 };
@@ -198,7 +237,7 @@ export const getTotalUncompensatedLoss = async (userId, market) => {
     let totalLoss = 0;
 
     data.forEach(record => {
-      if (record.accumulatedLoss < 0) {
+      if (record.accumulatedLoss && record.accumulatedLoss < 0) {
         // Calcular quanto já foi compensado
         const compensated = (record.compensatedFrom || [])
           .reduce((sum, comp) => sum + comp.amount, 0);

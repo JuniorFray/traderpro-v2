@@ -4,7 +4,7 @@
 import { collection, getDocs, writeBatch, doc, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { calculatePeriodTax } from '../utils/taxes/taxCalculator';
-import { TAX_RULES } from '../utils/taxes/taxRules'; // ✅ CORRIGIDO: caminho relativo
+import { TAX_RULES } from '../utils/taxes/taxRules';
 
 /**
  * 🎯 Normalizar nome do mercado para garantir consistência
@@ -95,12 +95,26 @@ export const recalculateAllTaxHistory = async (userId) => {
 
     console.log(`📅 ${Object.keys(tradesByPeriodAndMarket).length} períodos únicos identificados`);
 
-    // 4️⃣ Recalcular impostos para cada período/mercado
+    // ✅ CORRIGIDO: Ordenar períodos CRONOLOGICAMENTE antes de processar
+    const sortedKeys = Object.keys(tradesByPeriodAndMarket).sort((a, b) => {
+      // Extrair apenas a parte do período (YYYY-MM) antes do underscore
+      const periodA = a.split('_')[0]; // Ex: '2024-01'
+      const periodB = b.split('_')[0]; // Ex: '2024-02'
+      
+      // Ordenar cronologicamente (crescente)
+      return periodA.localeCompare(periodB);
+    });
+
+    console.log('📅 Ordem de processamento:', sortedKeys.slice(0, 10)); // Mostra os 10 primeiros
+
+    // 4️⃣ Recalcular impostos NA ORDEM CRONOLÓGICA
     const batch = writeBatch(db);
     let batchCount = 0;
     const maxBatchSize = 500;
 
-    for (const [key, data] of Object.entries(tradesByPeriodAndMarket)) {
+    // ✅ Usar array ordenado ao invés de Object.entries()
+    for (const key of sortedKeys) {
+      const data = tradesByPeriodAndMarket[key];
       const taxInfo = await calculatePeriodTax(data.trades, data.market, data.period, userId);
 
       if (taxInfo) {
@@ -127,14 +141,14 @@ export const recalculateAllTaxHistory = async (userId) => {
       await batch.commit();
     }
 
-    console.log(`✅ ${Object.keys(tradesByPeriodAndMarket).length} registros fiscais criados`);
+    console.log(`✅ ${sortedKeys.length} registros fiscais criados`);
 
     return {
       success: true,
       message: `Histórico fiscal recalculado com sucesso!`,
       stats: {
         trades: trades.length,
-        periods: Object.keys(tradesByPeriodAndMarket).length,
+        periods: sortedKeys.length,
         deleted: taxHistorySnapshot.size
       }
     };
@@ -173,9 +187,12 @@ export const recalculateSpecificPeriods = async (userId, periods, markets) => {
     // 🎯 NORMALIZAR mercados
     const normalizedMarkets = markets.map(m => normalizeMarket(m));
 
+    // ✅ Ordenar períodos cronologicamente
+    const sortedPeriods = [...periods].sort((a, b) => a.localeCompare(b));
+
     // 🎯 Deletar documentos antigos ANTES de criar novos (evita duplicatas)
     const deletePromises = [];
-    for (const period of periods) {
+    for (const period of sortedPeriods) {
       for (const market of normalizedMarkets) {
         const docId = generateTaxDocId(period, market);
         const docRef = doc(taxHistoryRef, docId);
@@ -184,11 +201,11 @@ export const recalculateSpecificPeriods = async (userId, periods, markets) => {
     }
     await Promise.all(deletePromises);
 
-    // 🎯 Criar novos documentos
+    // 🎯 Criar novos documentos NA ORDEM CRONOLÓGICA
     const batch = writeBatch(db);
     let hasData = false;
 
-    for (const period of periods) {
+    for (const period of sortedPeriods) {
       for (const market of normalizedMarkets) {
         // Filtrar trades do período/mercado
         const periodTrades = trades.filter(trade => {
