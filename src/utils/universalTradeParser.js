@@ -2,20 +2,22 @@ import * as XLSX from 'xlsx';
 
 const FIELD_ALIASES = {
   asset: ['ativo', 'asset', 'simbolo', 'symbol', 'instrument', 'par', 'pair'],
-  date: ['data', 'date', 'time', 'datetime', 'horario', 'hora_de_fecho', 'closing_time'],
+  date: ['data', 'date', 'time', 'datetime', 'horario', 'hora_de_fecho', 'closing_time', 'tempo_de_atualizacao'],
   type: ['type', 'tipo', 'direction', 'direcao', 'direção_de_abertura', 'opening_direction', 'lado'],
   market: ['mercado', 'market', 'type', 'categoria'],
   currency: ['moeda', 'currency'],
-  quantity: ['quantidade', 'quantity', 'volume', 'lotes', 'lots', 'size', 'quantidade_de_fecho', 'closing_quantity'],
-  entryPrice: ['precoentrada', 'entryprice', 'entrada', 'entry', 'openprice', 'preco', 'preço_de_entrada', 'opening_price'],
-  exitPrice: ['precosaida', 'exitprice', 'saida', 'exit', 'closeprice', 'preço_de_fecho', 'closing_price'],
+  quantity: ['quantidade', 'quantity', 'volume', 'lotes', 'lots', 'size', 'quantidade_de_fecho', 'closing_quantity', 'qtd._preenchida', 'qtde'],
+  entryPrice: ['precoentrada', 'entryprice', 'entrada', 'entry', 'openprice', 'preco', 'preço_de_entrada', 'opening_price', 'preco_medio'],
+  exitPrice: ['precosaida', 'exitprice', 'saida', 'exit', 'closeprice', 'preço_de_fecho', 'closing_price', 'preco_medio'],
   entryTime: ['horaentrada', 'entrytime'],
   exitTime: ['horasaida', 'exittime'],
-  pnl: ['resultado', 'pnl', 'profit', 'lucro', 'gain', 'liquidos', 'líquidos', 'net_profit', 'gross_profit'],
+  pnl: ['resultado', 'pnl', 'profit', 'lucro', 'gain', 'liquidos', 'líquidos', 'net_profit', 'gross_profit', 'closed_p&l', 'net_closed_p&l'],
   commission: ['corretagem', 'commission', 'taxas', 'fees', 'custos', 'comissao'],
   swap: ['swap', 'rollover', 'overnight'],
   strategy: ['estrategia', 'strategy', 'setup'],
-  notes: ['observacoes', 'notes', 'comentarios', 'comments']
+  notes: ['observacoes', 'notes', 'comentarios', 'comments'],
+  positionId: ['position_id', 'positionid', 'id_posicao'],
+  status: ['status', 'estado', 'state']
 };
 
 function detectMarket(asset) {
@@ -233,6 +235,112 @@ export function parseUniversalTrade(row, headers) {
 }
 
 /**
+ * ✅ FUNÇÃO PARA AGRUPAR ORDENS DA TICKMILL POR POSITION ID
+ * Tickmill exporta cada ordem individualmente (abertura, stop, take profit)
+ * Esta função consolida todas as ordens de uma mesma posição em um único trade
+ */
+function groupTickmillOrders(data, headers) {
+  console.log('🔄 Agrupando ordens Tickmill por Position ID...');
+  
+  const normalized = headers.map(h => 
+    String(h).toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, '_')
+  );
+  
+  // Encontrar índices das colunas importantes
+  const posIdIdx = normalized.findIndex(h => h.includes('position_id'));
+  const statusIdx = normalized.findIndex(h => h.includes('status'));
+  const pnlIdx = normalized.findIndex(h => h.includes('closed_p&l'));
+  const typeIdx = normalized.findIndex(h => h.includes('tipo'));
+  const sideIdx = normalized.findIndex(h => h.includes('lado'));
+  
+  if (posIdIdx === -1) {
+    console.log('⚠️ Não é arquivo Tickmill (Position ID não encontrado)');
+    return null;
+  }
+  
+  // Agrupar ordens por Position ID
+  const positionsMap = new Map();
+  
+  for (const row of data) {
+    const posId = String(row[posIdIdx] || '').trim();
+    const status = String(row[statusIdx] || '').trim();
+    
+    // Ignorar ordens sem Position ID ou não executadas
+    if (!posId || status !== 'Executado') continue;
+    
+    if (!positionsMap.has(posId)) {
+      positionsMap.set(posId, []);
+    }
+    
+    positionsMap.get(posId).push(row);
+  }
+  
+  console.log(`📊 ${positionsMap.size} posições únicas encontradas`);
+  
+  // Consolidar cada posição em um único trade
+  const consolidatedRows = [];
+  
+  for (const [posId, orders] of positionsMap.entries()) {
+    // Encontrar ordem de abertura (primeira ordem com preço médio)
+    const openOrder = orders.find(order => {
+      const type = String(order[typeIdx] || '').toLowerCase();
+      return type.includes('mercado') || type.includes('limite') || type.includes('stop');
+    });
+    
+    // Encontrar ordem de fechamento (ordem com Closed P&L preenchido)
+    const closeOrder = orders.find(order => {
+      const pnl = String(order[pnlIdx] || '').trim();
+      return pnl && pnl !== '0.0' && pnl !== '';
+    });
+    
+    if (!openOrder || !closeOrder) {
+      console.warn(`⚠️ Posição ${posId} incompleta (sem abertura ou fechamento)`);
+      continue;
+    }
+    
+    // Criar linha consolidada mesclando abertura e fechamento
+    const consolidatedRow = [...openOrder];
+    
+    // Sobrescrever campos do fechamento
+    if (pnlIdx !== -1 && closeOrder[pnlIdx]) {
+      consolidatedRow[pnlIdx] = closeOrder[pnlIdx];
+    }
+    
+    // Usar comissão da ordem de fechamento se existir
+    const commissionIdx = normalized.findIndex(h => h.includes('commission'));
+    if (commissionIdx !== -1) {
+      const openComm = parseNumber(openOrder[commissionIdx]) || 0;
+      const closeComm = parseNumber(closeOrder[commissionIdx]) || 0;
+      consolidatedRow[commissionIdx] = openComm + closeComm;
+    }
+    
+    // Usar data/hora da ordem de fechamento
+    const dateIdx = normalized.findIndex(h => h.includes('tempo_de_atualizacao'));
+    if (dateIdx !== -1 && closeOrder[dateIdx]) {
+      consolidatedRow[dateIdx] = closeOrder[dateIdx];
+    }
+    
+    consolidatedRows.push(consolidatedRow);
+  }
+  
+  console.log(`✅ ${consolidatedRows.length} trades consolidados`);
+  return consolidatedRows;
+}
+
+/**
+ * ✅ FUNÇÃO PARA DETECTAR SE É ARQUIVO TICKMILL
+ */
+function isTickmillFile(headers) {
+  const headerText = headers.join('|').toLowerCase();
+  return headerText.includes('position id') || 
+         headerText.includes('position_id') ||
+         (headerText.includes('lado') && headerText.includes('closed p&l'));
+}
+
+/**
  * ✅ FUNÇÃO CORRIGIDA PARA LER ARQUIVOS MT5 (XLSX) E CTRADER (CSV)
  * Detecta automaticamente o tipo de arquivo pela assinatura binária
  */
@@ -423,9 +531,24 @@ export async function parseTradesFile(fileOrData, existingTrades = []) {
   const headers = data[startIndex];
   console.log('📋 Headers encontrados:', headers);
   
+  // ✅ DETECTAR E PROCESSAR ARQUIVO TICKMILL
+  let dataRows = data.slice(startIndex + 1);
+  
+  if (isTickmillFile(headers)) {
+    console.log('🎯 Arquivo Tickmill detectado!');
+    const consolidatedRows = groupTickmillOrders(dataRows, headers);
+    
+    if (consolidatedRows && consolidatedRows.length > 0) {
+      dataRows = consolidatedRows;
+      console.log(`✅ Usando ${dataRows.length} trades consolidados da Tickmill`);
+    } else {
+      console.warn('⚠️ Falha ao consolidar ordens Tickmill, processando normalmente');
+    }
+  }
+  
   // ✅ PROCESSAR LINHAS DE DADOS
-  for (let i = startIndex + 1; i < data.length; i++) {
-    const row = data[i];
+  for (let i = 0; i < dataRows.length; i++) {
+    const row = dataRows[i];
     
     // Ignorar linhas completamente vazias
     if (!row || row.every(c => !c)) continue;
@@ -467,7 +590,7 @@ export async function parseTradesFile(fileOrData, existingTrades = []) {
     trades, 
     errors, 
     duplicates, 
-    total: data.length - startIndex - 1 
+    total: dataRows.length
   };
 }
 

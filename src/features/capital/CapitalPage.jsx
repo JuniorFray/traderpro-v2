@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+﻿﻿import { useState, useEffect } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { useTrades } from '../../hooks/useTrades'
 import { Card } from '../../components/ui/Card'
