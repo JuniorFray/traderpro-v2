@@ -19,12 +19,24 @@ export const TradeForm = ({ onSubmit, initialData = null, onCancel }) => {
     commission: initialData?.commission || '',
     swap: initialData?.swap || '',
     strategy: initialData?.strategy || '',
-    notes: initialData?.notes || ''
+    notes: initialData?.notes || '',
+    tradingviewLinks: initialData?.tradingviewLinks || ['', '', ''] // ✅ NOVO
   });
 
   // ✅ Estados para upload de imagens
   const [images, setImages] = useState(initialData?.images || []);
   const [tempTradeId] = useState(() => initialData?.id || `temp_${Date.now()}`);
+
+  // ✅ FUNÇÃO DE VALIDAÇÃO DO LINK - NOVA
+  const isValidTradingViewLink = (url) => {
+    if (!url) return true;
+    try {
+      const urlObj = new URL(url);
+      return urlObj.hostname.includes('tradingview.com');
+    } catch {
+      return false;
+    }
+  };
 
   // ✅ CORREÇÃO: Atualizar formulário quando initialData mudar
   useEffect(() => {
@@ -43,7 +55,8 @@ export const TradeForm = ({ onSubmit, initialData = null, onCancel }) => {
         commission: initialData.commission || initialData.fees || '',
         swap: initialData.swap || '',
         strategy: initialData.strategy || '',
-        notes: initialData.notes || ''
+        notes: initialData.notes || '',
+        tradingviewLinks: initialData.tradingviewLinks || ['', '', ''] // ✅ NOVO
       });
       setImages(initialData.images || []);
     }
@@ -60,6 +73,13 @@ export const TradeForm = ({ onSubmit, initialData = null, onCancel }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  // ✅ NOVA FUNÇÃO: Atualizar link específico
+  const handleLinkChange = (index, value) => {
+    const newLinks = [...formData.tradingviewLinks];
+    newLinks[index] = value;
+    setFormData(prev => ({ ...prev, tradingviewLinks: newLinks }));
   };
 
   const handleSubmit = (e) => {
@@ -276,6 +296,31 @@ export const TradeForm = ({ onSubmit, initialData = null, onCancel }) => {
           className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
           placeholder="Anotações sobre o trade..."
         />
+      </div>
+
+      {/* ✅ NOVO: 3 CAMPOS DE LINKS DO TRADINGVIEW */}
+      <div>
+        <label className="block text-sm font-medium text-zinc-300 mb-2">
+          Links do TradingView <span className="text-xs text-zinc-500">(até 3 links opcionais)</span>
+        </label>
+        <div className="space-y-2">
+          {[0, 1, 2].map((index) => (
+            <div key={index}>
+              <input
+                type="url"
+                value={formData.tradingviewLinks[index]}
+                onChange={(e) => handleLinkChange(index, e.target.value)}
+                className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                placeholder={`Link ${index + 1} - https://www.tradingview.com/chart/...`}
+              />
+              {formData.tradingviewLinks[index] && !isValidTradingViewLink(formData.tradingviewLinks[index]) && (
+                <p className="text-xs text-amber-400 mt-1">
+                  ⚠️ Link {index + 1} não parece ser do TradingView
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* ✅ Upload de Imagens */}
