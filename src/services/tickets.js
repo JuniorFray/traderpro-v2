@@ -1,19 +1,21 @@
 import { db } from './firebase'
-import { 
-  collection, 
-  addDoc, 
-  getDocs, 
+import {
+  collection,
+  addDoc,
+  getDocs,
   getDoc,
-  doc, 
-  updateDoc, 
-  query, 
-  where, 
+  doc,
+  updateDoc,
+  query,
+  where,
   orderBy,
   serverTimestamp,
   Timestamp
 } from 'firebase/firestore'
 
-// ==================== USUÁRIO ====================
+// ============================================
+// USUÁRIO
+// ============================================
 
 /**
  * Criar novo ticket
@@ -21,7 +23,7 @@ import {
 export const createTicket = async (ticketData) => {
   try {
     const ticketsRef = collection(db, 'tickets')
-    
+
     const ticket = {
       userId: ticketData.userId,
       userEmail: ticketData.userEmail,
@@ -31,16 +33,16 @@ export const createTicket = async (ticketData) => {
       priority: ticketData.priority || 'media',
       status: 'aberto',
       description: ticketData.description,
-      adminResponse: null,
+      messages: [], // ✅ Histórico de mensagens vazio inicialmente
       isPro: ticketData.isPro || false,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       respondedAt: null,
       respondedBy: null
     }
-    
+
     const docRef = await addDoc(ticketsRef, ticket)
-    
+
     return {
       id: docRef.id,
       ...ticket,
@@ -48,7 +50,7 @@ export const createTicket = async (ticketData) => {
       updatedAt: new Date()
     }
   } catch (error) {
-    console.error('Erro ao criar ticket:', error)
+    console.error('Erro ao criar ticket', error)
     throw error
   }
 }
@@ -60,22 +62,22 @@ export const getUserTickets = async (userId) => {
   try {
     const ticketsRef = collection(db, 'tickets')
     const q = query(
-      ticketsRef, 
+      ticketsRef,
       where('userId', '==', userId),
       orderBy('createdAt', 'desc')
     )
-    
+
     const snapshot = await getDocs(q)
-    
+
     return snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate(),
-      updatedAt: doc.data().updatedAt?.toDate(),
-      respondedAt: doc.data().respondedAt?.toDate()
+      createdAt: doc.data().createdAt?.toDate?.(),
+      updatedAt: doc.data().updatedAt?.toDate?.(),
+      respondedAt: doc.data().respondedAt?.toDate?.()
     }))
   } catch (error) {
-    console.error('Erro ao buscar tickets do usuário:', error)
+    console.error('Erro ao buscar tickets do usuário', error)
     throw error
   }
 }
@@ -87,20 +89,20 @@ export const getTicketById = async (ticketId) => {
   try {
     const ticketRef = doc(db, 'tickets', ticketId)
     const ticketSnap = await getDoc(ticketRef)
-    
+
     if (!ticketSnap.exists()) {
       throw new Error('Ticket não encontrado')
     }
-    
+
     return {
       id: ticketSnap.id,
       ...ticketSnap.data(),
-      createdAt: ticketSnap.data().createdAt?.toDate(),
-      updatedAt: ticketSnap.data().updatedAt?.toDate(),
-      respondedAt: ticketSnap.data().respondedAt?.toDate()
+      createdAt: ticketSnap.data().createdAt?.toDate?.(),
+      updatedAt: ticketSnap.data().updatedAt?.toDate?.(),
+      respondedAt: ticketSnap.data().respondedAt?.toDate?.()
     }
   } catch (error) {
-    console.error('Erro ao buscar ticket:', error)
+    console.error('Erro ao buscar ticket', error)
     throw error
   }
 }
@@ -111,20 +113,22 @@ export const getTicketById = async (ticketId) => {
 export const closeTicket = async (ticketId) => {
   try {
     const ticketRef = doc(db, 'tickets', ticketId)
-    
+
     await updateDoc(ticketRef, {
       status: 'fechado',
       updatedAt: serverTimestamp()
     })
-    
+
     return true
   } catch (error) {
-    console.error('Erro ao fechar ticket:', error)
+    console.error('Erro ao fechar ticket', error)
     throw error
   }
 }
 
-// ==================== ADMIN ====================
+// ============================================
+// ADMIN
+// ============================================
 
 /**
  * Buscar todos os tickets (admin)
@@ -133,38 +137,70 @@ export const getAllTickets = async (filters = {}) => {
   try {
     const ticketsRef = collection(db, 'tickets')
     let q = query(ticketsRef, orderBy('createdAt', 'desc'))
-    
+
     // Aplicar filtros opcionais
     if (filters.status) {
       q = query(ticketsRef, where('status', '==', filters.status), orderBy('createdAt', 'desc'))
     }
-    
+
     if (filters.priority) {
       q = query(ticketsRef, where('priority', '==', filters.priority), orderBy('createdAt', 'desc'))
     }
-    
+
     const snapshot = await getDocs(q)
-    
+
     return snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate(),
-      updatedAt: doc.data().updatedAt?.toDate(),
-      respondedAt: doc.data().respondedAt?.toDate()
+      createdAt: doc.data().createdAt?.toDate?.(),
+      updatedAt: doc.data().updatedAt?.toDate?.(),
+      respondedAt: doc.data().respondedAt?.toDate?.()
     }))
   } catch (error) {
-    console.error('Erro ao buscar tickets (admin):', error)
+    console.error('Erro ao buscar tickets (admin)', error)
     throw error
   }
 }
 
 /**
- * Responder ticket (admin)
+ * ✅ NOVA FUNÇÃO: Adicionar mensagem ao ticket (chat)
+ */
+export const addTicketMessage = async (ticketId, message) => {
+  try {
+    const ticketRef = doc(db, 'tickets', ticketId)
+    const ticketSnap = await getDoc(ticketRef)
+
+    if (!ticketSnap.exists()) {
+      throw new Error('Ticket não encontrado')
+    }
+
+    const currentMessages = ticketSnap.data().messages || []
+
+    await updateDoc(ticketRef, {
+      messages: [
+        ...currentMessages,
+        {
+          ...message,
+          createdAt: serverTimestamp()
+        }
+      ],
+      updatedAt: serverTimestamp()
+    })
+
+    return true
+  } catch (error) {
+    console.error('Erro ao adicionar mensagem', error)
+    throw error
+  }
+}
+
+/**
+ * Responder ticket (admin) - MÉTODO ANTIGO (mantido para compatibilidade)
  */
 export const respondTicket = async (ticketId, response, adminEmail) => {
   try {
     const ticketRef = doc(db, 'tickets', ticketId)
-    
+
     await updateDoc(ticketRef, {
       adminResponse: response,
       status: 'resolvido',
@@ -172,10 +208,10 @@ export const respondTicket = async (ticketId, response, adminEmail) => {
       respondedBy: adminEmail,
       updatedAt: serverTimestamp()
     })
-    
+
     return true
   } catch (error) {
-    console.error('Erro ao responder ticket:', error)
+    console.error('Erro ao responder ticket', error)
     throw error
   }
 }
@@ -186,33 +222,33 @@ export const respondTicket = async (ticketId, response, adminEmail) => {
 export const updateTicketStatus = async (ticketId, newStatus) => {
   try {
     const ticketRef = doc(db, 'tickets', ticketId)
-    
+
     await updateDoc(ticketRef, {
       status: newStatus,
       updatedAt: serverTimestamp()
     })
-    
+
     return true
   } catch (error) {
-    console.error('Erro ao atualizar status:', error)
+    console.error('Erro ao atualizar status', error)
     throw error
   }
 }
 
 /**
- * Buscar estatísticas de tickets (admin dashboard)
+ * Buscar estatísticas de tickets (admin - dashboard)
  */
 export const getTicketStats = async () => {
   try {
     const ticketsRef = collection(db, 'tickets')
     const snapshot = await getDocs(ticketsRef)
-    
+
     const tickets = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate()
+      createdAt: doc.data().createdAt?.toDate?.()
     }))
-    
+
     const stats = {
       total: tickets.length,
       abertos: tickets.filter(t => t.status === 'aberto').length,
@@ -225,10 +261,10 @@ export const getTicketStats = async () => {
         baixa: tickets.filter(t => t.priority === 'baixa' && t.status === 'aberto').length
       }
     }
-    
+
     return stats
   } catch (error) {
-    console.error('Erro ao buscar estatísticas:', error)
+    console.error('Erro ao buscar estatísticas', error)
     throw error
   }
 }

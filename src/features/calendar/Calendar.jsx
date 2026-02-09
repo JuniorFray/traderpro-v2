@@ -1,3 +1,5 @@
+// src/features/calendar/Calendar.jsx
+
 import { useTrades } from "../../hooks/useTrades"
 import { Card } from "../../components/ui/Card"
 import { formatCurrency } from "../../utils/metrics"
@@ -10,7 +12,7 @@ export const Calendar = () => {
   const [selectedDate, setSelectedDate] = useState(null)
   const [editingTrade, setEditingTrade] = useState(null)
   const [selectedTradeImages, setSelectedTradeImages] = useState(null)
-  const [selectedImageFullscreen, setSelectedImageFullscreen] = useState(null) // ✅ ADICIONADO
+  const [selectedImageFullscreen, setSelectedImageFullscreen] = useState(null)
 
   if (loading) {
     return <div className="text-center p-8 text-zinc-400">Carregando...</div>
@@ -198,6 +200,24 @@ export const Calendar = () => {
                         )}
                         {trade.notes && (
                           <div className="text-xs lg:text-sm text-zinc-500 mt-1">{trade.notes}</div>
+                        )}
+
+                        {/* ⭐ NOVO: Link do TradingView */}
+                        {trade.tradingviewLink && (
+                          <div className="flex items-center gap-2 text-sm mt-2 pt-2 border-t border-zinc-800">
+                            <svg className="w-4 h-4 text-blue-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                              <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+                            </svg>
+                            <a
+                              href={trade.tradingviewLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 hover:underline truncate"
+                            >
+                              Ver análise no TradingView
+                            </a>
+                          </div>
                         )}
                       </div>
                     </div>

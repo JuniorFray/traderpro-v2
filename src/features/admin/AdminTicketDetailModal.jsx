@@ -1,46 +1,58 @@
 import { useState } from 'react'
-import { respondTicket, updateTicketStatus } from '../../services/tickets'
+import { addTicketMessage, updateTicketStatus } from '../../services/tickets'
 
 export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate, user }) => {
   const [loading, setLoading] = useState(false)
-  const [response, setResponse] = useState(ticket.adminResponse || '')
-  const [newStatus, setNewStatus] = useState(ticket.status)
+  const [response, setResponse] = useState('')
 
   const handleRespond = async () => {
     if (!response.trim()) {
-      alert('Por favor, escreva uma resposta.')
-      return
-    }
-
-    if (!window.confirm('Enviar resposta e marcar como resolvido?')) {
+      alert('⚠️ Por favor, escreva uma resposta.')
       return
     }
 
     try {
       setLoading(true)
-      await respondTicket(ticket.id, response, user.email)
-      alert('✅ Resposta enviada com sucesso!')
-      onUpdate()
-      onClose()
+
+      // ✅ Adiciona mensagem sem fechar o ticket
+      await addTicketMessage(ticket.id, {
+        text: response,
+        isAdmin: true,
+        adminEmail: user.email,
+        createdAt: new Date()
+      })
+
+      alert('✅ Mensagem enviada com sucesso!')
+      setResponse('') // Limpa o campo
+      onUpdate() // Recarrega os tickets
     } catch (error) {
       console.error('Erro ao responder ticket:', error)
-      alert('❌ Erro ao enviar resposta. Tente novamente.')
+      alert('❌ Erro ao enviar mensagem. Tente novamente.')
     } finally {
       setLoading(false)
     }
   }
 
   const handleStatusChange = async (status) => {
-    if (!window.confirm(`Alterar status para "${status}"?`)) {
+    const statusLabels = {
+      aberto: 'Aberto',
+      resolvido: 'Resolvido',
+      fechado: 'Fechado'
+    }
+
+    if (!window.confirm(`Alterar status para "${statusLabels[status]}"?`)) {
       return
     }
 
     try {
       setLoading(true)
       await updateTicketStatus(ticket.id, status)
-      alert(`✅ Status alterado para "${status}"!`)
+      alert(`✅ Status alterado para "${statusLabels[status]}"!`)
       onUpdate()
-      onClose()
+
+      if (status === 'fechado') {
+        onClose()
+      }
     } catch (error) {
       console.error('Erro ao atualizar status:', error)
       alert('❌ Erro ao atualizar status. Tente novamente.')
@@ -99,19 +111,25 @@ export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate, user }) => {
     return labels[category] || category
   }
 
+  // ✅ CORREÇÃO: Verificação mais robusta do status
+  const isTicketClosed = ticket.status?.toLowerCase() === 'fechado'
+
+  // 🔍 DEBUG: Ver o status do ticket no console
+  console.log('📋 Ticket Debug:', {
+    id: ticket.id,
+    status: ticket.status,
+    isTicketClosed,
+    hasMessages: ticket.messages?.length || 0
+  })
+
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-zinc-900 rounded-xl border border-zinc-800 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-zinc-800 sticky top-0 bg-zinc-900 z-10">
           <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-bold text-white">Ticket #{ticket.id.slice(0, 8)}</h2>
+            <h2 className="text-2xl font-bold text-white">🎫 Ticket #{ticket.id.slice(0, 8)}</h2>
             {getStatusBadge(ticket.status)}
-            {ticket.isPro && (
-              <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs font-bold rounded-full">
-                👑 PRO
-              </span>
-            )}
           </div>
           <button
             onClick={onClose}
@@ -133,13 +151,7 @@ export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate, user }) => {
               </div>
               <div>
                 <span className="text-zinc-500">Nome:</span>
-                <span className="text-white font-semibold ml-2">{ticket.userName}</span>
-              </div>
-              <div>
-                <span className="text-zinc-500">Tipo:</span>
-                <span className="text-white font-semibold ml-2">
-                  {ticket.isPro ? '👑 PRO' : '🆓 Free'}
-                </span>
+                <span className="text-white font-semibold ml-2">{ticket.userName || 'N/A'}</span>
               </div>
               <div>
                 <span className="text-zinc-500">User ID:</span>
@@ -162,14 +174,8 @@ export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate, user }) => {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-zinc-500">Criado em:</span>
-                <span className="text-white">{ticket.createdAt?.toLocaleString('pt-BR')}</span>
+                <span className="text-white">{ticket.createdAt?.toDate?.().toLocaleString('pt-BR') || ticket.createdAt?.toLocaleString('pt-BR')}</span>
               </div>
-              {ticket.respondedAt && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-400">Respondido em:</span>
-                  <span className="text-sm text-white">{ticket.respondedAt?.toLocaleString('pt-BR')}</span>
-                </div>
-              )}
             </div>
           </div>
 
@@ -181,29 +187,61 @@ export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate, user }) => {
 
           {/* Descrição do Usuário */}
           <div>
-            <h3 className="text-sm font-semibold text-zinc-400 mb-2">💬 Mensagem do Usuário</h3>
+            <h3 className="text-sm font-semibold text-zinc-400 mb-2">💬 Mensagem Inicial do Usuário</h3>
             <div className="bg-zinc-800 rounded-lg p-4">
               <p className="text-white whitespace-pre-wrap">{ticket.description}</p>
             </div>
           </div>
 
-          {/* Resposta do Admin (se já existe) */}
+          {/* Resposta Antiga (se existir) */}
           {ticket.adminResponse && (
             <div>
               <h3 className="text-sm font-semibold text-green-400 mb-2 flex items-center gap-2">
-                ✅ Sua Resposta
-                <span className="text-xs text-zinc-500">({ticket.respondedAt?.toLocaleString('pt-BR')})</span>
+                ✅ Resposta Anterior (Modelo Antigo)
               </h3>
               <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
                 <p className="text-white whitespace-pre-wrap">{ticket.adminResponse}</p>
+                {ticket.respondedBy && (
+                  <p className="text-xs text-zinc-500 mt-2">Por: {ticket.respondedBy}</p>
+                )}
               </div>
             </div>
           )}
 
-          {/* Campo de Resposta (se ainda não respondeu) */}
-          {!ticket.adminResponse && (
+          {/* Histórico de Mensagens */}
+          {ticket.messages && ticket.messages.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-primary mb-2">✏️ Escrever Resposta</h3>
+              <h3 className="text-sm font-semibold text-zinc-400 mb-3">💬 Histórico da Conversa</h3>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {ticket.messages.map((msg, index) => (
+                  <div
+                    key={index}
+                    className={`rounded-lg p-4 ${
+                      msg.isAdmin
+                        ? 'bg-blue-500/10 border border-blue-500/30'
+                        : 'bg-zinc-800'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-white">
+                        {msg.isAdmin ? '👨‍💼 Admin' : '👤 Usuário'}
+                        {msg.adminEmail && <span className="text-zinc-400 ml-2">({msg.adminEmail})</span>}
+                      </span>
+                      <span className="text-xs text-zinc-500">
+                        {msg.createdAt?.toDate?.().toLocaleString('pt-BR') || 'Agora'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-white whitespace-pre-wrap">{msg.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ✅ CAMPO DE RESPOSTA - SEMPRE VISÍVEL (exceto se fechado) */}
+          {!isTicketClosed && (
+            <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-primary mb-2">✏️ Enviar Nova Mensagem</h3>
               <textarea
                 value={response}
                 onChange={(e) => setResponse(e.target.value)}
@@ -211,9 +249,28 @@ export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate, user }) => {
                 rows={6}
                 className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:border-primary focus:outline-none resize-none"
                 maxLength={2000}
+                disabled={loading}
               />
-              <p className="text-xs text-zinc-500 mt-1">
-                {response.length}/2000 caracteres
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-xs text-zinc-500">
+                  {response.length}/2000 caracteres
+                </p>
+                <button
+                  onClick={handleRespond}
+                  className="px-6 py-3 bg-primary hover:bg-primary/90 text-black font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={loading || !response.trim()}
+                >
+                  {loading ? '📤 Enviando...' : '📤 Enviar Mensagem'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Ticket Fechado */}
+          {isTicketClosed && (
+            <div className="bg-gray-500/10 border border-gray-500/30 rounded-lg p-4 text-center">
+              <p className="text-gray-400">
+                🔒 Ticket fechado. Para continuar a conversa, reabra o ticket.
               </p>
             </div>
           )}
@@ -248,29 +305,18 @@ export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate, user }) => {
                     className="px-4 py-2 bg-gray-500/20 hover:bg-gray-500/30 text-gray-400 font-bold rounded-lg transition-colors border border-gray-500/30"
                     disabled={loading}
                   >
-                    ⚫ Fechar
+                    ⚫ Fechar Ticket
                   </button>
                 )}
               </div>
             </div>
-
-            {/* Botão de Responder */}
-            {!ticket.adminResponse && (
-              <button
-                onClick={handleRespond}
-                className="w-full px-6 py-4 bg-primary hover:bg-primary/90 text-black font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={loading || !response.trim()}
-              >
-                {loading ? 'Enviando...' : '📤 Enviar Resposta e Marcar como Resolvido'}
-              </button>
-            )}
 
             {/* Botão Fechar Modal */}
             <button
               onClick={onClose}
               className="w-full px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-lg transition-colors"
             >
-              Fechar
+              Fechar Detalhes
             </button>
           </div>
         </div>

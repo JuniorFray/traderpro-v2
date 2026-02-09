@@ -14,7 +14,8 @@ export const AdminTicketsPage = ({ user }) => {
     loadData()
   }, [])
 
-  const loadData = async () => {
+  // ✅ CORREÇÃO: Função que recarrega E atualiza o ticket selecionado
+  const loadData = async (keepSelectedTicket = false) => {
     try {
       setLoading(true)
       const [allTickets, ticketStats] = await Promise.all([
@@ -23,6 +24,14 @@ export const AdminTicketsPage = ({ user }) => {
       ])
       setTickets(allTickets)
       setStats(ticketStats)
+
+      // ✅ Se há um ticket selecionado, atualiza ele com a versão mais recente
+      if (keepSelectedTicket && selectedTicket) {
+        const updatedTicket = allTickets.find(t => t.id === selectedTicket.id)
+        if (updatedTicket) {
+          setSelectedTicket(updatedTicket)
+        }
+      }
     } catch (error) {
       console.error('Erro ao carregar tickets:', error)
     } finally {
@@ -268,13 +277,13 @@ export const AdminTicketsPage = ({ user }) => {
         </div>
       )}
 
-      {/* Modal de Detalhes - ✅ PASSANDO USER */}
+      {/* Modal de Detalhes - ✅ PASSANDO loadData com keepSelectedTicket=true */}
       {selectedTicket && (
         <AdminTicketDetailModal
           ticket={selectedTicket}
           user={user}
           onClose={() => setSelectedTicket(null)}
-          onUpdate={loadData}
+          onUpdate={() => loadData(true)}
         />
       )}
     </div>
