@@ -5,6 +5,7 @@ import { Card } from '../../components/ui/Card'
 import { useNavigate } from 'react-router-dom'
 import { NotificationManager } from './NotificationManager'
 import { AdminTicketsPage } from './AdminTicketsPage'
+import { getUnreadTicketsCount } from '../../services/tickets' // ✅ ADICIONADO
 
 export const Admin = () => {
   const [user, setUser] = useState(null)
@@ -18,6 +19,9 @@ export const Admin = () => {
   // ✅ Estados para controle EA
   const [globalEAEnabled, setGlobalEAEnabled] = useState(true)
   const [loadingGlobal, setLoadingGlobal] = useState(false)
+  
+  // ✅ ADICIONADO: Estado para tickets não lidos
+  const [unreadTicketsCount, setUnreadTicketsCount] = useState(0)
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
@@ -31,18 +35,20 @@ export const Admin = () => {
   }, [navigate])
 
   useEffect(() => {
-  console.log('🚀 useEffect disparado!')
-  console.log('👤 user:', user)
-  console.log('❓ user existe?', !!user)
-  
-  if (user) {
-    loadUsers()
-    loadGlobalEAControl()
-  } else {
+    console.log('🚀 useEffect disparado!')
+    console.log('👤 user:', user)
+    console.log('❓ user existe?', !!user)
     
-  }
-}, [user])
-
+    if (user) {
+      loadUsers()
+      loadGlobalEAControl()
+      loadUnreadTickets() // ✅ ADICIONADO
+      
+      // ✅ ADICIONADO: Atualizar tickets a cada 30s
+      const interval = setInterval(loadUnreadTickets, 30000)
+      return () => clearInterval(interval)
+    }
+  }, [user])
 
   const loadUsers = async () => {
     try {
@@ -56,7 +62,6 @@ export const Admin = () => {
         ...doc.data()
       }))
 
-
       setUsers(usersList)
     } catch (error) {
       console.error('Erro:', error)
@@ -67,26 +72,24 @@ export const Admin = () => {
 
   // ✅ CORRIGIDO: Carregar controle global EA
   const loadGlobalEAControl = async () => {
-
     try {
-  setLoadingGlobal(true)
-  // ✅ CAMINHO CORRETO (SEM 'config' no final)
-  const controlDoc = await getDoc(doc(db, 'artifacts/trade-journal-public/settings/eaGlobalControl'))
-  
-  if (controlDoc.exists()) {
-    const data = controlDoc.data()
-    setGlobalEAEnabled(data.globalEnabled ?? true)
-    
-  } else {
-    // ✅ Fallback: criar documento se não existir
-    await setDoc(doc(db, 'artifacts/trade-journal-public/settings/eaGlobalControl'), {
-      globalEnabled: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      updatedBy: 'system-init'
-    })
-    setGlobalEAEnabled(true)
-  }
+      setLoadingGlobal(true)
+      // ✅ CAMINHO CORRETO (SEM 'config' no final)
+      const controlDoc = await getDoc(doc(db, 'artifacts/trade-journal-public/settings/eaGlobalControl'))
+      
+      if (controlDoc.exists()) {
+        const data = controlDoc.data()
+        setGlobalEAEnabled(data.globalEnabled ?? true)
+      } else {
+        // ✅ Fallback: criar documento se não existir
+        await setDoc(doc(db, 'artifacts/trade-journal-public/settings/eaGlobalControl'), {
+          globalEnabled: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          updatedBy: 'system-init'
+        })
+        setGlobalEAEnabled(true)
+      }
     } catch (error) {
       console.error('❌ Erro ao carregar controle global EA:', error)
       // Não bloqueia a interface se der erro
@@ -96,30 +99,40 @@ export const Admin = () => {
     }
   }
 
+  // ✅ ADICIONADO: Função para carregar tickets não lidos
+  const loadUnreadTickets = async () => {
+    try {
+      const count = await getUnreadTicketsCount()
+      setUnreadTicketsCount(count)
+    } catch (error) {
+      console.error('Erro ao carregar tickets não lidos:', error)
+    }
+  }
+
   // ✅ CORRIGIDO: Toggle EA global
   const toggleGlobalEA = async () => {
-  const action = globalEAEnabled ? 'DESATIVAR' : 'ATIVAR'
-  if (!confirm(`⚠️ ${action} EA para TODOS os usuários?\n\nIsso ${globalEAEnabled ? 'bloqueará' : 'desbloqueará'} o envio de trades do MT5.`)) return
+    const action = globalEAEnabled ? 'DESATIVAR' : 'ATIVAR'
+    if (!confirm(`⚠️ ${action} EA para TODOS os usuários?\n\nIsso ${globalEAEnabled ? 'bloqueará' : 'desbloqueará'} o envio de trades do MT5.`)) return
 
-  setLoadingGlobal(true)
-  try {
-    const newStatus = !globalEAEnabled
-    // ✅ CAMINHO CORRETO (SEM 'config')
-    await setDoc(doc(db, 'artifacts/trade-journal-public/settings/eaGlobalControl'), {
-      globalEnabled: newStatus,
-      updatedAt: new Date().toISOString(),
-      updatedBy: user?.email || 'admin'
-    }, { merge: true })
+    setLoadingGlobal(true)
+    try {
+      const newStatus = !globalEAEnabled
+      // ✅ CAMINHO CORRETO (SEM 'config')
+      await setDoc(doc(db, 'artifacts/trade-journal-public/settings/eaGlobalControl'), {
+        globalEnabled: newStatus,
+        updatedAt: new Date().toISOString(),
+        updatedBy: user?.email || 'admin'
+      }, { merge: true })
 
-    setGlobalEAEnabled(newStatus)
-    alert(`✅ EA ${newStatus ? 'ATIVADO' : 'DESATIVADO'} globalmente!`)
-  } catch (error) {
-    console.error('❌ Erro ao alternar EA:', error)
-    alert('❌ Erro: ' + error.message)
-  } finally {
-    setLoadingGlobal(false)
+      setGlobalEAEnabled(newStatus)
+      alert(`✅ EA ${newStatus ? 'ATIVADO' : 'DESATIVADO'} globalmente!`)
+    } catch (error) {
+      console.error('❌ Erro ao alternar EA:', error)
+      alert('❌ Erro: ' + error.message)
+    } finally {
+      setLoadingGlobal(false)
+    }
   }
-}
 
   // ✅ Toggle EA individual
   const toggleUserEA = async (userId, currentStatus) => {
@@ -326,13 +339,19 @@ export const Admin = () => {
           </button>
           <button
             onClick={() => setActiveTab('tickets')}
-            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors relative ${
               activeTab === 'tickets'
                 ? 'bg-white text-purple-900'
                 : 'text-white hover:bg-white/10'
             }`}
           >
             🎧 Suporte
+            {/* ✅ ADICIONADO: Badge de tickets não lidos */}
+            {unreadTicketsCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center border-2 border-purple-900">
+                {unreadTicketsCount}
+              </span>
+            )}
           </button>
         </div>
 
@@ -532,7 +551,7 @@ export const Admin = () => {
         ) : activeTab === 'notifications' ? (
           <NotificationManager />
         ) : (
-          <AdminTicketsPage user={user} />
+          <AdminTicketsPage user={user} onTicketUpdate={loadUnreadTickets} />
         )}
       </div>
     </div>

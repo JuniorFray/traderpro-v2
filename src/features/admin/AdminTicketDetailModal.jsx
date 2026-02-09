@@ -1,33 +1,70 @@
-import { useState } from 'react'
-import { addTicketMessage, updateTicketStatus } from '../../services/tickets'
+import { useState, useEffect } from 'react'
+import { doc, onSnapshot } from 'firebase/firestore'
+import { db } from '../../services/firebase'
+import { addTicketMessage, updateTicketStatus, markTicketAsRead } from '../../services/tickets' // ✅ ADICIONADO
 
 export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate, user }) => {
   const [loading, setLoading] = useState(false)
   const [response, setResponse] = useState('')
+  const [currentTicket, setCurrentTicket] = useState(ticket)
+
+  // ✅ ATUALIZAÇÃO EM TEMPO REAL - Escuta mudanças no ticket
+  useEffect(() => {
+    if (!ticket?.id) return
+
+    // ✅ ADICIONADO: Marcar como lido quando admin abre o ticket
+    markTicketAsRead(ticket.id, true) // true = isAdmin
+      .then(() => {
+        console.log('✅ Ticket marcado como lido pelo admin')
+        // Atualizar contador no parent
+        if (onUpdate) onUpdate()
+      })
+      .catch(err => console.error('Erro ao marcar ticket como lido:', err))
+
+    const ticketRef = doc(db, 'tickets', ticket.id)
+    const unsubscribe = onSnapshot(ticketRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setCurrentTicket({
+          id: snapshot.id,
+          ...snapshot.data(),
+          createdAt: snapshot.data().createdAt?.toDate?.(),
+          updatedAt: snapshot.data().updatedAt?.toDate?.(),
+        })
+      }
+    })
+
+    return () => unsubscribe()
+  }, [ticket?.id])
 
   const handleRespond = async () => {
     if (!response.trim()) {
-      alert('⚠️ Por favor, escreva uma resposta.')
+      alert('Por favor, escreva uma resposta.')
       return
     }
 
     try {
       setLoading(true)
 
-      // ✅ Adiciona mensagem sem fechar o ticket
-      await addTicketMessage(ticket.id, {
+      // ✅ Adiciona mensagem SEM fechar o ticket
+      await addTicketMessage(currentTicket.id, {
         text: response,
         isAdmin: true,
         adminEmail: user.email,
         createdAt: new Date()
       })
 
-      alert('✅ Mensagem enviada com sucesso!')
-      setResponse('') // Limpa o campo
-      onUpdate() // Recarrega os tickets
+      // ✅ Limpa o campo para nova mensagem
+      setResponse('')
+      
+      // ✅ Notifica o parent para atualizar lista
+      if (onUpdate) onUpdate()
+
+      // ✅ Feedback visual
+      console.log('✅ Mensagem enviada com sucesso!')
+      
     } catch (error) {
       console.error('Erro ao responder ticket:', error)
-      alert('❌ Erro ao enviar mensagem. Tente novamente.')
+      alert('Erro ao enviar mensagem. Tente novamente.')
     } finally {
       setLoading(false)
     }
@@ -35,9 +72,9 @@ export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate, user }) => {
 
   const handleStatusChange = async (status) => {
     const statusLabels = {
-      aberto: 'Aberto',
-      resolvido: 'Resolvido',
-      fechado: 'Fechado'
+      'aberto': 'Aberto',
+      'resolvido': 'Resolvido',
+      'fechado': 'Fechado'
     }
 
     if (!window.confirm(`Alterar status para "${statusLabels[status]}"?`)) {
@@ -46,16 +83,19 @@ export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate, user }) => {
 
     try {
       setLoading(true)
-      await updateTicketStatus(ticket.id, status)
-      alert(`✅ Status alterado para "${statusLabels[status]}"!`)
-      onUpdate()
+      await updateTicketStatus(currentTicket.id, status)
+      alert(`Status alterado para "${statusLabels[status]}"!`)
+      
+      // ✅ Atualizar contador
+      if (onUpdate) onUpdate()
 
+      // Fecha modal apenas se fechar o ticket
       if (status === 'fechado') {
         onClose()
       }
     } catch (error) {
       console.error('Erro ao atualizar status:', error)
-      alert('❌ Erro ao atualizar status. Tente novamente.')
+      alert('Erro ao atualizar status. Tente novamente.')
     } finally {
       setLoading(false)
     }
@@ -63,15 +103,15 @@ export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate, user }) => {
 
   const getStatusBadge = (status) => {
     const styles = {
-      aberto: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-      resolvido: 'bg-green-500/20 text-green-400 border-green-500/30',
-      fechado: 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+      'aberto': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+      'resolvido': 'bg-green-500/20 text-green-400 border-green-500/30',
+      'fechado': 'bg-gray-500/20 text-gray-400 border-gray-500/30'
     }
 
     const labels = {
-      aberto: '🔵 Aberto',
-      resolvido: '✅ Resolvido',
-      fechado: '⚫ Fechado'
+      'aberto': '🔵 Aberto',
+      'resolvido': '✅ Resolvido',
+      'fechado': '🔒 Fechado'
     }
 
     return (
@@ -83,19 +123,19 @@ export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate, user }) => {
 
   const getPriorityBadge = (priority) => {
     const styles = {
-      alta: 'bg-red-500/20 text-red-400 border border-red-500/30',
-      media: 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30',
-      baixa: 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+      'alta': 'bg-red-500/20 text-red-400',
+      'media': 'bg-yellow-500/20 text-yellow-400',
+      'baixa': 'bg-gray-500/20 text-gray-400'
     }
 
     const labels = {
-      alta: '🔴 Alta',
-      media: '🟡 Média',
-      baixa: '⚪ Baixa'
+      'alta': '🔴 Alta',
+      'media': '🟡 Média',
+      'baixa': '⚪ Baixa'
     }
 
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${styles[priority]}`}>
+      <span className={`px-2 py-0.5 rounded text-xs font-semibold ${styles[priority]}`}>
         {labels[priority]}
       </span>
     )
@@ -103,24 +143,15 @@ export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate, user }) => {
 
   const getCategoryLabel = (category) => {
     const labels = {
-      bug: '🐛 Bug',
-      duvida: '❓ Dúvida',
-      sugestao: '💡 Sugestão',
-      outro: '📝 Outro'
+      'bug': '🐛 Bug',
+      'duvida': '❓ Dúvida',
+      'sugestao': '💡 Sugestão',
+      'outro': '📌 Outro'
     }
     return labels[category] || category
   }
 
-  // ✅ CORREÇÃO: Verificação mais robusta do status
-  const isTicketClosed = ticket.status?.toLowerCase() === 'fechado'
-
-  // 🔍 DEBUG: Ver o status do ticket no console
-  console.log('📋 Ticket Debug:', {
-    id: ticket.id,
-    status: ticket.status,
-    isTicketClosed,
-    hasMessages: ticket.messages?.length || 0
-  })
+  const isTicketClosed = currentTicket.status === 'fechado'
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -128,8 +159,8 @@ export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate, user }) => {
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-zinc-800 sticky top-0 bg-zinc-900 z-10">
           <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-bold text-white">🎫 Ticket #{ticket.id.slice(0, 8)}</h2>
-            {getStatusBadge(ticket.status)}
+            <h2 className="text-2xl font-bold text-white">🎫 Ticket #{currentTicket.id.slice(0, 8)}</h2>
+            {getStatusBadge(currentTicket.status)}
           </div>
           <button
             onClick={onClose}
@@ -147,15 +178,15 @@ export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate, user }) => {
             <div className="grid md:grid-cols-2 gap-3 text-sm">
               <div>
                 <span className="text-zinc-500">Email:</span>
-                <span className="text-white font-semibold ml-2">{ticket.userEmail}</span>
+                <span className="text-white font-semibold ml-2">{currentTicket.userEmail}</span>
               </div>
               <div>
                 <span className="text-zinc-500">Nome:</span>
-                <span className="text-white font-semibold ml-2">{ticket.userName || 'N/A'}</span>
+                <span className="text-white font-semibold ml-2">{currentTicket.userName || 'N/A'}</span>
               </div>
               <div>
                 <span className="text-zinc-500">User ID:</span>
-                <span className="text-white font-mono text-xs ml-2">{ticket.userId.slice(0, 12)}...</span>
+                <span className="text-white font-mono text-xs ml-2">{currentTicket.userId.slice(0, 12)}...</span>
               </div>
             </div>
           </div>
@@ -166,54 +197,39 @@ export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate, user }) => {
             <div className="space-y-2 text-sm">
               <div className="flex items-center justify-between">
                 <span className="text-zinc-500">Categoria:</span>
-                <span className="text-white font-semibold">{getCategoryLabel(ticket.category)}</span>
+                <span className="text-white font-semibold">{getCategoryLabel(currentTicket.category)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-zinc-500">Prioridade:</span>
-                {getPriorityBadge(ticket.priority)}
+                {getPriorityBadge(currentTicket.priority)}
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-zinc-500">Criado em:</span>
-                <span className="text-white">{ticket.createdAt?.toDate?.().toLocaleString('pt-BR') || ticket.createdAt?.toLocaleString('pt-BR')}</span>
+                <span className="text-white">{currentTicket.createdAt?.toLocaleString('pt-BR')}</span>
               </div>
             </div>
           </div>
 
           {/* Assunto */}
           <div>
-            <h3 className="text-sm font-semibold text-zinc-400 mb-2">📌 Assunto</h3>
-            <p className="text-lg font-bold text-white">{ticket.subject}</p>
+            <h3 className="text-sm font-semibold text-zinc-400 mb-2">📝 Assunto</h3>
+            <p className="text-lg font-bold text-white">{currentTicket.subject}</p>
           </div>
 
           {/* Descrição do Usuário */}
           <div>
             <h3 className="text-sm font-semibold text-zinc-400 mb-2">💬 Mensagem Inicial do Usuário</h3>
             <div className="bg-zinc-800 rounded-lg p-4">
-              <p className="text-white whitespace-pre-wrap">{ticket.description}</p>
+              <p className="text-white whitespace-pre-wrap">{currentTicket.description}</p>
             </div>
           </div>
 
-          {/* Resposta Antiga (se existir) */}
-          {ticket.adminResponse && (
-            <div>
-              <h3 className="text-sm font-semibold text-green-400 mb-2 flex items-center gap-2">
-                ✅ Resposta Anterior (Modelo Antigo)
-              </h3>
-              <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
-                <p className="text-white whitespace-pre-wrap">{ticket.adminResponse}</p>
-                {ticket.respondedBy && (
-                  <p className="text-xs text-zinc-500 mt-2">Por: {ticket.respondedBy}</p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Histórico de Mensagens */}
-          {ticket.messages && ticket.messages.length > 0 && (
+          {/* Histório de Mensagens */}
+          {currentTicket.messages && currentTicket.messages.length > 0 && (
             <div>
               <h3 className="text-sm font-semibold text-zinc-400 mb-3">💬 Histórico da Conversa</h3>
               <div className="space-y-3 max-h-96 overflow-y-auto">
-                {ticket.messages.map((msg, index) => (
+                {currentTicket.messages.map((msg, index) => (
                   <div
                     key={index}
                     className={`rounded-lg p-4 ${
@@ -224,11 +240,11 @@ export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate, user }) => {
                   >
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-bold text-white">
-                        {msg.isAdmin ? '👨‍💼 Admin' : '👤 Usuário'}
+                        {msg.isAdmin ? '🛡️ Admin' : '👤 Usuário'}
                         {msg.adminEmail && <span className="text-zinc-400 ml-2">({msg.adminEmail})</span>}
                       </span>
                       <span className="text-xs text-zinc-500">
-                        {msg.createdAt?.toDate?.().toLocaleString('pt-BR') || 'Agora'}
+                        {msg.createdAt?.toDate?.()?.toLocaleString('pt-BR') || 'Agora'}
                       </span>
                     </div>
                     <p className="text-sm text-white whitespace-pre-wrap">{msg.text}</p>
@@ -241,7 +257,7 @@ export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate, user }) => {
           {/* ✅ CAMPO DE RESPOSTA - SEMPRE VISÍVEL (exceto se fechado) */}
           {!isTicketClosed && (
             <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-primary mb-2">✏️ Enviar Nova Mensagem</h3>
+              <h3 className="text-sm font-semibold text-primary mb-2">✉️ Enviar Nova Mensagem</h3>
               <textarea
                 value={response}
                 onChange={(e) => setResponse(e.target.value)}
@@ -279,9 +295,9 @@ export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate, user }) => {
           <div className="flex flex-col gap-3 pt-4 border-t border-zinc-800">
             {/* Botões de Status */}
             <div>
-              <h3 className="text-sm font-semibold text-zinc-400 mb-2">🔄 Alterar Status</h3>
+              <h3 className="text-sm font-semibold text-zinc-400 mb-2">⚙️ Alterar Status</h3>
               <div className="flex flex-wrap gap-2">
-                {ticket.status !== 'aberto' && (
+                {currentTicket.status !== 'aberto' && (
                   <button
                     onClick={() => handleStatusChange('aberto')}
                     className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 font-bold rounded-lg transition-colors border border-blue-500/30"
@@ -290,7 +306,7 @@ export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate, user }) => {
                     🔵 Reabrir
                   </button>
                 )}
-                {ticket.status !== 'resolvido' && (
+                {currentTicket.status !== 'resolvido' && (
                   <button
                     onClick={() => handleStatusChange('resolvido')}
                     className="px-4 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 font-bold rounded-lg transition-colors border border-green-500/30"
@@ -299,13 +315,13 @@ export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate, user }) => {
                     ✅ Marcar como Resolvido
                   </button>
                 )}
-                {ticket.status !== 'fechado' && (
+                {currentTicket.status !== 'fechado' && (
                   <button
                     onClick={() => handleStatusChange('fechado')}
                     className="px-4 py-2 bg-gray-500/20 hover:bg-gray-500/30 text-gray-400 font-bold rounded-lg transition-colors border border-gray-500/30"
                     disabled={loading}
                   >
-                    ⚫ Fechar Ticket
+                    🔒 Fechar Ticket
                   </button>
                 )}
               </div>
@@ -316,7 +332,7 @@ export const AdminTicketDetailModal = ({ ticket, onClose, onUpdate, user }) => {
               onClick={onClose}
               className="w-full px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-lg transition-colors"
             >
-              Fechar Detalhes
+              ⬅️ Fechar Detalhes
             </button>
           </div>
         </div>

@@ -1,270 +1,176 @@
-import { db } from './firebase'
-import {
-  collection,
-  addDoc,
-  getDocs,
-  getDoc,
-  doc,
-  updateDoc,
-  query,
-  where,
+import { 
+  collection, 
+  addDoc, 
+  updateDoc, 
+  doc, 
+  getDocs, 
+  query, 
+  where, 
   orderBy,
-  serverTimestamp,
-  Timestamp
+  arrayUnion,
+  serverTimestamp
 } from 'firebase/firestore'
+import { db } from './firebase'
 
-// ============================================
-// USUÁRIO
-// ============================================
+const TICKETS_COLLECTION = 'tickets'
 
-/**
- * Criar novo ticket
- */
+// Criar novo ticket
 export const createTicket = async (ticketData) => {
   try {
-    const ticketsRef = collection(db, 'tickets')
-
-    const ticket = {
-      userId: ticketData.userId,
-      userEmail: ticketData.userEmail,
-      userName: ticketData.userName || ticketData.userEmail.split('@')[0],
-      subject: ticketData.subject,
-      category: ticketData.category || 'outro',
-      priority: ticketData.priority || 'media',
+    const ticketRef = await addDoc(collection(db, TICKETS_COLLECTION), {
+      ...ticketData,
       status: 'aberto',
-      description: ticketData.description,
-      messages: [], // ✅ Histórico de mensagens vazio inicialmente
-      isPro: ticketData.isPro || false,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      respondedAt: null,
-      respondedBy: null
-    }
-
-    const docRef = await addDoc(ticketsRef, ticket)
-
-    return {
-      id: docRef.id,
-      ...ticket,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }
-  } catch (error) {
-    console.error('Erro ao criar ticket', error)
-    throw error
-  }
-}
-
-/**
- * Buscar tickets do usuário
- */
-export const getUserTickets = async (userId) => {
-  try {
-    const ticketsRef = collection(db, 'tickets')
-    const q = query(
-      ticketsRef,
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc')
-    )
-
-    const snapshot = await getDocs(q)
-
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate?.(),
-      updatedAt: doc.data().updatedAt?.toDate?.(),
-      respondedAt: doc.data().respondedAt?.toDate?.()
-    }))
-  } catch (error) {
-    console.error('Erro ao buscar tickets do usuário', error)
-    throw error
-  }
-}
-
-/**
- * Buscar ticket específico
- */
-export const getTicketById = async (ticketId) => {
-  try {
-    const ticketRef = doc(db, 'tickets', ticketId)
-    const ticketSnap = await getDoc(ticketRef)
-
-    if (!ticketSnap.exists()) {
-      throw new Error('Ticket não encontrado')
-    }
-
-    return {
-      id: ticketSnap.id,
-      ...ticketSnap.data(),
-      createdAt: ticketSnap.data().createdAt?.toDate?.(),
-      updatedAt: ticketSnap.data().updatedAt?.toDate?.(),
-      respondedAt: ticketSnap.data().respondedAt?.toDate?.()
-    }
-  } catch (error) {
-    console.error('Erro ao buscar ticket', error)
-    throw error
-  }
-}
-
-/**
- * Fechar ticket (usuário)
- */
-export const closeTicket = async (ticketId) => {
-  try {
-    const ticketRef = doc(db, 'tickets', ticketId)
-
-    await updateDoc(ticketRef, {
-      status: 'fechado',
-      updatedAt: serverTimestamp()
+      messages: ticketData.messages || [],
+      unreadByUser: false,
+      unreadByAdmin: true, // Admin precisa ler ticket novo
+      lastMessageBy: 'user'
     })
-
-    return true
+    
+    return ticketRef.id
   } catch (error) {
-    console.error('Erro ao fechar ticket', error)
+    console.error('Erro ao criar ticket:', error)
     throw error
   }
 }
 
-// ============================================
-// ADMIN
-// ============================================
-
-/**
- * Buscar todos os tickets (admin)
- */
-export const getAllTickets = async (filters = {}) => {
-  try {
-    const ticketsRef = collection(db, 'tickets')
-    let q = query(ticketsRef, orderBy('createdAt', 'desc'))
-
-    // Aplicar filtros opcionais
-    if (filters.status) {
-      q = query(ticketsRef, where('status', '==', filters.status), orderBy('createdAt', 'desc'))
-    }
-
-    if (filters.priority) {
-      q = query(ticketsRef, where('priority', '==', filters.priority), orderBy('createdAt', 'desc'))
-    }
-
-    const snapshot = await getDocs(q)
-
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate?.(),
-      updatedAt: doc.data().updatedAt?.toDate?.(),
-      respondedAt: doc.data().respondedAt?.toDate?.()
-    }))
-  } catch (error) {
-    console.error('Erro ao buscar tickets (admin)', error)
-    throw error
-  }
-}
-
-/**
- * ✅ NOVA FUNÇÃO: Adicionar mensagem ao ticket (chat)
- */
+// Adicionar mensagem ao ticket
 export const addTicketMessage = async (ticketId, message) => {
   try {
-    const ticketRef = doc(db, 'tickets', ticketId)
-    const ticketSnap = await getDoc(ticketRef)
-
-    if (!ticketSnap.exists()) {
-      throw new Error('Ticket não encontrado')
-    }
-
-    const currentMessages = ticketSnap.data().messages || []
-
+    const ticketRef = doc(db, TICKETS_COLLECTION, ticketId)
+    
     await updateDoc(ticketRef, {
-      messages: [
-        ...currentMessages,
-        {
-          ...message,
-          createdAt: serverTimestamp()
-        }
-      ],
-      updatedAt: serverTimestamp()
+      messages: arrayUnion({
+        ...message,
+        createdAt: new Date()
+      }),
+      updatedAt: serverTimestamp(),
+      // Se admin responde, marca como não lido para user
+      // Se user responde, marca como não lido para admin
+      unreadByUser: message.isAdmin ? true : false,
+      unreadByAdmin: message.isAdmin ? false : true,
+      lastMessageBy: message.isAdmin ? 'admin' : 'user'
     })
-
-    return true
   } catch (error) {
-    console.error('Erro ao adicionar mensagem', error)
+    console.error('Erro ao adicionar mensagem:', error)
     throw error
   }
 }
 
-/**
- * Responder ticket (admin) - MÉTODO ANTIGO (mantido para compatibilidade)
- */
-export const respondTicket = async (ticketId, response, adminEmail) => {
+// Marcar ticket como lido (user ou admin)
+export const markTicketAsRead = async (ticketId, isAdmin) => {
   try {
-    const ticketRef = doc(db, 'tickets', ticketId)
-
+    const ticketRef = doc(db, TICKETS_COLLECTION, ticketId)
+    
     await updateDoc(ticketRef, {
-      adminResponse: response,
-      status: 'resolvido',
-      respondedAt: serverTimestamp(),
-      respondedBy: adminEmail,
-      updatedAt: serverTimestamp()
+      [isAdmin ? 'unreadByAdmin' : 'unreadByUser']: false
     })
-
-    return true
   } catch (error) {
-    console.error('Erro ao responder ticket', error)
+    console.error('Erro ao marcar como lido:', error)
     throw error
   }
 }
 
-/**
- * Atualizar status do ticket (admin)
- */
-export const updateTicketStatus = async (ticketId, newStatus) => {
+// Atualizar status do ticket
+export const updateTicketStatus = async (ticketId, status) => {
   try {
-    const ticketRef = doc(db, 'tickets', ticketId)
-
+    const ticketRef = doc(db, TICKETS_COLLECTION, ticketId)
+    
     await updateDoc(ticketRef, {
-      status: newStatus,
+      status,
       updatedAt: serverTimestamp()
     })
-
-    return true
   } catch (error) {
-    console.error('Erro ao atualizar status', error)
+    console.error('Erro ao atualizar status:', error)
     throw error
   }
 }
 
-/**
- * Buscar estatísticas de tickets (admin - dashboard)
- */
-export const getTicketStats = async () => {
+// Buscar tickets do usuário
+export const getUserTickets = async (userId) => {
   try {
-    const ticketsRef = collection(db, 'tickets')
-    const snapshot = await getDocs(ticketsRef)
-
-    const tickets = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate?.()
-    }))
-
-    const stats = {
-      total: tickets.length,
-      abertos: tickets.filter(t => t.status === 'aberto').length,
-      resolvidos: tickets.filter(t => t.status === 'resolvido').length,
-      fechados: tickets.filter(t => t.status === 'fechado').length,
-      aguardandoResposta: tickets.filter(t => t.status === 'aberto' && !t.adminResponse).length,
-      prioridade: {
-        alta: tickets.filter(t => t.priority === 'alta' && t.status === 'aberto').length,
-        media: tickets.filter(t => t.priority === 'media' && t.status === 'aberto').length,
-        baixa: tickets.filter(t => t.priority === 'baixa' && t.status === 'aberto').length
+    const q = query(
+      collection(db, TICKETS_COLLECTION),
+      where('userId', '==', userId),
+      orderBy('updatedAt', 'desc')
+    )
+    
+    const snapshot = await getDocs(q)
+    return snapshot.docs.map(doc => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate(),
+        updatedAt: data.updatedAt?.toDate(),
+        // ✅ Fallback para tickets antigos sem esses campos
+        unreadByUser: data.unreadByUser ?? false,
+        unreadByAdmin: data.unreadByAdmin ?? false
       }
-    }
-
-    return stats
+    })
   } catch (error) {
-    console.error('Erro ao buscar estatísticas', error)
+    console.error('Erro ao buscar tickets do usuário:', error)
     throw error
+  }
+}
+
+// Buscar todos os tickets (admin)
+export const getAllTickets = async () => {
+  try {
+    const q = query(
+      collection(db, TICKETS_COLLECTION),
+      orderBy('updatedAt', 'desc')
+    )
+    
+    const snapshot = await getDocs(q)
+    return snapshot.docs.map(doc => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate(),
+        updatedAt: data.updatedAt?.toDate(),
+        // ✅ Fallback para tickets antigos sem esses campos
+        unreadByUser: data.unreadByUser ?? false,
+        unreadByAdmin: data.unreadByAdmin ?? false
+      }
+    })
+  } catch (error) {
+    console.error('Erro ao buscar todos os tickets:', error)
+    throw error
+  }
+}
+
+// Contar tickets não lidos (admin)
+export const getUnreadTicketsCount = async () => {
+  try {
+    const q = query(
+      collection(db, TICKETS_COLLECTION),
+      where('unreadByAdmin', '==', true)
+    )
+    
+    const snapshot = await getDocs(q)
+    return snapshot.size
+  } catch (error) {
+    console.error('Erro ao contar tickets não lidos:', error)
+    return 0
+  }
+}
+
+// Contar tickets não lidos do usuário
+export const getUserUnreadTicketsCount = async (userId) => {
+  try {
+    const q = query(
+      collection(db, TICKETS_COLLECTION),
+      where('userId', '==', userId),
+      where('unreadByUser', '==', true)
+    )
+    
+    const snapshot = await getDocs(q)
+    return snapshot.size
+  } catch (error) {
+    console.error('Erro ao contar tickets não lidos do usuário:', error)
+    return 0
   }
 }

@@ -4,6 +4,7 @@ import { useAuth } from "../../features/auth/AuthContext"
 import { NotificationCenter } from "../notifications/NotificationCenter"
 import { NotificationPopup } from "../notifications/NotificationPopup"
 import { getUserNotifications, markNotificationAsRead, getUserNotificationStatus } from "../../services/notifications"
+import { getUserUnreadTicketsCount } from "../../services/tickets"
 
 // ✅ ROTAS RELATIVAS (sem barra no início)
 const menuItems = [
@@ -35,69 +36,84 @@ export const MainLayout = () => {
   const [unreadCount, setUnreadCount] = useState(0)
   const [popupNotifications, setPopupNotifications] = useState([])
   const [dismissedPopupIds, setDismissedPopupIds] = useState(new Set())
+  const [unreadTicketsCount, setUnreadTicketsCount] = useState(0)
 
   // ✅ Carregar IDs de popups já fechados do localStorage
-useEffect(() => {
-  const dismissed = localStorage.getItem('dismissedNotifications')
-  console.log('📂 localStorage raw:', dismissed) // Debug
-  
-  if (dismissed) {
-    try {
-      const parsed = JSON.parse(dismissed)
-      console.log('📂 IDs já fechados carregados:', parsed) // Debug
-      setDismissedPopupIds(new Set(parsed))
-    } catch (error) {
-      console.error('Erro ao carregar notificações fechadas:', error)
+  useEffect(() => {
+    const dismissed = localStorage.getItem('dismissedNotifications')
+    console.log('📂 localStorage raw:', dismissed) // Debug
+    
+    if (dismissed) {
+      try {
+        const parsed = JSON.parse(dismissed)
+        console.log('📂 IDs já fechados carregados:', parsed) // Debug
+        setDismissedPopupIds(new Set(parsed))
+      } catch (error) {
+        console.error('Erro ao carregar notificações fechadas:', error)
+      }
     }
-  }
-}, [])
+  }, [])
 
-
-  // ✅ Buscar notificações ao carregar
+  // ✅ Buscar notificações e tickets ao carregar
   useEffect(() => {
     if (user) {
       loadNotifications()
-      // Recarregar notificações a cada 30 segundos
-      const interval = setInterval(loadNotifications, 30000)
+      loadUnreadTickets() // ✅ ADICIONADO
+      
+      // Recarregar a cada 30 segundos
+      const interval = setInterval(() => {
+        loadNotifications()
+        loadUnreadTickets() // ✅ ADICIONADO
+      }, 30000)
+      
       return () => clearInterval(interval)
     }
   }, [user, isPro, dismissedPopupIds])
 
   const loadNotifications = async () => {
-  try {
-    const notifs = await getUserNotifications(user.uid, isPro)
-    const status = await getUserNotificationStatus(user.uid)
-    
-    setNotifications(notifs)
-    setReadStatus(status)
-    
-    // Contar não lidas
-    const unread = notifs.filter(n => !status[n.id]?.read).length
-    setUnreadCount(unread)
+    try {
+      const notifs = await getUserNotifications(user.uid, isPro)
+      const status = await getUserNotificationStatus(user.uid)
+      
+      setNotifications(notifs)
+      setReadStatus(status)
+      
+      // Contar não lidas
+      const unread = notifs.filter(n => !status[n.id]?.read).length
+      setUnreadCount(unread)
 
-    console.log('🔍 Notificações não lidas:', notifs.filter(n => !status[n.id]?.read).map(n => n.id))
-    console.log('🔍 IDs já fechados (Set):', [...dismissedPopupIds])
+      console.log('🔍 Notificações não lidas:', notifs.filter(n => !status[n.id]?.read).map(n => n.id))
+      console.log('🔍 IDs já fechados (Set):', [...dismissedPopupIds])
 
-    // ✅ Mostrar popup apenas para notificações não lidas e não fechadas pelo usuário
-    const newNotifications = notifs
-      .filter(n => {
-        const notRead = !status[n.id]?.read
-        const notDismissed = !dismissedPopupIds.has(n.id)
-        console.log(`🔍 ID ${n.id}: notRead=${notRead}, notDismissed=${notDismissed}`)
-        return notRead && notDismissed
-      })
-      .slice(0, 1) // Mostra apenas 1 por vez
+      // ✅ Mostrar popup apenas para notificações não lidas e não fechadas pelo usuário
+      const newNotifications = notifs
+        .filter(n => {
+          const notRead = !status[n.id]?.read
+          const notDismissed = !dismissedPopupIds.has(n.id)
+          console.log(`🔍 ID ${n.id}: notRead=${notRead}, notDismissed=${notDismissed}`)
+          return notRead && notDismissed
+        })
+        .slice(0, 1) // Mostra apenas 1 por vez
 
-    console.log('✅ Notificações para mostrar popup:', newNotifications.map(n => n.id))
+      console.log('✅ Notificações para mostrar popup:', newNotifications.map(n => n.id))
 
-    if (newNotifications.length > 0) {
-      setPopupNotifications(newNotifications)
+      if (newNotifications.length > 0) {
+        setPopupNotifications(newNotifications)
+      }
+    } catch (error) {
+      console.error('Erro ao carregar notificações:', error)
     }
-  } catch (error) {
-    console.error('Erro ao carregar notificações:', error)
   }
-}
 
+  // ✅ ADICIONADO: Função para carregar tickets não lidos
+  const loadUnreadTickets = async () => {
+    try {
+      const count = await getUserUnreadTicketsCount(user.uid)
+      setUnreadTicketsCount(count)
+    } catch (error) {
+      console.error('Erro ao carregar tickets não lidos:', error)
+    }
+  }
 
   const handleMarkAsRead = async (notificationId) => {
     try {
@@ -120,24 +136,23 @@ useEffect(() => {
   }
 
   // ✅ CORRIGIDO: Fechar popup sem marcar como lido
-const handleDismissPopup = (notificationId) => {
-  console.log('🔴 Fechando popup (X):', notificationId) // Debug
-  
-  // Adicionar aos fechados
-  const newDismissed = new Set(dismissedPopupIds)
-  newDismissed.add(notificationId)
-  setDismissedPopupIds(newDismissed)
-  
-  // Salvar no localStorage
-  const dismissedArray = [...newDismissed]
-  localStorage.setItem('dismissedNotifications', JSON.stringify(dismissedArray))
-  
-  console.log('💾 Salvo no localStorage:', dismissedArray) // Debug
-  
-  // Remover do array de popups
-  setPopupNotifications(prev => prev.filter(n => n.id !== notificationId))
-}
-
+  const handleDismissPopup = (notificationId) => {
+    console.log('🔴 Fechando popup (X):', notificationId) // Debug
+    
+    // Adicionar aos fechados
+    const newDismissed = new Set(dismissedPopupIds)
+    newDismissed.add(notificationId)
+    setDismissedPopupIds(newDismissed)
+    
+    // Salvar no localStorage
+    const dismissedArray = [...newDismissed]
+    localStorage.setItem('dismissedNotifications', JSON.stringify(dismissedArray))
+    
+    console.log('💾 Salvo no localStorage:', dismissedArray) // Debug
+    
+    // Remover do array de popups
+    setPopupNotifications(prev => prev.filter(n => n.id !== notificationId))
+  }
 
   const handleLogout = async () => {
     if (window.confirm("Deseja sair?")) {
@@ -214,7 +229,7 @@ const handleDismissPopup = (notificationId) => {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
+                className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors relative ${
                   isActive(item.path)
                     ? "bg-primary text-white"
                     : "text-zinc-400 hover:bg-zinc-800 hover:text-white"
@@ -222,6 +237,13 @@ const handleDismissPopup = (notificationId) => {
               >
                 <span className="text-xl">{item.icon}</span>
                 <span className="font-medium">{item.label}</span>
+                
+                {/* ✅ ADICIONADO: Badge de tickets não lidos */}
+                {item.path === 'support' && unreadTicketsCount > 0 && (
+                  <span className="absolute right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {unreadTicketsCount}
+                  </span>
+                )}
               </Link>
             ))}
           </nav>
@@ -258,7 +280,7 @@ const handleDismissPopup = (notificationId) => {
                 <button
                   key={item.path}
                   onClick={() => handleMenuClick(item.path)}
-                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-left ${
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-left relative ${
                     isActive(item.path)
                       ? "bg-primary text-white"
                       : "text-zinc-400 hover:bg-zinc-800 hover:text-white"
@@ -266,6 +288,13 @@ const handleDismissPopup = (notificationId) => {
                 >
                   <span className="text-xl">{item.icon}</span>
                   <span className="font-medium">{item.label}</span>
+                  
+                  {/* ✅ ADICIONADO: Badge de tickets não lidos (mobile) */}
+                  {item.path === 'support' && unreadTicketsCount > 0 && (
+                    <span className="absolute right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {unreadTicketsCount}
+                    </span>
+                  )}
                 </button>
               ))}
             </nav>

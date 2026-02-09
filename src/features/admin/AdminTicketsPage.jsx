@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { getAllTickets, getTicketStats } from '../../services/tickets'
+import { getAllTickets } from '../../services/tickets'
 import { AdminTicketDetailModal } from './AdminTicketDetailModal'
 
-export const AdminTicketsPage = ({ user }) => {
+export const AdminTicketsPage = ({ user, onTicketUpdate }) => { // ✅ ADICIONADO onTicketUpdate
   const [tickets, setTickets] = useState([])
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -14,16 +14,27 @@ export const AdminTicketsPage = ({ user }) => {
     loadData()
   }, [])
 
-  // ✅ CORREÇÃO: Função que recarrega E atualiza o ticket selecionado
+  // ✅ CORRIGIDO: Calcular stats localmente sem chamar função inexistente
   const loadData = async (keepSelectedTicket = false) => {
     try {
       setLoading(true)
-      const [allTickets, ticketStats] = await Promise.all([
-        getAllTickets(),
-        getTicketStats()
-      ])
+      const allTickets = await getAllTickets()
+      
       setTickets(allTickets)
-      setStats(ticketStats)
+      
+      // ✅ Calcular estatísticas manualmente
+      const calculatedStats = {
+        total: allTickets.length,
+        abertos: allTickets.filter(t => t.status === 'aberto').length,
+        aguardandoResposta: allTickets.filter(t => 
+          t.status === 'aberto' && 
+          (!t.messages || t.messages.length === 0 || t.messages[t.messages.length - 1]?.isAdmin === false)
+        ).length,
+        resolvidos: allTickets.filter(t => t.status === 'resolvido').length,
+        fechados: allTickets.filter(t => t.status === 'fechado').length
+      }
+      
+      setStats(calculatedStats)
 
       // ✅ Se há um ticket selecionado, atualiza ele com a versão mais recente
       if (keepSelectedTicket && selectedTicket) {
@@ -31,6 +42,11 @@ export const AdminTicketsPage = ({ user }) => {
         if (updatedTicket) {
           setSelectedTicket(updatedTicket)
         }
+      }
+      
+      // ✅ Atualizar contador no parent (Admin.jsx)
+      if (onTicketUpdate) {
+        onTicketUpdate()
       }
     } catch (error) {
       console.error('Erro ao carregar tickets:', error)
@@ -235,7 +251,7 @@ export const AdminTicketsPage = ({ user }) => {
                         <h3 className="text-lg font-bold text-white">
                           {ticket.subject}
                         </h3>
-                        {!ticket.adminResponse && ticket.status === 'aberto' && (
+                        {ticket.unreadByAdmin && (
                           <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs font-bold rounded-full border border-red-500/30 animate-pulse">
                             NOVO
                           </span>
@@ -255,10 +271,10 @@ export const AdminTicketsPage = ({ user }) => {
                         <span>📅 {ticket.createdAt?.toLocaleString('pt-BR')}</span>
                         <span>•</span>
                         <span>{getCategoryLabel(ticket.category)}</span>
-                        {ticket.adminResponse && (
+                        {ticket.messages && ticket.messages.length > 0 && (
                           <>
                             <span>•</span>
-                            <span className="text-green-400">✅ Respondido</span>
+                            <span className="text-green-400">💬 {ticket.messages.length} mensagens</span>
                           </>
                         )}
                       </div>
@@ -277,7 +293,7 @@ export const AdminTicketsPage = ({ user }) => {
         </div>
       )}
 
-      {/* Modal de Detalhes - ✅ PASSANDO loadData com keepSelectedTicket=true */}
+      {/* Modal de Detalhes */}
       {selectedTicket && (
         <AdminTicketDetailModal
           ticket={selectedTicket}
