@@ -1,19 +1,19 @@
 import * as XLSX from 'xlsx';
 
 const FIELD_ALIASES = {
-  asset: ['ativo', 'asset', 'simbolo', 'symbol', 'instrument', 'par', 'pair'],
-  date: ['data', 'date', 'time', 'datetime', 'horario', 'hora_de_fecho', 'closing_time', 'tempo_de_atualizacao'],
-  type: ['type', 'tipo', 'direction', 'direcao', 'direção_de_abertura', 'opening_direction', 'lado'],
+  asset: ['ativo', 'asset', 'simbolo', 'symbol', 'instrument', 'par', 'pair', 'market'],
+  date: ['data', 'date', 'time', 'datetime', 'horario', 'hora_de_fecho', 'closing_time', 'tempo_de_atualizacao', 'trade_time', 'date(utc)'],
+  type: ['type', 'tipo', 'direction', 'direcao', 'direção_de_abertura', 'opening_direction', 'lado', 'side'],
   market: ['mercado', 'market', 'type', 'categoria'],
-  currency: ['moeda', 'currency'],
-  quantity: ['quantidade', 'quantity', 'volume', 'lotes', 'lots', 'size', 'quantidade_de_fecho', 'closing_quantity', 'qtd._preenchida', 'qtde'],
-  entryPrice: ['precoentrada', 'entryprice', 'entrada', 'entry', 'openprice', 'preco', 'preço_de_entrada', 'opening_price', 'preco_medio'],
-  exitPrice: ['precosaida', 'exitprice', 'saida', 'exit', 'closeprice', 'preço_de_fecho', 'closing_price', 'preco_medio'],
+  currency: ['moeda', 'currency', 'quote_asset', 'fee_coin'],
+  quantity: ['quantidade', 'quantity', 'volume', 'lotes', 'lots', 'size', 'quantidade_de_fecho', 'closing_quantity', 'qtd._preenchida', 'qtde', 'order_quantity'],
+  entryPrice: ['precoentrada', 'entryprice', 'entrada', 'entry', 'openprice', 'preco', 'preço_de_entrada', 'opening_price', 'preco_medio', 'entry_price', 'price'],
+  exitPrice: ['precosaida', 'exitprice', 'saida', 'exit', 'closeprice', 'preço_de_fecho', 'closing_price', 'preco_medio', 'exit_price'],
   entryTime: ['horaentrada', 'entrytime'],
   exitTime: ['horasaida', 'exittime'],
-  pnl: ['resultado', 'pnl', 'profit', 'lucro', 'gain', 'liquidos', 'líquidos', 'net_profit', 'gross_profit', 'closed_p&l', 'net_closed_p&l'],
-  commission: ['corretagem', 'commission', 'taxas', 'fees', 'custos', 'comissao'],
-  swap: ['swap', 'rollover', 'overnight'],
+  pnl: ['resultado', 'pnl', 'profit', 'lucro', 'gain', 'liquidos', 'líquidos', 'net_profit', 'gross_profit', 'closed_p&l', 'net_closed_p&l', 'realized_profit', 'realized_p&l'],
+  commission: ['corretagem', 'commission', 'taxas', 'fees', 'custos', 'comissao', 'fee', 'opening_fee', 'closing_fee'],
+  swap: ['swap', 'rollover', 'overnight', 'funding_fee'],
   strategy: ['estrategia', 'strategy', 'setup'],
   notes: ['observacoes', 'notes', 'comentarios', 'comments'],
   positionId: ['position_id', 'positionid', 'id_posicao'],
@@ -53,6 +53,29 @@ function detectMarket(asset) {
   }
   
   return 'forex';
+}
+
+/**
+ * ✅ CONVERTE MOEDAS CRIPTO PARA MOEDAS FIAT EQUIVALENTES
+ */
+function normalizeCurrency(currency) {
+  if (!currency) return 'USD';
+  
+  const crypto2fiat = {
+    'USDT': 'USD',  // Tether
+    'USDC': 'USD',  // USD Coin
+    'BUSD': 'USD',  // Binance USD
+    'DAI': 'USD',   // Dai
+    'TUSD': 'USD',  // TrueUSD
+    'USDP': 'USD',  // Pax Dollar
+    'GUSD': 'USD',  // Gemini Dollar
+    'EURC': 'EUR',  // Euro Coin
+    'EURT': 'EUR',  // Euro Tether
+    'BRLT': 'BRL'   // BRL Tether
+  };
+  
+  const upperCurrency = String(currency).toUpperCase().trim();
+  return crypto2fiat[upperCurrency] || upperCurrency;
 }
 
 function detectCurrency(market) {
@@ -213,7 +236,22 @@ export function parseUniversalTrade(row, headers) {
     market = detectMarket(asset);
   }
   
-  const currency = getValue('currency') ? getValue('currency').toUpperCase() : detectCurrency(market);
+  // ✅ NORMALIZAR MOEDA (converter USDT → USD, etc)
+  let rawCurrency = getValue('currency') ? getValue('currency').toUpperCase() : detectCurrency(market);
+  const currency = normalizeCurrency(rawCurrency);
+  
+  // ✅ BYBIT: Somar opening_fee + closing_fee
+  let totalCommission = parseNumber(getValue('commission')) || 0;
+  
+  // Verificar se há opening_fee e closing_fee separados (Bybit)
+  const openingFeeIdx = normalized.findIndex(h => h.includes('opening_fee'));
+  const closingFeeIdx = normalized.findIndex(h => h.includes('closing_fee'));
+  
+  if (openingFeeIdx !== -1 && closingFeeIdx !== -1) {
+    const openingFee = parseNumber(row[openingFeeIdx]) || 0;
+    const closingFee = parseNumber(row[closingFeeIdx]) || 0;
+    totalCommission = openingFee + closingFee;
+  }
   
   return {
     asset,
@@ -226,7 +264,7 @@ export function parseUniversalTrade(row, headers) {
     entryTime: entryDateCol !== undefined ? String(row[entryDateCol]).split(' ')[1] || '' : getValue('entryTime') || '',
     exitTime: exitDateCol !== undefined ? String(row[exitDateCol]).split(' ')[1] || '' : getValue('exitTime') || '',
     pnl,
-    commission: parseNumber(getValue('commission')) || 0,
+    commission: totalCommission,
     swap: parseNumber(getValue('swap')) || 0,
     strategy: getValue('strategy') || '',
     notes: getValue('notes') || '',
@@ -338,6 +376,78 @@ function isTickmillFile(headers) {
   return headerText.includes('position id') || 
          headerText.includes('position_id') ||
          (headerText.includes('lado') && headerText.includes('closed p&l'));
+}
+
+/**
+ * ✅ FUNÇÃO PARA DETECTAR SE É ARQUIVO BINANCE
+ */
+function isBinanceFile(headers) {
+  const headerText = headers.join('|').toLowerCase();
+  return (headerText.includes('date(utc)') || headerText.includes('date (utc)')) && 
+         headerText.includes('realized profit') && 
+         headerText.includes('side');
+}
+
+/**
+ * ✅ FUNÇÃO PARA DETECTAR SE É ARQUIVO BYBIT
+ */
+function isBybitFile(headers) {
+  const headerText = headers.join('|').toLowerCase();
+  return headerText.includes('entry price') && 
+         headerText.includes('exit price') && 
+         headerText.includes('realized p&l');
+}
+
+/**
+ * ✅ FUNÇÃO PARA AGRUPAR ORDENS DA BINANCE
+ * Binance exporta cada ordem (BUY/SELL) individualmente
+ * Realized Profit só aparece na ordem de fechamento
+ */
+function groupBinanceOrders(data, headers) {
+  console.log('🔄 Agrupando ordens Binance...');
+  
+  const normalized = headers.map(h => 
+    String(h).toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, '_')
+      .replace(/[()]/g, '')
+  );
+  
+  // Encontrar índices das colunas
+  const symbolIdx = normalized.findIndex(h => h.includes('symbol'));
+  const sideIdx = normalized.findIndex(h => h.includes('side'));
+  const dateIdx = normalized.findIndex(h => h.includes('date'));
+  const pnlIdx = normalized.findIndex(h => h.includes('realized_profit'));
+  const priceIdx = normalized.findIndex(h => h.includes('price'));
+  const qtyIdx = normalized.findIndex(h => h.includes('quantity'));
+  
+  if (symbolIdx === -1 || sideIdx === -1) {
+    console.log('⚠️ Não é arquivo Binance válido');
+    return null;
+  }
+  
+  // Agrupar por símbolo e data (mesmo dia)
+  const tradesMap = new Map();
+  
+  for (const row of data) {
+    const symbol = String(row[symbolIdx] || '').trim();
+    const side = String(row[sideIdx] || '').toUpperCase();
+    const pnl = parseNumber(row[pnlIdx]);
+    
+    if (!symbol) continue;
+    
+    // Se tem P&L preenchido, é ordem de fechamento
+    if (pnl !== null && pnl !== 0) {
+      // Criar trade consolidado
+      const consolidatedRow = [...row];
+      tradesMap.set(`${symbol}_${tradesMap.size}`, consolidatedRow);
+    }
+  }
+  
+  const consolidatedRows = Array.from(tradesMap.values());
+  console.log(`✅ ${consolidatedRows.length} trades consolidados da Binance`);
+  return consolidatedRows;
 }
 
 /**
@@ -531,9 +641,10 @@ export async function parseTradesFile(fileOrData, existingTrades = []) {
   const headers = data[startIndex];
   console.log('📋 Headers encontrados:', headers);
   
-  // ✅ DETECTAR E PROCESSAR ARQUIVO TICKMILL
+  // ✅ DETECTAR E PROCESSAR ARQUIVOS ESPECIAIS
   let dataRows = data.slice(startIndex + 1);
   
+  // TICKMILL: Ordens agrupadas por Position ID
   if (isTickmillFile(headers)) {
     console.log('🎯 Arquivo Tickmill detectado!');
     const consolidatedRows = groupTickmillOrders(dataRows, headers);
@@ -544,6 +655,24 @@ export async function parseTradesFile(fileOrData, existingTrades = []) {
     } else {
       console.warn('⚠️ Falha ao consolidar ordens Tickmill, processando normalmente');
     }
+  }
+  
+  // BINANCE: Ordens BUY/SELL com Realized Profit
+  else if (isBinanceFile(headers)) {
+    console.log('🎯 Arquivo Binance detectado!');
+    const consolidatedRows = groupBinanceOrders(dataRows, headers);
+    
+    if (consolidatedRows && consolidatedRows.length > 0) {
+      dataRows = consolidatedRows;
+      console.log(`✅ Usando ${dataRows.length} trades consolidados da Binance`);
+    } else {
+      console.warn('⚠️ Falha ao consolidar ordens Binance, processando normalmente');
+    }
+  }
+  
+  // BYBIT: Já vem consolidado com Entry/Exit Price e Realized P&L
+  else if (isBybitFile(headers)) {
+    console.log('🎯 Arquivo Bybit detectado! (Trades já consolidados)');
   }
   
   // ✅ PROCESSAR LINHAS DE DADOS

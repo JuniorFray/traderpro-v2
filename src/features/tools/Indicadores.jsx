@@ -30,7 +30,7 @@ export const Indicadores = () => {
           </p>
           
           <a
-            href="https://drive.google.com/file/d/1bWK_E1DtluCsWikriZF3lT-eGid64p7n/view?usp=drive_link"
+            href="https://drive.google.com/file/d/1VKqN74CkBnfilpkvyTVOAaabvncvM3Ki/view?usp=drive_link"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-emerald-600 to-green-600 text-white font-bold rounded-xl hover:shadow-2xl hover:scale-105 transition-all shadow-lg"

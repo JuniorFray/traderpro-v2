@@ -233,6 +233,27 @@ const calculateSharpeRatio = (trades) => {
   return stdDev !== 0 ? (avgReturn / stdDev) * Math.sqrt(252) : 0;
 };
 
+// ✅ NORMALIZAR MOEDAS CRIPTO PARA FIAT
+const normalizeCurrency = (currency) => {
+  if (!currency) return 'USD';
+  
+  const crypto2fiat = {
+    'USDT': 'USD',  // Tether
+    'USDC': 'USD',  // USD Coin
+    'BUSD': 'USD',  // Binance USD
+    'DAI': 'USD',   // Dai
+    'TUSD': 'USD',  // TrueUSD
+    'USDP': 'USD',  // Pax Dollar
+    'GUSD': 'USD',  // Gemini Dollar
+    'EURC': 'EUR',  // Euro Coin
+    'EURT': 'EUR',  // Euro Tether
+    'BRLT': 'BRL'   // BRL Tether
+  };
+  
+  const upperCurrency = String(currency).toUpperCase().trim();
+  return crypto2fiat[upperCurrency] || upperCurrency;
+};
+
 // ✅ FUNÇÃO CORRIGIDA - ACEITA CURRENCY E MARKET
 export const formatCurrency = (value, currency, market) => {
   const numValue = typeof value === 'number' ? value : parseFloat(value) || 0;
@@ -249,6 +270,9 @@ export const formatCurrency = (value, currency, market) => {
   if (!finalCurrency) {
     finalCurrency = 'BRL';
   }
+  
+  // ✅ NORMALIZAR MOEDAS CRIPTO (USDT → USD, etc)
+  finalCurrency = normalizeCurrency(finalCurrency);
   
   // Definir locale baseado na moeda
   const locale = finalCurrency === 'USD' ? 'en-US' : 'pt-BR';
