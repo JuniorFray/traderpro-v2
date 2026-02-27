@@ -1,7 +1,7 @@
 ﻿import { useState } from "react";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
-import { parseTradesFile, validateTrades } from "../../utils/universalTradeParser";
+import { parseTradesFile, validateTrades, batchTrades } from "../../utils/universalTradeParser";
 import { formatCurrency } from "../../utils/metrics";
 
 export const ImportMT5Modal = ({ onClose, onImport, existingTrades = [] }) => {
@@ -69,13 +69,26 @@ export const ImportMT5Modal = ({ onClose, onImport, existingTrades = [] }) => {
     setImportProgress({ current: 0, total: validation.validCount });
 
     try {
-      // ✅ CORRIGIDO: Passar array completo de uma vez
-      await onImport(validation.valid);
-      
-      setImportProgress({
-        current: validation.validCount,
-        total: validation.validCount
-      });
+      // ✅ DIVIDIR EM LOTES DE 100 TRADES
+      const batches = batchTrades(validation.valid, 100);
+      let imported = 0;
+
+      // ✅ IMPORTAR LOTE POR LOTE
+      for (let i = 0; i < batches.length; i++) {
+        const batch = batches[i];
+        
+        // Importar lote atual
+        await onImport(batch);
+        
+        // Atualizar progresso
+        imported += batch.length;
+        setImportProgress({ current: imported, total: validation.validCount });
+        
+        // Pequeno delay entre lotes (opcional)
+        if (i < batches.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      }
 
       // Fechar modal após sucesso
       setTimeout(() => {

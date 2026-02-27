@@ -1,8 +1,8 @@
 import * as XLSX from 'xlsx';
 
 const FIELD_ALIASES = {
-  asset: ['ativo', 'asset', 'simbolo', 'symbol', 'instrument', 'par', 'pair', 'market'],
-  date: ['data', 'date', 'time', 'datetime', 'horario', 'hora_de_fecho', 'closing_time', 'tempo_de_atualizacao', 'trade_time', 'date(utc)'],
+  asset: ['symbol', 'simbolo', 'ativo', 'asset', 'instrument', 'par', 'pair', 'market'],
+  date: ['data', 'date', 'time', 'datetime', 'horario', 'hora_de_fecho', 'closing_time', 'tempo_de_atualizacao', 'trade_time', 'date(utc)', 'time(utc)'],
   type: ['type', 'tipo', 'direction', 'direcao', 'direção_de_abertura', 'opening_direction', 'lado', 'side'],
   market: ['mercado', 'market', 'type', 'categoria'],
   currency: ['moeda', 'currency', 'quote_asset', 'fee_coin'],
@@ -111,7 +111,7 @@ function parseNumber(value) {
     .replace(/\s/g, '')
     .replace(/[R$€£¥]/g, '')
     .replace(/lotes?/gi, '')
-    .replace(/usd|brl|eur|gbp/gi, '');
+    .replace(/usd|brl|eur|gbp|usdt|usdc|busd/gi, ''); // Remove moedas
   
   const dotCount = (cleaned.match(/\./g) || []).length;
   const commaCount = (cleaned.match(/,/g) || []).length;
@@ -207,6 +207,14 @@ export function parseUniversalTrade(row, headers) {
       const index = normalized.findIndex(h => h.includes(cleanAlias));
       
       if (index !== -1 && row[index]) {
+        // ✅ Para asset, garantir que não é moeda (USDT, USD, etc)
+        if (field === 'asset') {
+          const value = String(row[index]).trim();
+          // Ignorar se for apenas uma moeda sem par
+          if (value.length <= 4 && ['USD', 'USDT', 'USDC', 'BRL', 'EUR'].includes(value.toUpperCase())) {
+            continue;
+          }
+        }
         return row[index];
       }
     }
@@ -383,9 +391,18 @@ function isTickmillFile(headers) {
  */
 function isBinanceFile(headers) {
   const headerText = headers.join('|').toLowerCase();
-  return (headerText.includes('date(utc)') || headerText.includes('date (utc)')) && 
-         headerText.includes('realized profit') && 
-         headerText.includes('side');
+  
+  // Binance Spot: Date(UTC) + Realized Profit + Side
+  const isSpot = (headerText.includes('date(utc)') || headerText.includes('date (utc)')) && 
+                 headerText.includes('realized profit') && 
+                 headerText.includes('side');
+  
+  // Binance Futures: Time(UTC) + Symbol + Position Side + Realized Profit
+  const isFutures = headerText.includes('time(utc)') && 
+                    headerText.includes('position side') && 
+                    headerText.includes('realized profit');
+  
+  return isSpot || isFutures;
 }
 
 /**
@@ -400,8 +417,8 @@ function isBybitFile(headers) {
 
 /**
  * ✅ FUNÇÃO PARA AGRUPAR ORDENS DA BINANCE
- * Binance exporta cada ordem (BUY/SELL) individualmente
- * Realized Profit só aparece na ordem de fechamento
+ * Binance Spot: exporta cada ordem (BUY/SELL) individualmente com Realized Profit
+ * Binance Futures: exporta múltiplas execuções com mesmo Order ID
  */
 function groupBinanceOrders(data, headers) {
   console.log('🔄 Agrupando ordens Binance...');
@@ -417,36 +434,75 @@ function groupBinanceOrders(data, headers) {
   // Encontrar índices das colunas
   const symbolIdx = normalized.findIndex(h => h.includes('symbol'));
   const sideIdx = normalized.findIndex(h => h.includes('side'));
-  const dateIdx = normalized.findIndex(h => h.includes('date'));
+  const dateIdx = normalized.findIndex(h => h.includes('date') || h.includes('time'));
   const pnlIdx = normalized.findIndex(h => h.includes('realized_profit'));
   const priceIdx = normalized.findIndex(h => h.includes('price'));
   const qtyIdx = normalized.findIndex(h => h.includes('quantity'));
+  const orderIdIdx = normalized.findIndex(h => h.includes('order_id'));
   
   if (symbolIdx === -1 || sideIdx === -1) {
     console.log('⚠️ Não é arquivo Binance válido');
     return null;
   }
   
-  // Agrupar por símbolo e data (mesmo dia)
+  // Se tem Order ID, agrupar por ele (Binance Futures)
+  if (orderIdIdx !== -1) {
+    const ordersMap = new Map();
+    
+    for (const row of data) {
+      const orderId = String(row[orderIdIdx] || '').trim();
+      const pnl = parseNumber(row[pnlIdx]);
+      
+      if (!orderId) continue;
+      
+      // Apenas ordens com P&L preenchido (fechamentos)
+      if (pnl !== null && pnl !== 0) {
+        if (!ordersMap.has(orderId)) {
+          ordersMap.set(orderId, []);
+        }
+        ordersMap.get(orderId).push(row);
+      }
+    }
+    
+    // Consolidar cada Order ID em um único trade
+    const consolidatedRows = [];
+    for (const [orderId, rows] of ordersMap.entries()) {
+      // Usar primeira linha como base e somar valores
+      const baseRow = [...rows[0]];
+      
+      // Somar P&L de todas as execuções
+      const totalPnl = rows.reduce((sum, row) => sum + (parseNumber(row[pnlIdx]) || 0), 0);
+      baseRow[pnlIdx] = totalPnl;
+      
+      // DEBUG: Verificar symbol
+      if (consolidatedRows.length < 3) {
+        console.log(`🔍 Order ${orderId}: Symbol="${baseRow[symbolIdx]}", P&L=${totalPnl}`);
+      }
+      
+      consolidatedRows.push(baseRow);
+    }
+    
+    console.log(`✅ ${consolidatedRows.length} trades consolidados da Binance Futures`);
+    return consolidatedRows;
+  }
+  
+  // Binance Spot: Agrupar apenas por P&L preenchido
   const tradesMap = new Map();
   
   for (const row of data) {
     const symbol = String(row[symbolIdx] || '').trim();
-    const side = String(row[sideIdx] || '').toUpperCase();
     const pnl = parseNumber(row[pnlIdx]);
     
     if (!symbol) continue;
     
     // Se tem P&L preenchido, é ordem de fechamento
     if (pnl !== null && pnl !== 0) {
-      // Criar trade consolidado
-      const consolidatedRow = [...row];
-      tradesMap.set(`${symbol}_${tradesMap.size}`, consolidatedRow);
+      tradesMap.set(`${symbol}_${tradesMap.size}`, row);
     }
   }
   
   const consolidatedRows = Array.from(tradesMap.values());
-  console.log(`✅ ${consolidatedRows.length} trades consolidados da Binance`);
+  console.log(`✅ ${consolidatedRows.length} trades consolidados da Binance Spot`);
   return consolidatedRows;
 }
 
@@ -761,4 +817,17 @@ export function validateTrades(trades, existingTrades = []) {
     duplicateCount: duplicates.length,
     total: trades.length
   };
+}
+
+/**
+ * ✅ DIVIDE TRADES EM LOTES PARA EVITAR TRANSAÇÕES GRANDES NO FIREBASE
+ * Firebase tem limite de ~500 documentos por transação
+ */
+export function batchTrades(trades, batchSize = 100) {
+  const batches = [];
+  for (let i = 0; i < trades.length; i += batchSize) {
+    batches.push(trades.slice(i, i + batchSize));
+  }
+  console.log(`📦 ${trades.length} trades divididos em ${batches.length} lotes de ${batchSize}`);
+  return batches;
 }
